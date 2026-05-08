@@ -41,7 +41,7 @@ dependencies:
   usage_stats: ^1.3.1
 
   # Charts (screen time visualisation)
-  fl_chart: ^1.2.0
+  fl_chart: ^1.0.0
 
   # Camera (snapshot capture on child device)
   camera: ^0.11.2+1
