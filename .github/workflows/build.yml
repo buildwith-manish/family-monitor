@@ -27,6 +27,7 @@ jobs:
         working-directory: family_monitor
         run: |
           sed -i 's/flutter_lints: .*/flutter_lints: ^3.0.0/' pubspec.yaml
+          sed -i 's/google_fonts: .*/google_fonts: ^6.2.1/' pubspec.yaml
 
       - name: Flutter pub get
         working-directory: family_monitor
