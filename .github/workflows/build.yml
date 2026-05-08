@@ -22,6 +22,12 @@ jobs:
           flutter-version: 3.29.0
           channel: stable
 
+
+      - name: Fix flutter_lints
+        working-directory: family_monitor
+        run: |
+          sed -i 's/flutter_lints: .*/flutter_lints: ^3.0.0/' pubspec.yaml
+
       - name: Flutter pub get
         working-directory: family_monitor
         run: flutter pub get
