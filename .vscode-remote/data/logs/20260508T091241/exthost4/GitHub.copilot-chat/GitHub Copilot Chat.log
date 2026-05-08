@@ -1,0 +1,35 @@
+2026-05-08 12:17:52.581 [info] [GitExtensionServiceImpl] Initializing Git extension service.
+2026-05-08 12:17:52.581 [info] [GitExtensionServiceImpl] Successfully activated the vscode.git extension.
+2026-05-08 12:17:52.581 [info] [GitExtensionServiceImpl] Enablement state of the vscode.git extension: true.
+2026-05-08 12:17:52.581 [info] [GitExtensionServiceImpl] Successfully registered Git commit message provider.
+2026-05-08 12:17:53.091 [info] ConversationFeature: Waiting for copilot token to activate conversation feature
+2026-05-08 12:17:53.096 [info] Creating node-pty shim: source=/vscode/bin/linux-x64/41dd792b5e652393e7787322889ed5fdc58bd75b/node_modules/node-pty/build/Release, dest=/home/codespace/.vscode-remote/extensions/github.copilot-chat-0.43.0/node_modules/@github/copilot/sdk/prebuilds/linux-x64
+2026-05-08 12:17:53.096 [info] Creating ripgrep shim: source=/vscode/bin/linux-x64/41dd792b5e652393e7787322889ed5fdc58bd75b/node_modules/@vscode/ripgrep/bin, dest=/home/codespace/.vscode-remote/extensions/github.copilot-chat-0.43.0/node_modules/@github/copilot/sdk/ripgrep/bin/linux-x64
+2026-05-08 12:17:53.112 [info] Can't use the Electron fetcher in this environment.
+2026-05-08 12:17:53.112 [info] Using the Node fetch fetcher.
+2026-05-08 12:17:53.165 [info] Found 1 entries to copy: pty.node
+2026-05-08 12:17:53.165 [info] Found 1 entries to copy: rg
+2026-05-08 12:17:53.166 [info] [CopilotCLI] MCP server started. Lock file: /home/codespace/.copilot/ide/a25a5620-4f4e-44d5-8c27-1c73ee98569a.lock
+2026-05-08 12:17:53.166 [info] [CopilotCLI] Server URI: unix:/tmp/mcp-68niN5/mcp.sock#%2Fmcp
+2026-05-08 12:17:54.104 [info] [CopilotCLI] OpenTelemetry enabled: exporter=file, source=github.copilot
+2026-05-08 12:17:54.662 [info] Logged in as buildwith-manish
+2026-05-08 12:17:55.606 [info] Got Copilot token for buildwith-manish
+2026-05-08 12:17:55.606 [info] Copilot Chat: 0.43.0, VS Code: 1.115.0
+2026-05-08 12:17:55.624 [info] [context keys] Setting context key: github.copilot-chat.activated
+2026-05-08 12:17:55.625 [info] activationBlocker from 'languageModelAccess' took for 2565ms
+2026-05-08 12:17:56.246 [info] AuthenticationService: firing onDidAuthenticationChange from handleAuthChangeEvent. Has token: true
+2026-05-08 12:17:56.246 [info] copilot token sku: free_limited_copilot
+2026-05-08 12:17:56.246 [info] ConversationFeature: Activating contributions
+2026-05-08 12:17:56.261 [info] Registering default platform agent...
+2026-05-08 12:17:56.262 [info] ConversationFeature: onDidAuthenticationChange has token: true
+2026-05-08 12:17:56.262 [info] [code-referencing] Public code references are enabled.
+2026-05-08 12:17:56.263 [info] activationBlocker from 'conversationFeature' took for 3212ms
+2026-05-08 12:17:56.278 [info] GithubAvailableEmbeddingTypesManager: Got embeddings. Primary: metis-1024-I16-Binary. Deprecated: 
+2026-05-08 12:17:56.281 [info] WorkspaceChunkSearchService: using embedding type metis-1024-I16-Binary
+2026-05-08 12:17:56.282 [info] Successfully activated the GitHub.vscode-pull-request-github extension.
+2026-05-08 12:17:56.282 [info] [githubTitleAndDescriptionProvider] Initializing GitHub PR title and description provider provider.
+2026-05-08 12:17:56.282 [info] Successfully registered GitHub PR title and description provider.
+2026-05-08 12:17:57.298 [info] Fetched model metadata in 4223ms 11617281-5a6f-41f0-b8b7-af37b8d08388
+2026-05-08 12:17:57.309 [info] Latest entry: ccreq:latest.copilotmd
+2026-05-08 12:17:57.310 [info] ccreq:0bbdf613.copilotmd | markdown
+2026-05-08 12:17:57.397 [info] BYOK: Copilot Chat known models list fetched successfully.

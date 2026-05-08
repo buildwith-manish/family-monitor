@@ -1,0 +1,6 @@
+android-sdk/
+.pub-cache/
+.gradle/
+.dart_tool/
+build/
+*.apk
