@@ -44,7 +44,7 @@ dependencies:
   fl_chart: ^1.2.0
 
   # Camera (snapshot capture on child device)
-  camera: ^0.12.0+1
+  camera: ^0.11.2+1
   path_provider: ^2.1.1
 
   # Contacts (contact approval)
