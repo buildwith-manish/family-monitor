@@ -1,0 +1,77 @@
+name: family_monitor
+description: Family Monitor - Transparent parental monitoring app
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase
+  firebase_core: ^4.7.0
+  firebase_auth: ^6.4.0
+  firebase_database: ^12.3.0
+  firebase_storage: ^13.3.0
+
+  # WebRTC
+
+  # Permissions
+  permission_handler: ^12.0.1
+
+  # Foreground service (Android)
+  flutter_foreground_task: 6.1.2
+
+  # QR code — display (child side)
+  qr_flutter: ^4.1.0
+
+  # QR code — scanner (parent side)
+  mobile_scanner: ^7.2.0
+
+  # Location (child side GPS)
+  geolocator: ^14.0.2
+
+  # Map (parent side viewer) — no API key needed, uses OpenStreetMap
+  flutter_map: ^8.3.0
+  latlong2: ^0.9.1
+
+  # Screen time (UsageStatsManager wrapper)
+  usage_stats: ^1.3.1
+
+  # Charts (screen time visualisation)
+  fl_chart: ^1.2.0
+
+  # Camera (snapshot capture on child device)
+  camera: ^0.12.0+1
+  path_provider: ^2.1.1
+
+  # Contacts (contact approval)
+  flutter_contacts: 1.1.7+1
+
+  # Call log
+  call_log: ^6.0.1
+
+  # UI
+  google_fonts: ^8.1.0
+  flutter_animate: ^4.3.0
+  lottie: ^3.0.0
+  shimmer: ^3.0.0
+  cached_network_image: ^3.3.1
+
+  # Utilities
+  uuid: ^4.2.2
+  shared_preferences: ^2.2.2
+  connectivity_plus: ^7.1.1
+  wakelock_plus: ^1.1.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/

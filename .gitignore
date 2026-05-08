@@ -1,6 +1,6 @@
+platform-tools/
+platforms/
+cmdline-tools/
+*.zip
 android-sdk/
-.pub-cache/
 .gradle/
-.dart_tool/
-build/
-*.apk
