@@ -1,0 +1,26 @@
+name: Build APK
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: 'stable'
+      - run: flutter pub get
+        working-directory: family_monitor
+      - run: flutter build apk --debug
+        working-directory: family_monitor
+      - uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk
+          path: family_monitor/build/app/outputs/flutter-apk/app-debug.apk
