@@ -19,12 +19,8 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.24.0
+          flutter-version: 3.29.0
           channel: stable
-
-      - name: Fix flutter_lints
-        working-directory: family_monitor
-        run: sed -i 's/flutter_lints: \^6.0.0/flutter_lints: ^3.0.0/' pubspec.yaml
 
       - name: Flutter pub get
         working-directory: family_monitor
