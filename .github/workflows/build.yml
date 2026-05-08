@@ -22,6 +22,13 @@ jobs:
           flutter-version: 3.32.0
           channel: stable
 
+
+      - name: Fix dependencies
+        working-directory: family_monitor
+        run: |
+          sed -i 's/google_fonts: .*/google_fonts: ^6.2.1/' pubspec.yaml
+          sed -i 's/fl_chart: .*/fl_chart: ^1.1.0/' pubspec.yaml
+
       - name: Flutter pub get
         working-directory: family_monitor
         run: flutter pub get
