@@ -19,11 +19,7 @@ class MonitoringForegroundService {
             'Shows when your device is being monitored by a parent.',
         channelImportance: NotificationChannelImportance.HIGH,
         priority: NotificationPriority.HIGH,
-        iconData: const NotificationIconData(
-          resType: ResourceType.mipmap,
-          resPrefix: ResourcePrefix.ic,
-          name: 'launcher',
-        ),
+        icon: const NotificationIcon(metaDataName: 'ic_launcher'),
         buttons: [
           const NotificationButton(
             id: 'stop_monitoring',
@@ -36,7 +32,7 @@ class MonitoringForegroundService {
         playSound: false,
       ),
       foregroundTaskOptions: const ForegroundTaskOptions(
-        interval: 5000,
+        eventAction: ForegroundTaskEventAction.repeat(5000),
         isOnceEvent: false,
         autoRunOnBoot: false,
         allowWifiLock: true,
