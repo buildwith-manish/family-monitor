@@ -19,18 +19,12 @@ class MonitoringForegroundService {
             'Shows when your device is being monitored by a parent.',
         channelImportance: NotificationChannelImportance.HIGH,
         priority: NotificationPriority.HIGH,
-        buttons: [
-          const NotificationButton(
-            id: 'stop_monitoring',
-            text: 'Stop Monitoring',
-          ),
-        ],
       ),
       iosNotificationOptions: const IOSNotificationOptions(
         showNotification: true,
         playSound: false,
       ),
-      foregroundTaskOptions: const ForegroundTaskOptions(
+      foregroundTaskOptions: ForegroundTaskOptions(
         eventAction: ForegroundTaskEventAction.repeat(5000),
         autoRunOnBoot: false,
         allowWifiLock: true,
