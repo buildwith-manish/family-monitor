@@ -18,11 +18,11 @@ jobs:
         run: |
           sed -i 's/compileSdk = [0-9]*/compileSdk = 34/' android/app/build.gradle.kts
           sed -i 's/compileSdkVersion([0-9]*)/compileSdkVersion(34)/' android/app/build.gradle.kts
-          cat >> android/gradle.properties << 'EOF'
-          android.useAndroidX=true
-          android.enableJetifier=true
-          kotlin.jvm.target.validation.mode=IGNORE
-          EOF
+          cat >> android/gradle.properties << 'EOF2'
+android.useAndroidX=true
+android.enableJetifier=true
+kotlin.jvm.target.validation.mode=IGNORE
+EOF2
       - name: Flutter pub get
         working-directory: family_monitor
         run: flutter pub get
@@ -32,4 +32,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: debug-apk
-          path: family_monitor/family_monitor/build/app/outputs/flutter-apk/app-debug.apk
+          path: family_monitor/build/app/outputs/flutter-apk/*.apk
