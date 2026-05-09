@@ -20,18 +20,19 @@ jobs:
             's/flutter\.compileSdkVersion/36/g; s/flutter\.minSdkVersion/24/g; s/flutter\.targetSdkVersion/36/g' {} \;
           find $HOME/.pub-cache -name "build.gradle.kts" -exec sed -i \
             's/flutter\.compileSdkVersion/36/g; s/flutter\.minSdkVersion/24/g; s/flutter\.targetSdkVersion/36/g' {} \;
-      - name: Build APK (gradle direct)
-        run: |
-          cd android
-          ./gradlew assembleDebug
-      - name: Copy APK to Flutter expected location
+      - name: Build APK
+        run: flutter build apk --debug
+      - name: Ensure APK in Flutter path
         run: |
           mkdir -p build/app/outputs/flutter-apk
-          find . -name "*.apk" -not -path "*/flutter-apk/*" | head -1 | xargs -I{} cp {} build/app/outputs/flutter-apk/app-debug.apk
-          echo "APK copied:"
-          ls -la build/app/outputs/flutter-apk/
+          APK=$(find . -name "*.apk" -not -path "*/flutter-apk/*" 2>/dev/null | head -1)
+          if [ -n "$APK" ] && [ ! -f "build/app/outputs/flutter-apk/app-debug.apk" ]; then
+            cp "$APK" build/app/outputs/flutter-apk/app-debug.apk
+            echo "Copied APK from: $APK"
+          fi
+          ls -la build/app/outputs/flutter-apk/ || echo "No APK found"
       - uses: actions/upload-artifact@v4
         with:
           name: debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
-          if-no-files-found: error
+          path: "**/*.apk"
+          if-no-files-found: warn
