@@ -25,6 +25,7 @@ jobs:
         run: |
           flutter pub get
           cp -r .dart_tool android/.dart_tool
+          ln -sf $(pwd)/lib android/lib
       - name: Build APK
         working-directory: family_monitor
         run: flutter build apk --debug --no-tree-shake-icons
