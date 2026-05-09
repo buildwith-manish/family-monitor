@@ -33,3 +33,6 @@ android {
     }
 }
 
+flutter {
+    source = "../.."
+}

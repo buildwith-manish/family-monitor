@@ -15,7 +15,11 @@ jobs:
           channel: stable
       - run: flutter pub get
       - name: Patch flutter SDK refs in plugins
-        run: find $HOME/.pub-cache -name "build.gradle" -exec sed -i 's/flutter\.compileSdkVersion/36/g; s/flutter\.minSdkVersion/24/g; s/flutter\.targetSdkVersion/36/g' {} \;
+        run: |
+          find $HOME/.pub-cache -name "build.gradle" -exec sed -i \
+            's/flutter\.compileSdkVersion/36/g; s/flutter\.minSdkVersion/24/g; s/flutter\.targetSdkVersion/36/g' {} \;
+          find $HOME/.pub-cache -name "build.gradle.kts" -exec sed -i \
+            's/flutter\.compileSdkVersion/36/g; s/flutter\.minSdkVersion/24/g; s/flutter\.targetSdkVersion/36/g' {} \;
       - name: Build APK
         run: flutter build apk --debug
       - name: Find APK
