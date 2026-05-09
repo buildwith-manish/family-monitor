@@ -5,6 +5,7 @@ plugins {
 }
 
 android {
+    namespace = "com.example.family_monitor"
     compileSdk = 34
     ndkVersion = "27.0.12077973"
 
