@@ -17,6 +17,8 @@ jobs:
         working-directory: family_monitor
         run: |
           sed -i 's/compileSdk = [0-9]*/compileSdk = 34/' android/app/build.gradle.kts
+          echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+          echo "sdk.dir=$ANDROID_HOME" >> android/local.properties
           echo "android.useAndroidX=true" >> android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
           echo "kotlin.jvm.target.validation.mode=IGNORE" >> android/gradle.properties
