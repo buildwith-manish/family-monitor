@@ -15,9 +15,8 @@ jobs:
           channel: stable
       - run: flutter pub get
       - run: flutter build apk --debug
-      - name: Find and upload APK
-        run: |
-          find /home/runner/work -name "*.apk" 2>/dev/null
+      - name: Find APK
+        run: find $GITHUB_WORKSPACE -name "*.apk" 2>/dev/null
       - uses: actions/upload-artifact@v4
         with:
           name: debug-apk
