@@ -18,19 +18,17 @@ jobs:
           flutter-version: '3.22.3'
           channel: stable
 
-      - name: Setup
+      - name: Setup & Build
         working-directory: family_monitor
         run: |
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           echo "sdk.dir=$ANDROID_HOME" >> android/local.properties
+          echo "flutter.projectDir=.." >> android/local.properties
           echo "android.useAndroidX=true" >> android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
           echo "kotlin.jvm.target.validation.mode=IGNORE" >> android/gradle.properties
           flutter pub get
-
-      - name: Build APK
-        working-directory: family_monitor
-        run: flutter build apk --debug
+          flutter build apk --debug
 
       - uses: actions/upload-artifact@v4
         with:
