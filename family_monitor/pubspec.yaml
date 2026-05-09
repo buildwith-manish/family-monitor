@@ -54,7 +54,7 @@ dependencies:
   call_log: ^6.0.1
 
   # UI
-  google_fonts: ^8.1.0
+  google_fonts: ^6.2.1
   flutter_animate: ^4.3.0
   lottie: ^3.0.0
   shimmer: ^3.0.0
