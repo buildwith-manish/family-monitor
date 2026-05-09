@@ -22,11 +22,13 @@ jobs:
           echo "kotlin.jvm.target.validation.mode=IGNORE" >> android/gradle.properties
       - name: Flutter pub get
         working-directory: family_monitor
-        run: flutter pub get
+        run: |
+          flutter pub get
+          cp -r .dart_tool android/.dart_tool
       - name: Build APK
         working-directory: family_monitor
-        run: flutter build apk --debug --no-tree-shake-icons --verbose
+        run: flutter build apk --debug --no-tree-shake-icons
       - uses: actions/upload-artifact@v4
         with:
           name: debug-apk
-          path: family_monitor/family_monitor/build/app/outputs/flutter-apk/*.apk
+          path: family_monitor/build/app/outputs/flutter-apk/*.apk
