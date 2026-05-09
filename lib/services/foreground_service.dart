@@ -82,8 +82,7 @@ class MonitoringForegroundService {
         cameraActive: cameraActive,
         audioActive: audioActive,
         screenActive: screenActive,
-      ),
-      callback: _startCallback,
+      )
     );
   }
 
