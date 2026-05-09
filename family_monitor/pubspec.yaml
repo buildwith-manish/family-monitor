@@ -51,7 +51,7 @@ dependencies:
   flutter_contacts: 1.1.7+1
 
   # Call log
-  call_log: ^6.0.1
+  call_log: ^5.0.1
 
   # UI
   google_fonts: ^6.2.1
