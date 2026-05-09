@@ -29,4 +29,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: debug-apk
-          path: family_monitor/build/app/outputs/flutter-apk/*.apk
+          path: family_monitor/family_monitor/build/app/outputs/flutter-apk/*.apk
