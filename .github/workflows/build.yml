@@ -1,37 +1,39 @@
 name: Build APK
+
 on: [push]
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.22.3'
           channel: stable
+
       - name: Setup
         working-directory: family_monitor
         run: |
-          sed -i 's/compileSdk = [0-9]*/compileSdk = 34/' android/app/build.gradle.kts
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           echo "sdk.dir=$ANDROID_HOME" >> android/local.properties
           echo "android.useAndroidX=true" >> android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
           echo "kotlin.jvm.target.validation.mode=IGNORE" >> android/gradle.properties
           flutter pub get
-          cp -r .dart_tool android/.dart_tool
-          ln -sf $(pwd)/lib android/lib
+
       - name: Build APK
-      working-directory: family_monitor
-      run: flutter build apk --debug
-      - name: Find APK
-        run: find /home/runner/work -name "*.apk" 2>/dev/null
+        working-directory: family_monitor
+        run: flutter build apk --debug
+
       - uses: actions/upload-artifact@v4
         with:
           name: debug-apk
-          path: "**/*.apk"
-          if-no-files-found: warn
+          path: family_monitor/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
