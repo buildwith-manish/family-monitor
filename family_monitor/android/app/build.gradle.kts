@@ -16,7 +16,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.family_monitor"
-        minSdk = 21
+        minSdk = 22
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
