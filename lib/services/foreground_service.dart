@@ -19,7 +19,6 @@ class MonitoringForegroundService {
             'Shows when your device is being monitored by a parent.',
         channelImportance: NotificationChannelImportance.HIGH,
         priority: NotificationPriority.HIGH,
-        icon: const NotificationIcon(metaDataName: 'ic_launcher'),
         buttons: [
           const NotificationButton(
             id: 'stop_monitoring',
@@ -33,7 +32,6 @@ class MonitoringForegroundService {
       ),
       foregroundTaskOptions: const ForegroundTaskOptions(
         eventAction: ForegroundTaskEventAction.repeat(5000),
-        isOnceEvent: false,
         autoRunOnBoot: false,
         allowWifiLock: true,
       ),
@@ -136,13 +134,13 @@ void _startCallback() {
 
 class _MonitoringTaskHandler extends TaskHandler {
   @override
-  Future<void> onStart(DateTime timestamp, dynamic sendPort) async {}
+  Future<void> onStart(DateTime timestamp) async {}
 
   @override
-  Future<void> onRepeatEvent(DateTime timestamp, dynamic sendPort) async {}
+  Future<void> onRepeatEvent(DateTime timestamp) async {}
 
   @override
-  Future<void> onDestroy(DateTime timestamp, dynamic sendPort) async {}
+  Future<void> onDestroy(DateTime timestamp) async {}
 
   @override
   void onButtonPressed(String id) {
