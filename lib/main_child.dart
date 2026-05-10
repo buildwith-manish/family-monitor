@@ -16,15 +16,17 @@ final GlobalKey<NavigatorState> childNavKey = GlobalKey<NavigatorState>();
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: const FirebaseOptions(
-    apiKey: "AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4",
-    authDomain: "family-monitor-7aab3.firebaseapp.com",
-    databaseURL: "https://family-monitor-7aab3-default-rtdb.firebaseio.com",
-    projectId: "family-monitor-7aab3",
-    storageBucket: "family-monitor-7aab3.firebasestorage.app",
-    messagingSenderId: "758644747673",
-    appId: "1:758644747673:android:69ef23a2fa4b508122f708",
-  ));
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(options: const FirebaseOptions(
+      apiKey: "AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4",
+      authDomain: "family-monitor-7aab3.firebaseapp.com",
+      databaseURL: "https://family-monitor-7aab3-default-rtdb.firebaseio.com",
+      projectId: "family-monitor-7aab3",
+      storageBucket: "family-monitor-7aab3.firebasestorage.app",
+      messagingSenderId: "758644747673",
+      appId: "1:758644747673:android:69ef23a2fa4b508122f708",
+    ));
+  }
   if (message.data['type'] == 'call') {
     final svc = FlutterBackgroundService();
     if (!await svc.isRunning()) await svc.startService();

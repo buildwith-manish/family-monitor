@@ -55,7 +55,19 @@ class BackgroundMonitoringService {
 @pragma('vm:entry-point')
 void _onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
-  await Firebase.initializeApp();
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: "AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4",
+        authDomain: "family-monitor-7aab3.firebaseapp.com",
+        databaseURL: "https://family-monitor-7aab3-default-rtdb.firebaseio.com",
+        projectId: "family-monitor-7aab3",
+        storageBucket: "family-monitor-7aab3.firebasestorage.app",
+        messagingSenderId: "758644747673",
+        appId: "1:758644747673:android:69ef23a2fa4b508122f708",
+      ),
+    );
+  }
 
   final prefs = await SharedPreferences.getInstance();
   final uid = prefs.getString(_kUidKey);

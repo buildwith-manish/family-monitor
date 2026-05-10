@@ -210,6 +210,8 @@ class AuthService {
         return 'No account found with this email.';
       case 'wrong-password':
         return 'Incorrect password.';
+      case 'invalid-credential':
+        return 'Incorrect email or password.';
       case 'too-many-requests':
         return 'Too many attempts. Please try again later.';
       default:
@@ -228,6 +230,8 @@ class AuthService {
       });
       await _saveLocalRole('child');
       return {'success': true, 'uid': cred.user!.uid};
+    } on FirebaseAuthException catch (e) {
+      return {'success': false, 'error': _authErrorMessage(e.code)};
     } catch (e) { return {'success': false, 'error': e.toString()}; }
   }
 
@@ -236,6 +240,8 @@ class AuthService {
       final cred = await _auth.signInWithEmailAndPassword(email: email, password: password);
       await _saveLocalRole('child');
       return {'success': true, 'uid': cred.user!.uid};
+    } on FirebaseAuthException catch (e) {
+      return {'success': false, 'error': _authErrorMessage(e.code)};
     } catch (e) { return {'success': false, 'error': e.toString()}; }
   }
 }
