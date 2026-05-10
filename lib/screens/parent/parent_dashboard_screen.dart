@@ -556,7 +556,7 @@ class _FeatureGrid extends StatelessWidget {
     final features = [
       _Feature(icon: Icons.videocam, label: 'Live Camera', color: const Color(0xFF1A73E8), screen: MonitoringScreen(childUid: childUid, childData: const {})),
       _Feature(icon: Icons.location_on, label: 'Location', color: const Color(0xFF34A853), screen: ChildLocationScreen(childUid: childUid, childName: childName)),
-      _Feature(icon: Icons.sms, label: 'Messages', color: const Color(0xFF00897B), screen: SmsScreen(childUid: childUid)),
+      _Feature(icon: Icons.sms, label: 'Messages', color: const Color(0xFF00897B), screen: SmsScreen(childUid: childUid, childName: childName)),
       _Feature(icon: Icons.phone_android, label: 'Screen Time', color: const Color(0xFF1A73E8), screen: ScreenTimeScreen(childUid: childUid, childName: childName)),
       _Feature(icon: Icons.apps, label: 'App Activities', color: const Color(0xFF9334E6), screen: AppUsageScreen(childUid: childUid, childName: childName)),
       _Feature(icon: Icons.call, label: 'Call Log', color: const Color(0xFF00897B), screen: CallLogScreen(childUid: childUid, childName: childName)),
