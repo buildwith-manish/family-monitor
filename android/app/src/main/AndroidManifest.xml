@@ -84,6 +84,7 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize"
             android:showOnLockScreen="true">
+            <meta-data android:name="io.flutter.app.android.SplashScreenUntilFirstFrame" android:value="true"/>
             <meta-data android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme"/>
             <!-- This is the REAL launcher intent-filter; disabling this
@@ -125,6 +126,7 @@
         </receiver>
 
         <meta-data android:name="flutterEmbedding" android:value="2"/>
+        <meta-data android:name="io.flutter.embedding.android.EntryPoint" android:value="${dartEntrypoint}"/>
     </application>
 
     <queries>

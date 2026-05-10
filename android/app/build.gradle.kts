@@ -28,11 +28,13 @@ android {
     flavorDimensions += "app"
     productFlavors {
         create("parent") {
+            manifestPlaceholders["dartEntrypoint"] = "main_parent"
             dimension = "app"
             applicationId = "com.example.family_monitor.parent"
             resValue("string", "app_name", "Family Monitor Parent")
         }
         create("child") {
+            manifestPlaceholders["dartEntrypoint"] = "main_child"
             dimension = "app"
             applicationId = "com.example.family_monitor.child"
             resValue("string", "app_name", "Family Monitor Child")
@@ -49,3 +51,4 @@ android {
 flutter {
     source = "../.."
 }
+// This is already appended by flutter plugin, but entry points need to be set per flavor
