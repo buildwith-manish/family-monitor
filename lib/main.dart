@@ -22,13 +22,13 @@ void main() async {
 
   await Firebase.initializeApp(
     options: const FirebaseOptions(
-      apiKey: "YOUR_ACTUAL_API_KEY",
-      authDomain: "your-project-id.firebaseapp.com",
-      databaseURL: "https://your-project-id-default-rtdb.firebaseio.com",
-      projectId: "your-project-id",
-      storageBucket: "your-project-id.appspot.com",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId: "YOUR_APP_ID",
+      apiKey: "AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4",
+      authDomain: "family-monitor-7aab3.firebaseapp.com",
+      databaseURL: "https://family-monitor-7aab3-default-rtdb.firebaseio.com",
+      projectId: "family-monitor-7aab3",
+      storageBucket: "family-monitor-7aab3.firebasestorage.app",
+      messagingSenderId: "758644747673",
+      appId: "1:758644747673:android:69ef23a2fa4b508122f708",
     ),
   );
 
