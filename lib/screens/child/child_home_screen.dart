@@ -12,6 +12,9 @@ import '../../services/remote_lock_service.dart';
 import '../../services/call_log_service.dart';
 import '../../services/contacts_service.dart';
 import '../../services/snapshot_service.dart';
+import '../../services/battery_service.dart';
+import '../../services/sms_service.dart';
+import '../../main_child.dart';
 import '../../services/screen_time_service.dart';
 import '../../services/webrtc_service.dart';
 import 'child_streaming_screen.dart';
@@ -36,6 +39,9 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   final _contactsSvc = ContactsService();
   final _snapshotSvc = SnapshotService();
   final _screenTimeSvc = ScreenTimeService();
+  final _batterySvc = BatteryService();
+  final _smsSvc = SmsService();
+  StreamSubscription? _smsSub;
 
   Map<String, dynamic> _pendingRequests = {};
   Map<String, dynamic> _approvedParents = {};
@@ -59,6 +65,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     _listenForRequests();
     _setOnline(true);
     _listenForCommands();
+    _startExtraServices();
   }
 
   @override
@@ -70,6 +77,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     _snapshotSub?.cancel();
     _callLogSub?.cancel();
     _contactsSub?.cancel();
+    _smsSub?.cancel();
+    _batterySvc.stopReporting();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -86,6 +95,19 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
   Future<void> _setOnline(bool online) async {
     await _auth.setChildOnlineStatus(online);
+  }
+
+  Future<void> _startExtraServices() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+    _batterySvc.startReporting(uid);
+    _smsSub = _smsSvc.watchSyncRequest(uid).listen((req) {
+      if (req) {
+        _smsSvc.syncSms(uid);
+        FirebaseDatabase.instance.ref('commands/$uid/syncSms/requested').set(false);
+      }
+    });
+    _screenTimeSvc.uploadUsage();
   }
 
   Future<void> _loadData() async {
@@ -178,7 +200,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   }
 
   void _autoStartStreaming(String uid) {
-    Navigator.push(context, MaterialPageRoute(
+    final nav = childNavKey.currentState ?? (mounted ? Navigator.of(context) : null);
+    nav?.push(MaterialPageRoute(
       builder: (_) => ChildStreamingScreen(childUid: uid, mode: StreamMode.camera),
     ));
   }

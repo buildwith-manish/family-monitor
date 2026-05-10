@@ -9,6 +9,7 @@ import '../../services/auth_service.dart';
 import '../../services/sos_service.dart';
 import 'add_child_screen.dart';
 import 'monitoring_screen.dart';
+import 'sms_screen.dart';
 import 'child_location_screen.dart';
 import 'screen_time_screen.dart';
 import 'geofence_screen.dart';
@@ -17,6 +18,9 @@ import 'schedule_lock_screen.dart';
 import 'call_log_screen.dart';
 import 'contacts_screen.dart';
 import 'content_filter_screen.dart';
+import 'sms_screen.dart';
+import '../../services/battery_service.dart';
+import '../../services/sms_service.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});
@@ -33,6 +37,8 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   Map<String, dynamic> _children = {};
   List<SosAlert> _sosAlerts = [];
   StreamSubscription? _sosSub;
+  final Map<String, Map<String,dynamic>> _deviceInfo = {};
+  final Map<String, StreamSubscription> _batterySubs = {};
 
   @override
   void initState() {
@@ -44,6 +50,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   @override
   void dispose() {
     _sosSub?.cancel();
+    for (final s in _batterySubs.values) s.cancel();
     super.dispose();
   }
 
@@ -51,8 +58,14 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     _auth.getChildrenStream().listen((event) {
       if (!mounted) return;
       final data = event.snapshot.value;
-      setState(() =>
-          _children = data != null ? Map<String, dynamic>.from(data as Map) : {});
+      final newChildren = data != null ? Map<String, dynamic>.from(data as Map) : <String,dynamic>{};
+      setState(() => _children = newChildren);
+      for (final uid in newChildren.keys) {
+        if (_batterySubs.containsKey(uid)) continue;
+        _batterySubs[uid] = BatteryService.watchDeviceInfo(uid).listen((info) {
+          if (mounted) setState(() => _deviceInfo[uid] = info);
+        });
+      }
     });
   }
 
@@ -72,6 +85,22 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     for (final alert in _sosAlerts) {
       await _sosSvc.acknowledgeAlert(uid, alert.key);
     }
+  }
+
+  Widget _batteryBadge(String childUid) {
+    final info = _deviceInfo[childUid] ?? {};
+    if (info.isEmpty) return const SizedBox.shrink();
+    final level = (info['batteryLevel'] as num?)?.toInt() ?? 0;
+    final charging = info['isCharging'] as bool? ?? false;
+    final color = level <= 20 ? Colors.red : level <= 50 ? Colors.orange : Colors.green;
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(charging ? Icons.battery_charging_full : Icons.battery_std, color: color, size: 14),
+      const SizedBox(width: 2),
+      Text('$level%', style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+      const SizedBox(width: 6),
+      Text(info['deviceModel'] as String? ?? '',
+        style: const TextStyle(fontSize: 11, color: Colors.grey)),
+    ]);
   }
 
   @override
@@ -218,6 +247,22 @@ class _SosBanner extends StatelessWidget {
 
   const _SosBanner({required this.alerts, required this.onAcknowledge});
 
+  Widget _batteryBadge(String childUid) {
+    final info = _deviceInfo[childUid] ?? {};
+    if (info.isEmpty) return const SizedBox.shrink();
+    final level = (info['batteryLevel'] as num?)?.toInt() ?? 0;
+    final charging = info['isCharging'] as bool? ?? false;
+    final color = level <= 20 ? Colors.red : level <= 50 ? Colors.orange : Colors.green;
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(charging ? Icons.battery_charging_full : Icons.battery_std, color: color, size: 14),
+      const SizedBox(width: 2),
+      Text('$level%', style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+      const SizedBox(width: 6),
+      Text(info['deviceModel'] as String? ?? '',
+        style: const TextStyle(fontSize: 11, color: Colors.grey)),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final alert = alerts.first;
@@ -302,6 +347,22 @@ class _ChildCardState extends State<_ChildCard> {
 
   void _go(Widget screen) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  }
+
+  Widget _batteryBadge(String childUid) {
+    final info = _deviceInfo[childUid] ?? {};
+    if (info.isEmpty) return const SizedBox.shrink();
+    final level = (info['batteryLevel'] as num?)?.toInt() ?? 0;
+    final charging = info['isCharging'] as bool? ?? false;
+    final color = level <= 20 ? Colors.red : level <= 50 ? Colors.orange : Colors.green;
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(charging ? Icons.battery_charging_full : Icons.battery_std, color: color, size: 14),
+      const SizedBox(width: 2),
+      Text('$level%', style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+      const SizedBox(width: 6),
+      Text(info['deviceModel'] as String? ?? '',
+        style: const TextStyle(fontSize: 11, color: Colors.grey)),
+    ]);
   }
 
   @override
@@ -466,6 +527,22 @@ class _FeatureGrid extends StatelessWidget {
     required this.childName,
     required this.onNavigate,
   });
+
+  Widget _batteryBadge(String childUid) {
+    final info = _deviceInfo[childUid] ?? {};
+    if (info.isEmpty) return const SizedBox.shrink();
+    final level = (info['batteryLevel'] as num?)?.toInt() ?? 0;
+    final charging = info['isCharging'] as bool? ?? false;
+    final color = level <= 20 ? Colors.red : level <= 50 ? Colors.orange : Colors.green;
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(charging ? Icons.battery_charging_full : Icons.battery_std, color: color, size: 14),
+      const SizedBox(width: 2),
+      Text('$level%', style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+      const SizedBox(width: 6),
+      Text(info['deviceModel'] as String? ?? '',
+        style: const TextStyle(fontSize: 11, color: Colors.grey)),
+    ]);
+  }
 
   @override
   Widget build(BuildContext context) {
