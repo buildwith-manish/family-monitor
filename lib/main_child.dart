@@ -32,6 +32,10 @@ class ChildApp extends StatelessWidget {
     return MaterialApp(
       title: 'Family Monitor Child',
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF34A853)),
+      ),
       initialRoute: '/',
       routes: {
         '/': (context) => const ChildSetupWizardScreen(),

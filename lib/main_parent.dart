@@ -33,6 +33,10 @@ class ParentApp extends StatelessWidget {
     return MaterialApp(
       title: 'Family Monitor Parent',
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A73E8)),
+      ),
       initialRoute: '/',
       routes: {
         '/': (context) => const ParentAuthScreen(),

@@ -11,32 +11,22 @@ workflows:
       - name: Build Parent APK
         script: |
           flutter build apk --debug \
+            --flavor parent \
             --target lib/main_parent.dart \
             --no-tree-shake-icons \
             --android-skip-build-dependency-validation || true
           mkdir -p build/app/outputs/flutter-apk
-          APK=$(find . -name "*.apk" -not -path "*/flutter-apk/*" 2>/dev/null | head -1)
-          if [ -n "$APK" ]; then
-            cp "$APK" build/app/outputs/flutter-apk/parent-debug.apk
-            echo "Parent APK copied from: $APK"
-          else
-            find . -name "*.apk" 2>/dev/null
-            exit 1
-          fi
+          APK=$(find . -name "*parent*.apk" 2>/dev/null | head -1)
+          [ -n "$APK" ] && cp "$APK" build/app/outputs/flutter-apk/parent-debug.apk && echo "Parent done!" || exit 1
       - name: Build Child APK
         script: |
           flutter build apk --debug \
+            --flavor child \
             --target lib/main_child.dart \
             --no-tree-shake-icons \
             --android-skip-build-dependency-validation || true
-          APK=$(find . -name "*.apk" -not -path "*/parent-debug.apk" 2>/dev/null | head -1)
-          if [ -n "$APK" ]; then
-            cp "$APK" build/app/outputs/flutter-apk/child-debug.apk
-            echo "Child APK copied from: $APK"
-          else
-            find . -name "*.apk" 2>/dev/null
-            exit 1
-          fi
+          APK=$(find . -name "*child*.apk" 2>/dev/null | head -1)
+          [ -n "$APK" ] && cp "$APK" build/app/outputs/flutter-apk/child-debug.apk && echo "Child done!" || exit 1
     artifacts:
       - build/app/outputs/flutter-apk/parent-debug.apk
       - build/app/outputs/flutter-apk/child-debug.apk
