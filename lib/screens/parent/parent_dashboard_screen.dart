@@ -554,54 +554,17 @@ class _FeatureGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final features = [
-      _Feature(
-        icon: Icons.location_on,
-        label: 'Location',
-        color: const Color(0xFF34A853),
-        screen: ChildLocationScreen(childUid: childUid, childName: childName),
-      ),
-      _Feature(
-        icon: Icons.phone_android,
-        label: 'Screen Time',
-        color: const Color(0xFF1A73E8),
-        screen: ScreenTimeScreen(childUid: childUid, childName: childName),
-      ),
-      _Feature(
-        icon: Icons.location_searching,
-        label: 'Geofence',
-        color: const Color(0xFFFA7B17),
-        screen: GeofenceScreen(childUid: childUid, childName: childName),
-      ),
-      _Feature(
-        icon: Icons.camera_alt,
-        label: 'Snapshots',
-        color: const Color(0xFF9334E6),
-        screen: SnapshotsScreen(childUid: childUid, childName: childName),
-      ),
-      _Feature(
-        icon: Icons.lock_clock,
-        label: 'Lock & Schedule',
-        color: const Color(0xFFEA4335),
-        screen: ScheduleLockScreen(childUid: childUid, childName: childName),
-      ),
-      _Feature(
-        icon: Icons.call,
-        label: 'Call Log',
-        color: const Color(0xFF00897B),
-        screen: CallLogScreen(childUid: childUid, childName: childName),
-      ),
-      _Feature(
-        icon: Icons.contacts,
-        label: 'Contacts',
-        color: const Color(0xFF1565C0),
-        screen: ContactsScreen(childUid: childUid, childName: childName),
-      ),
-      _Feature(
-        icon: Icons.shield,
-        label: 'Content Filter',
-        color: const Color(0xFFC62828),
-        screen: ContentFilterScreen(childUid: childUid, childName: childName),
-      ),
+      _Feature(icon: Icons.videocam, label: 'Live Camera', color: const Color(0xFF1A73E8), screen: MonitoringScreen(childUid: childUid, childData: const {})),
+      _Feature(icon: Icons.location_on, label: 'Location', color: const Color(0xFF34A853), screen: ChildLocationScreen(childUid: childUid, childName: childName)),
+      _Feature(icon: Icons.sms, label: 'Messages', color: const Color(0xFF00897B), screen: SmsScreen(childUid: childUid)),
+      _Feature(icon: Icons.phone_android, label: 'Screen Time', color: const Color(0xFF1A73E8), screen: ScreenTimeScreen(childUid: childUid, childName: childName)),
+      _Feature(icon: Icons.apps, label: 'App Activities', color: const Color(0xFF9334E6), screen: AppUsageScreen(childUid: childUid, childName: childName)),
+      _Feature(icon: Icons.call, label: 'Call Log', color: const Color(0xFF00897B), screen: CallLogScreen(childUid: childUid, childName: childName)),
+      _Feature(icon: Icons.location_searching, label: 'Geofence', color: const Color(0xFFFF6F00), screen: GeofenceScreen(childUid: childUid, childName: childName)),
+      _Feature(icon: Icons.camera_alt, label: 'Snapshots', color: const Color(0xFF9334E6), screen: SnapshotsScreen(childUid: childUid, childName: childName)),
+      _Feature(icon: Icons.lock_clock, label: 'Lock & Schedule', color: const Color(0xFFEA4335), screen: ScheduleLockScreen(childUid: childUid, childName: childName)),
+      _Feature(icon: Icons.contacts, label: 'Contacts', color: const Color(0xFF1565C0), screen: ContactsScreen(childUid: childUid, childName: childName)),
+      _Feature(icon: Icons.shield, label: 'Content Filter', color: const Color(0xFFC62828), screen: ContentFilterScreen(childUid: childUid, childName: childName)),
     ];
 
     return Padding(
