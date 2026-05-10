@@ -25,30 +25,68 @@ class _ChildAuthScreenState extends State<ChildAuthScreen> {
   Future<void> _submit() async {
     setState(() { _loading = true; _error = null; });
     try {
+      Map<String, dynamic> result;
+
       if (_isLogin) {
-        await _auth.signInChild(_emailCtrl.text.trim(), _passCtrl.text.trim());
+        result = await _auth.signInChild(
+          _emailCtrl.text.trim(),
+          _passCtrl.text.trim(),
+        );
       } else {
-        await _auth.signUpChild(_emailCtrl.text.trim(), _passCtrl.text.trim(), _nameCtrl.text.trim());
+        result = await _auth.signUpChild(
+          _emailCtrl.text.trim(),
+          _passCtrl.text.trim(),
+          _nameCtrl.text.trim(),
+        );
       }
-      final uid = _auth.currentUser!.uid;
+
+      // Check if auth actually succeeded
+      if (result['success'] != true) {
+        setState(() => _error = result['error']?.toString() ?? 'Sign in failed. Please try again.');
+        return;
+      }
+
+      final uid = _auth.currentUser?.uid;
+      if (uid == null) {
+        setState(() => _error = 'Authentication failed. Please try again.');
+        return;
+      }
+
       await BackgroundMonitoringService.saveChildUid(uid);
-      await BackgroundMonitoringService.startService();
-      final token = await FirebaseMessaging.instance.getToken();
-      if (token != null) {
-        await FirebaseDatabase.instance.ref('users/$uid/fcmToken').set(token);
-        FirebaseMessaging.instance.onTokenRefresh.listen((t) =>
-          FirebaseDatabase.instance.ref('users/$uid/fcmToken').set(t));
-      }
-      final wizardDone = await BackgroundMonitoringService.isWizardDone();
-      if (mounted) {
-        if (!wizardDone) {
-          Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (_) => ChildSetupWizardScreen(childUid: uid)));
-        } else {
-          Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (_) => const ChildHomeScreen()));
+
+      // Save FCM token safely
+      try {
+        final token = await FirebaseMessaging.instance.getToken();
+        if (token != null) {
+          await FirebaseDatabase.instance.ref('users/$uid/fcmToken').set(token);
+          FirebaseMessaging.instance.onTokenRefresh.listen((t) =>
+            FirebaseDatabase.instance.ref('users/$uid/fcmToken').set(t));
         }
+      } catch (_) {
+        // FCM token failure should not block login
       }
+
+      // Start background service after auth success
+      try {
+        await BackgroundMonitoringService.startService();
+      } catch (_) {
+        // Service start failure should not block navigation
+      }
+
+      if (!mounted) return;
+
+      final wizardDone = await BackgroundMonitoringService.isWizardDone();
+
+      if (!mounted) return;
+
+      if (!wizardDone) {
+        Navigator.pushReplacement(context,
+          MaterialPageRoute(builder: (_) => ChildSetupWizardScreen(childUid: uid)));
+      } else {
+        Navigator.pushReplacement(context,
+          MaterialPageRoute(builder: (_) => const ChildHomeScreen()));
+      }
+
     } catch (e) {
       setState(() => _error = e.toString().replaceAll('Exception: ', ''));
     } finally {
