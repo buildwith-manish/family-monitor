@@ -44,6 +44,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   bool _locked = false;
 
   StreamSubscription? _lockSub;
+  StreamSubscription? _callSub;
   StreamSubscription? _snapshotSub;
   StreamSubscription? _callLogSub;
   StreamSubscription? _contactsSub;
@@ -64,6 +65,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     _setOnline(false);
     _locationSvc.stopTracking();
     _lockSub?.cancel();
+    _callSub?.cancel();
     _snapshotSub?.cancel();
     _callLogSub?.cancel();
     _contactsSub?.cancel();
@@ -161,6 +163,47 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
             .set(false);
       }
     });
+  
+    // Incoming call from parent
+    _callSub = FirebaseDatabase.instance
+        .ref('calls/$uid/status')
+        .onValue
+        .listen((event) {
+      if (!mounted) return;
+      if (event.snapshot.value == 'calling') {
+        _showIncomingCallDialog(uid);
+      }
+    });
+  }
+
+  void _showIncomingCallDialog(String uid) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Parent wants to monitor'),
+        content: const Text('A parent is requesting to view your camera. Allow?'),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await FirebaseDatabase.instance.ref('calls/$uid/status').set('declined');
+              await FirebaseDatabase.instance.ref('calls/$uid').remove();
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Decline', style: TextStyle(color: Colors.red)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => ChildStreamingScreen(childUid: uid),
+              ));
+            },
+            child: const Text('Accept'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _approveParent(String parentUid) async {
