@@ -19,7 +19,6 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.family_monitor"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -30,13 +29,11 @@ android {
     productFlavors {
         create("parent") {
             dimension = "app"
-            applicationIdSuffix = ".parent"
-            versionNameSuffix = "-parent"
+            applicationId = "com.example.family_monitor.parent"
         }
         create("child") {
             dimension = "app"
-            applicationIdSuffix = ".child"
-            versionNameSuffix = "-child"
+            applicationId = "com.example.family_monitor.child"
         }
     }
 
