@@ -217,3 +217,37 @@ class AuthService {
     }
   }
 }
+
+  // Child Email Auth
+  Future<Map<String, dynamic>> signUpChild(String email, String password, String childName) async {
+    try {
+      final cred = await _auth.createUserWithEmailAndPassword(
+        email: email, password: password,
+      );
+      await _db.child('users/${cred.user!.uid}').set({
+        'role': 'child',
+        'email': email,
+        'childName': childName,
+        'createdAt': ServerValue.timestamp,
+        'isOnline': false,
+        'pendingParentRequests': {},
+        'approvedParents': {},
+      });
+      await _saveLocalRole('child');
+      return {'success': true, 'uid': cred.user!.uid};
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> signInChild(String email, String password) async {
+    try {
+      final cred = await _auth.signInWithEmailAndPassword(
+        email: email, password: password,
+      );
+      await _saveLocalRole('child');
+      return {'success': true, 'uid': cred.user!.uid};
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }

@@ -22,12 +22,12 @@ class _ChildAuthScreenState extends State<ChildAuthScreen> {
     setState(() { _loading = true; _error = null; });
     try {
       if (_isLogin) {
-        await _auth.signInParent(
+        await _auth.signInChild(
           email: _emailCtrl.text.trim(),
           password: _passCtrl.text.trim(),
         );
       } else {
-        await _auth.signUpParent(
+        await _auth.signUpChild(
           name: _nameCtrl.text.trim(),
           email: _emailCtrl.text.trim(),
           password: _passCtrl.text.trim(),
