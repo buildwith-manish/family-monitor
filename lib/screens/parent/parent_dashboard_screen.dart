@@ -224,6 +224,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               childUid: childUid,
               childData: childData,
               delay: index * 80,
+              deviceInfo: _deviceInfo,
             ),
           );
         }).values.toList(),
@@ -248,7 +249,7 @@ class _SosBanner extends StatelessWidget {
   const _SosBanner({required this.alerts, required this.onAcknowledge});
 
   Widget _batteryBadge(String childUid) {
-    final info = _deviceInfo[childUid] ?? {};
+    final info = const <String,dynamic>{};
     if (info.isEmpty) return const SizedBox.shrink();
     final level = (info['batteryLevel'] as num?)?.toInt() ?? 0;
     final charging = info['isCharging'] as bool? ?? false;
@@ -319,11 +320,13 @@ class _ChildCard extends StatefulWidget {
   final String childUid;
   final Map<String, dynamic> childData;
   final int delay;
+  final Map<String, Map<String,dynamic>> deviceInfo;
 
   const _ChildCard({
     required this.childUid,
     required this.childData,
     required this.delay,
+    required this.deviceInfo,
   });
 
   @override
@@ -350,7 +353,7 @@ class _ChildCardState extends State<_ChildCard> {
   }
 
   Widget _batteryBadge(String childUid) {
-    final info = _deviceInfo[childUid] ?? {};
+    final info = widget.deviceInfo[childUid] ?? {};
     if (info.isEmpty) return const SizedBox.shrink();
     final level = (info['batteryLevel'] as num?)?.toInt() ?? 0;
     final charging = info['isCharging'] as bool? ?? false;
@@ -504,6 +507,7 @@ class _ChildCardState extends State<_ChildCard> {
                 childUid: widget.childUid,
                 childName: childName,
                 onNavigate: _go,
+              deviceInfo: widget.deviceInfo,
               ),
             ),
           ),
@@ -521,15 +525,17 @@ class _FeatureGrid extends StatelessWidget {
   final String childUid;
   final String childName;
   final void Function(Widget) onNavigate;
+  final Map<String, Map<String,dynamic>> deviceInfo;
 
   const _FeatureGrid({
     required this.childUid,
     required this.childName,
     required this.onNavigate,
+    required this.deviceInfo,
   });
 
   Widget _batteryBadge(String childUid) {
-    final info = _deviceInfo[childUid] ?? {};
+    final info = deviceInfo[childUid] ?? {};
     if (info.isEmpty) return const SizedBox.shrink();
     final level = (info['batteryLevel'] as num?)?.toInt() ?? 0;
     final charging = info['isCharging'] as bool? ?? false;
