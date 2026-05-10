@@ -1,21 +1,15 @@
-# Flutter
 build/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
-*.iml
-
-# Android
-android/.gradle/
-android/local.properties
-
-# Codemagic/CI
+build-tools/
+project.zip
 flutter/
 java/
 nvm/
 .ruby/
 .vscode-remote/
-project.zip
+android/local.properties
+android/.gradle/
 *.zip
-build-tools/
