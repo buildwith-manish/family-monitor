@@ -3,11 +3,19 @@ workflows:
     name: Build Parent and Child APKs
     instance_type: mac_mini_m4
     environment:
-      flutter: 3.41.9
+      flutter: 3.27.4
       java: 17
     scripts:
       - name: Get dependencies
         script: flutter pub get
+
+      - name: Patch plugin gradle files
+        script: |
+          find $HOME/.pub-cache -name "build.gradle" -exec sed -i \
+            's/flutter\.compileSdkVersion/36/g; s/flutter\.minSdkVersion/24/g; s/flutter\.targetSdkVersion/36/g' {} \;
+          find $HOME/.pub-cache -name "build.gradle.kts" -exec sed -i \
+            's/flutter\.compileSdkVersion/36/g; s/flutter\.minSdkVersion/24/g; s/flutter\.targetSdkVersion/36/g' {} \;
+
       - name: Build Parent APK
         script: |
           flutter build apk --debug \
@@ -18,6 +26,7 @@ workflows:
           mkdir -p build/app/outputs/flutter-apk
           APK=$(find . -name "*parentDebug*.apk" -o -name "*parent-debug*.apk" 2>/dev/null | head -1)
           [ -n "$APK" ] && cp "$APK" build/app/outputs/flutter-apk/parent-debug.apk && echo "Parent done!" || exit 1
+
       - name: Build Child APK
         script: |
           flutter build apk --debug \
@@ -27,6 +36,7 @@ workflows:
             --android-skip-build-dependency-validation
           APK=$(find . -name "*childDebug*.apk" -o -name "*child-debug*.apk" 2>/dev/null | head -1)
           [ -n "$APK" ] && cp "$APK" build/app/outputs/flutter-apk/child-debug.apk && echo "Child done!" || exit 1
+
     artifacts:
       - build/app/outputs/flutter-apk/parent-debug.apk
       - build/app/outputs/flutter-apk/child-debug.apk
