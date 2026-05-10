@@ -1,6 +1,6 @@
 workflows:
   android-apk:
-    name: Build APK
+    name: Build Parent and Child APKs
     instance_type: mac_mini_m4
     environment:
       flutter: 3.41.9
@@ -8,22 +8,23 @@ workflows:
     scripts:
       - name: Get dependencies
         script: flutter pub get
-      - name: Build APK
+      - name: Build Parent APK
         script: |
           flutter build apk --debug \
+            --target lib/main_parent.dart \
             --no-tree-shake-icons \
-            --android-skip-build-dependency-validation || true
-          echo "=== Searching for APK ==="
-          find /Users/builder/clone/build -name "*.apk" 2>/dev/null
+            --android-skip-build-dependency-validation
           mkdir -p build/app/outputs/flutter-apk
-          APK=$(find /Users/builder/clone/build -name "*.apk" 2>/dev/null | head -1)
-          if [ -n "$APK" ]; then
-            cp "$APK" build/app/outputs/flutter-apk/app-debug.apk
-            echo "APK copied from: $APK"
-          else
-            echo "No APK found!"
-            exit 1
-          fi
+          cp build/app/outputs/flutter-apk/app-debug.apk \
+             build/app/outputs/flutter-apk/parent-debug.apk
+      - name: Build Child APK
+        script: |
+          flutter build apk --debug \
+            --target lib/main_child.dart \
+            --no-tree-shake-icons \
+            --android-skip-build-dependency-validation
+          cp build/app/outputs/flutter-apk/app-debug.apk \
+             build/app/outputs/flutter-apk/child-debug.apk
     artifacts:
-      - build/app/outputs/flutter-apk/*.apk
-      - "**/*.apk"
+      - build/app/outputs/flutter-apk/parent-debug.apk
+      - build/app/outputs/flutter-apk/child-debug.apk
