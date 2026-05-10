@@ -14,10 +14,9 @@
 
     <!-- ── Foreground services ───────────────────────────────────────────── -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" android:minSdkVersion="34"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" android:minSdkVersion="34"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" android:minSdkVersion="29"/>
-    <!-- Required on Android 14+ for MediaProjection foreground service -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA"        android:minSdkVersion="34"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"    android:minSdkVersion="34"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"      android:minSdkVersion="29"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" android:minSdkVersion="34"/>
 
     <!-- ── Boot + wake ───────────────────────────────────────────────────── -->
@@ -36,10 +35,10 @@
     <!-- ── Storage ──────────────────────────────────────────────────────── -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" android:minSdkVersion="33"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" android:minSdkVersion="33"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"  android:minSdkVersion="33"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"   android:minSdkVersion="33"/>
 
-    <!-- ── Overlay (appear on top of other apps) ─────────────────────────── -->
+    <!-- ── Overlay ───────────────────────────────────────────────────────── -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
 
     <!-- ── Wi-Fi ─────────────────────────────────────────────────────────── -->
@@ -55,12 +54,12 @@
     <!-- ── Bluetooth ─────────────────────────────────────────────────────── -->
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" android:minSdkVersion="31"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:minSdkVersion="31"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"    android:minSdkVersion="31"/>
 
     <!-- ── Advertising ID ────────────────────────────────────────────────── -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
 
-    <!-- ── Notifications ─────────────────────────────────────────────────── -->
+    <!-- ── Notifications (Android 13+) ──────────────────────────────────── -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" android:minSdkVersion="33"/>
 
     <!-- ── Hardware features (optional) ─────────────────────────────────── -->
@@ -87,9 +86,6 @@
             <meta-data android:name="io.flutter.app.android.SplashScreenUntilFirstFrame" android:value="true"/>
             <meta-data android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme"/>
-            <!-- This is the REAL launcher intent-filter; disabling this
-                 component (via packageManager.setComponentEnabledSetting)
-                 hides the launcher icon while the app keeps running. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -109,9 +105,7 @@
             android:exported="true"
             android:foregroundServiceType="dataSync"/>
 
-        <!-- ── ScreenCaptureService: holds MediaProjection token alive ───── -->
-        <!-- android:foregroundServiceType="mediaProjection" is required
-             on Android 10+ for MediaProjection. -->
+        <!-- ── ScreenCaptureService ──────────────────────────────────────── -->
         <service
             android:name=".ScreenCaptureService"
             android:exported="false"
