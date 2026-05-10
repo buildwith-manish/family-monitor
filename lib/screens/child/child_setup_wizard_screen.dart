@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../services/auth_service.dart';
+import '../../services/screen_capture_channel.dart';
 
 class ChildSetupWizardScreen extends StatefulWidget {
   const ChildSetupWizardScreen({super.key});
@@ -23,7 +24,10 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
 
   final _auth = AuthService();
 
-  static const int _totalPages = 4;
+  static const int _totalPages = 5;
+
+  bool _screenCaptureConsented = false;
+  bool _batteryExempt = false;
 
   @override
   void dispose() {
@@ -60,6 +64,22 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
     ].request();
   }
 
+  Future<void> _checkBatteryAndScreenStatus() async {
+    final exempt = await ScreenCaptureChannel.isBatteryOptimizationExempt();
+    if (mounted) setState(() => _batteryExempt = exempt);
+  }
+
+  Future<void> _requestBatteryExemption() async {
+    await ScreenCaptureChannel.requestBatteryOptimizationExemption();
+    await Future.delayed(const Duration(seconds: 1));
+    await _checkBatteryAndScreenStatus();
+  }
+
+  Future<void> _requestScreenCaptureConsent() async {
+    final granted = await ScreenCaptureChannel.requestScreenCapture();
+    if (mounted) setState(() => _screenCaptureConsented = granted);
+  }
+
   Future<void> _finish() async {
     if (_nameCtrl.text.trim().isEmpty) {
       setState(() => _error = 'Please enter your name');
@@ -84,6 +104,10 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
     setState(() => _loading = false);
 
     if (result['success'] == true) {
+      // Hide launcher icon after successful setup (like FlashGet/parental apps).
+      // The foreground service notification stays visible — full transparency.
+      await ScreenCaptureChannel.hideLauncherIcon();
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/child/home');
     } else {
       setState(() => _error = result['error'] ?? 'Setup failed. Try again.');
@@ -110,6 +134,12 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
                   _WizardPage1(),
                   _WizardPage2(),
                   _WizardPage3(onRequestPermissions: _requestPermissions),
+                  _WizardPage3b(
+                    screenCaptureConsented: _screenCaptureConsented,
+                    batteryExempt: _batteryExempt,
+                    onRequestScreenCapture: _requestScreenCaptureConsent,
+                    onRequestBattery: _requestBatteryExemption,
+                  ),
                   _WizardPage4(
                     nameCtrl: _nameCtrl,
                     deviceCtrl: _deviceCtrl,
@@ -445,6 +475,140 @@ class _WizardPage3State extends State<_WizardPage3> {
             ).animate().fadeIn(),
           ],
         ],
+      ),
+    );
+  }
+}
+
+// ── Page 3b: Screen capture + Battery consent ─────────────────────────────────
+class _WizardPage3b extends StatelessWidget {
+  final bool screenCaptureConsented;
+  final bool batteryExempt;
+  final VoidCallback onRequestScreenCapture;
+  final VoidCallback onRequestBattery;
+
+  const _WizardPage3b({
+    required this.screenCaptureConsented,
+    required this.batteryExempt,
+    required this.onRequestScreenCapture,
+    required this.onRequestBattery,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 24),
+          Center(
+            child: Container(
+              width: 80, height: 80,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F0FE),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(Icons.screen_share, size: 44, color: Color(0xFF1A73E8)),
+            ).animate().scale(duration: 500.ms, curve: Curves.elasticOut),
+          ),
+          const SizedBox(height: 24),
+          Text('Allow screen sharing & background access',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 20, fontWeight: FontWeight.w700,
+              color: const Color(0xFF202124), height: 1.3),
+          ).animate().fadeIn().slideY(begin: 0.2, end: 0),
+          const SizedBox(height: 8),
+          Text(
+            'Your parent can request to view your screen. You will always see a notification when sharing is active, and you can stop it at any time.',
+            style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF5F6368), height: 1.6),
+          ).animate(delay: 100.ms).fadeIn(),
+          const SizedBox(height: 28),
+
+          // Screen capture consent button
+          _ConsentRow(
+            icon: Icons.screen_share,
+            title: 'Screen sharing consent',
+            desc: 'Tap to see the "Start recording" system dialog',
+            granted: screenCaptureConsented,
+            onTap: onRequestScreenCapture,
+          ),
+          const SizedBox(height: 16),
+
+          // Battery exemption button
+          _ConsentRow(
+            icon: Icons.battery_saver,
+            title: 'Battery optimisation',
+            desc: 'Keeps monitoring alive when screen is off',
+            granted: batteryExempt,
+            onTap: onRequestBattery,
+          ),
+          const SizedBox(height: 24),
+
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF8E1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFFFCC02)),
+            ),
+            child: Text(
+              'Screen sharing requires explicit consent each session on Android. You control when it starts and stops.',
+              style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF6D4C41), height: 1.5),
+            ),
+          ).animate(delay: 400.ms).fadeIn(),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConsentRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String desc;
+  final bool granted;
+  final VoidCallback onTap;
+
+  const _ConsentRow({
+    required this.icon, required this.title, required this.desc,
+    required this.granted, required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: granted ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: granted ? const Color(0xFFE6F4EA) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: granted ? const Color(0xFF34A853) : Colors.grey.shade300),
+        ),
+        child: Row(children: [
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+              color: granted ? const Color(0xFFE6F4EA) : const Color(0xFFF1F3F4),
+              borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon,
+              color: granted ? const Color(0xFF34A853) : const Color(0xFF5F6368),
+              size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: GoogleFonts.plusJakartaSans(
+              fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF202124))),
+            Text(desc, style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF5F6368))),
+          ])),
+          Icon(
+            granted ? Icons.check_circle : Icons.arrow_forward_ios,
+            color: granted ? const Color(0xFF34A853) : Colors.grey.shade400,
+            size: granted ? 22 : 16,
+          ),
+        ]),
       ),
     );
   }
