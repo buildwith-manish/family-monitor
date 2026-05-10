@@ -5,8 +5,6 @@ import 'package:firebase_database/firebase_database.dart';
 
 enum StreamMode { camera, screen }
 
-enum StreamMode { camera, screen }
-
 class WebRTCService {
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
@@ -158,17 +156,7 @@ class WebRTCService {
     await startAsChild(childUid, onCallEnded);
   }
 
-  Future<void> sendFlipCommand(String childUid) async {
-    await _db.child('calls//command').set('flip');
-    await Future.delayed(const Duration(milliseconds: 500));
-    await _db.child('calls//command').remove();
-  }
-
-  Future<void> sendMuteCommand(String childUid, bool mute) async {
-    await _db.child('calls//command').set(mute ? 'mute' : 'unmute');
-  }
-
-  Future<void> endCall(String childUid) async {
+      Future<void> endCall(String childUid) async {
     await _db.child('calls/$childUid/status').set('ended');
     await Future.delayed(const Duration(milliseconds: 300));
     await _db.child('calls/$childUid').remove();
