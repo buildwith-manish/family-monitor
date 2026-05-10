@@ -3,10 +3,19 @@ workflows:
     name: Build APK
     instance_type: mac_mini_m4
     environment:
-      flutter: 3.27.0
+      flutter: 3.22.3
       java: 17
     scripts:
-      - flutter pub get
-      - flutter build apk --debug
+      - name: Get dependencies
+        script: flutter pub get
+      - name: Build APK
+        script: |
+          cd android && ./gradlew assembleDebug --no-daemon
+      - name: Move APK
+        script: |
+          mkdir -p build/app/outputs/flutter-apk
+          find . -name "app-debug.apk" | head -1 | xargs -I{} cp {} build/app/outputs/flutter-apk/
+          ls -la build/app/outputs/flutter-apk/
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
+      - "**/*.apk"
