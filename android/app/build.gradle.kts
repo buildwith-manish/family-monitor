@@ -30,10 +30,12 @@ android {
         create("parent") {
             dimension = "app"
             applicationId = "com.example.family_monitor.parent"
+            resValue("string", "app_name", "Family Monitor Parent")
         }
         create("child") {
             dimension = "app"
             applicationId = "com.example.family_monitor.child"
+            resValue("string", "app_name", "Family Monitor Child")
         }
     }
 

@@ -14,9 +14,9 @@ workflows:
             --flavor parent \
             --target lib/main_parent.dart \
             --no-tree-shake-icons \
-            --android-skip-build-dependency-validation || true
+            --android-skip-build-dependency-validation
           mkdir -p build/app/outputs/flutter-apk
-          APK=$(find . -name "*parent*.apk" 2>/dev/null | head -1)
+          APK=$(find . -name "*parentDebug*.apk" -o -name "*parent-debug*.apk" 2>/dev/null | head -1)
           [ -n "$APK" ] && cp "$APK" build/app/outputs/flutter-apk/parent-debug.apk && echo "Parent done!" || exit 1
       - name: Build Child APK
         script: |
@@ -24,10 +24,9 @@ workflows:
             --flavor child \
             --target lib/main_child.dart \
             --no-tree-shake-icons \
-            --android-skip-build-dependency-validation || true
-          APK=$(find . -name "*child*.apk" 2>/dev/null | head -1)
+            --android-skip-build-dependency-validation
+          APK=$(find . -name "*childDebug*.apk" -o -name "*child-debug*.apk" 2>/dev/null | head -1)
           [ -n "$APK" ] && cp "$APK" build/app/outputs/flutter-apk/child-debug.apk && echo "Child done!" || exit 1
     artifacts:
       - build/app/outputs/flutter-apk/parent-debug.apk
       - build/app/outputs/flutter-apk/child-debug.apk
-      - "**/*.apk"
