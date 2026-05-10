@@ -40,7 +40,7 @@ class ChildApp extends StatelessWidget {
       routes: {
         '/': (context) => const ChildSetupWizardScreen(),
         '/child/home': (context) => const ChildHomeScreen(),
-        '/child/qr': (context) => const ChildQrScreen(),
+        '/child/qr': (context) => ChildQrScreen(uid: ''),
       },
     );
   }
