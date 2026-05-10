@@ -7,7 +7,14 @@ import '../../services/webrtc_service.dart';
 
 class ChildStreamingScreen extends StatefulWidget {
   final String childUid;
-  const ChildStreamingScreen({super.key, required this.childUid});
+  final String? childName;
+  final String? parentUid;
+  const ChildStreamingScreen({
+    super.key,
+    required this.childUid,
+    this.childName,
+    this.parentUid,
+  });
   @override
   State<ChildStreamingScreen> createState() => _ChildStreamingScreenState();
 }
@@ -73,23 +80,17 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
             Text('Starting camera...', style: TextStyle(color: Colors.white, fontSize: 14)),
           ])),
         SafeArea(child: Column(children: [
-          // Top bar
           _topBar(),
           const Spacer(),
-          // Bottom controls
           Container(
             padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter, end: Alignment.topCenter,
-                colors: [Colors.black87, Colors.transparent]),
-            ),
+              gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                  colors: [Colors.black87, Colors.transparent])),
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              _circleBtn(icon: Icons.flip_camera_android, onTap: _flipCamera,
-                  bg: Colors.white24, size: 56, iconSize: 24),
+              _circleBtn(icon: Icons.flip_camera_android, onTap: _flipCamera, bg: Colors.white24, size: 56, iconSize: 24),
               const SizedBox(width: 48),
-              _circleBtn(icon: Icons.call_end, onTap: _stop,
-                  bg: Colors.red, size: 68, iconSize: 30),
+              _circleBtn(icon: Icons.call_end, onTap: _stop, bg: Colors.red, size: 68, iconSize: 30),
             ]),
           ),
         ])),
@@ -119,8 +120,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
               decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle))
           .animate(onPlay: (c) => c.repeat()).fadeOut(duration: 800.ms),
       const SizedBox(width: 6),
-      Text('LIVE', style: GoogleFonts.inter(color: Colors.white, fontSize: 11,
-          fontWeight: FontWeight.w800)),
+      Text('LIVE', style: GoogleFonts.inter(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
     ]),
   );
 
