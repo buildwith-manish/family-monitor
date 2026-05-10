@@ -5,9 +5,11 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/screen_capture_channel.dart';
+import '../../services/background_monitoring_service.dart';
 
 class ChildSetupWizardScreen extends StatefulWidget {
-  const ChildSetupWizardScreen({super.key});
+  final String? childUid;
+  const ChildSetupWizardScreen({super.key, this.childUid});
 
   @override
   State<ChildSetupWizardScreen> createState() => _ChildSetupWizardScreenState();
@@ -107,6 +109,8 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
       // Hide launcher icon after successful setup (like FlashGet/parental apps).
       // The foreground service notification stays visible — full transparency.
       await ScreenCaptureChannel.hideLauncherIcon();
+      await BackgroundMonitoringService.setWizardDone(true);
+      await BackgroundMonitoringService.savePermissionsGranted(true);
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/child/home');
     } else {

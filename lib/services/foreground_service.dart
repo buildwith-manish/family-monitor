@@ -26,7 +26,7 @@ class MonitoringForegroundService {
       ),
       foregroundTaskOptions: ForegroundTaskOptions(
         eventAction: ForegroundTaskEventAction.repeat(5000),
-        autoRunOnBoot: false,
+        autoRunOnBoot: true,
         allowWifiLock: true,
       ),
     );
