@@ -18,7 +18,6 @@ import '../../main_child.dart';
 import '../../services/screen_time_service.dart';
 import '../../services/webrtc_service.dart';
 import 'child_streaming_screen.dart';
-import '../../services/webrtc_service.dart';
 import 'child_qr_screen.dart';
 import 'sos_screen.dart';
 
@@ -189,12 +188,12 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   
     // Incoming call from parent
     _callSub = FirebaseDatabase.instance
-        .ref('calls/$uid/status')
+        .ref('calls/$uid')
         .onValue
         .listen((event) {
       if (!mounted) return;
-      if (event.snapshot.value == 'calling') {
-        _autoStartStreaming(uid);
+      final data = event.snapshot.value; if (data == null) return; final map = Map<String, dynamic>.from(data as Map); if (map['status'] == 'calling') { final modeStr = map['mode'] as String? ?? 'camera'; final mode = modeStr == 'screen' ? StreamMode.screen : StreamMode.camera;
+        _autoStartStreaming(uid, mode);
       }
     });
   }
