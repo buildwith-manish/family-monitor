@@ -224,7 +224,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
                   if (v == 'signout') {
                     await _auth.signOut();
                     if (mounted) {
-                      Navigator.pushReplacementNamed(context, '/role-select');
+                      Navigator.pushReplacementNamed(context, '/');
                     }
                   }
                 },

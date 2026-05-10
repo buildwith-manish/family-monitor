@@ -34,16 +34,14 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
   }
 
   void _next() {
-    if (_currentPage < _totalPages - 1) {
-      if (_currentPage == 3) {
-        _finish();
-        return;
-      }
-      _pageCtrl.nextPage(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
-      );
+    if (_currentPage == _totalPages - 1) {
+      _finish();
+      return;
     }
+    _pageCtrl.nextPage(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOut,
+    );
   }
 
   void _prev() {
