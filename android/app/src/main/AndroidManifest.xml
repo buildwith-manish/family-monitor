@@ -50,8 +50,7 @@
         <service android:name="id.flutter.flutter_background_service.BackgroundService"
             tools:replace="android:exported"
             android:exported="true"
-            android:foregroundServiceType="camera|microphone"
-            android:exported="false"/>
+            android:foregroundServiceType="camera|microphone"/>
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
