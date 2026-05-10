@@ -9,8 +9,21 @@ workflows:
       - name: Get dependencies
         script: flutter pub get
       - name: Build APK
-        script: flutter build apk --debug --no-tree-shake-icons
-      - name: Find APK
-        script: find . -name "*.apk" 2>/dev/null
+        script: |
+          flutter build apk --debug \
+            --no-tree-shake-icons \
+            --android-skip-build-dependency-validation || true
+          echo "=== Searching for APK ==="
+          find /Users/builder/clone/build -name "*.apk" 2>/dev/null
+          mkdir -p build/app/outputs/flutter-apk
+          APK=$(find /Users/builder/clone/build -name "*.apk" 2>/dev/null | head -1)
+          if [ -n "$APK" ]; then
+            cp "$APK" build/app/outputs/flutter-apk/app-debug.apk
+            echo "APK copied from: $APK"
+          else
+            echo "No APK found!"
+            exit 1
+          fi
     artifacts:
+      - build/app/outputs/flutter-apk/*.apk
       - "**/*.apk"
