@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:firebase_database/firebase_database.dart';
 
+enum StreamMode { camera, screen }
+
 class WebRTCService {
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
@@ -86,7 +88,7 @@ class WebRTCService {
   }
 
   // PARENT: create offer, receive child stream
-  Future<void> startAsParent(String childUid, VoidCallback onStreamReady) async {
+  Future<void> startAsParent(String childUid, StreamMode mode, VoidCallback onStreamReady) async {
     await initialize();
     _answerSet = false;
     _peerConnection = await createPeerConnection(_iceConfig);
@@ -133,6 +135,16 @@ class WebRTCService {
         await _peerConnection!.addCandidate(RTCIceCandidate(c['candidate'], c['sdpMid'], c['sdpMLineIndex']));
       } catch (_) {}
     });
+  }
+
+  Future<void> sendFlipCommand(String childUid) async {
+    await _db.child('calls/$childUid/command').set('flip');
+    await Future.delayed(const Duration(milliseconds: 500));
+    await _db.child('calls/$childUid/command').remove();
+  }
+
+  Future<void> sendMuteCommand(String childUid, bool mute) async {
+    await _db.child('calls/$childUid/command').set(mute ? 'mute' : 'unmute');
   }
 
   Future<void> switchCamera() async {
