@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'package:firebase_database/firebase_database.dart';
 import '../../services/auth_service.dart';
 import '../../services/screen_capture_channel.dart';
 import '../../services/background_monitoring_service.dart';
@@ -93,28 +94,40 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
       _error = null;
     });
 
-    final deviceName = _deviceCtrl.text.trim().isEmpty
-        ? 'My Phone'
-        : _deviceCtrl.text.trim();
+    try {
+      // Use already-logged-in user (email auth) — do NOT call signInAnonymously
+      final uid = _auth.currentUser?.uid ?? widget.childUid;
+      if (uid == null || uid.isEmpty) {
+        setState(() { _error = 'Session expired. Please sign in again.'; _loading = false; });
+        return;
+      }
 
-    final result = await _auth.setupChildDevice(
-      childName: _nameCtrl.text.trim(),
-      deviceName: deviceName,
-    );
+      final deviceName = _deviceCtrl.text.trim().isEmpty
+          ? 'My Phone'
+          : _deviceCtrl.text.trim();
 
-    if (!mounted) return;
-    setState(() => _loading = false);
+      // Save child profile to Firebase under existing uid
+      await FirebaseDatabase.instance.ref('users/$uid').update({
+        'childName': _nameCtrl.text.trim(),
+        'deviceName': deviceName,
+        'role': 'child',
+        'isOnline': false,
+      });
 
-    if (result['success'] == true) {
-      // Hide launcher icon after successful setup (like FlashGet/parental apps).
-      // The foreground service notification stays visible — full transparency.
-      await ScreenCaptureChannel.hideLauncherIcon();
+      await BackgroundMonitoringService.saveChildUid(uid);
       await BackgroundMonitoringService.setWizardDone(true);
       await BackgroundMonitoringService.savePermissionsGranted(true);
+
+      try {
+        await ScreenCaptureChannel.hideLauncherIcon();
+      } catch (_) {}
+
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/child/home');
-    } else {
-      setState(() => _error = result['error'] ?? 'Setup failed. Try again.');
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Setup failed: ${e.toString()}');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 

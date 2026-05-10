@@ -111,7 +111,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   }
 
   Future<void> _loadData() async {
-    final uid = _auth.currentUser!.uid;
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
     final snap = await FirebaseDatabase.instance.ref('users/$uid').get();
     if (snap.value != null && mounted) {
       final data = Map<String, dynamic>.from(snap.value as Map);
@@ -120,7 +121,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   }
 
   void _listenForRequests() {
-    final uid = _auth.currentUser!.uid;
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
     FirebaseDatabase.instance
         .ref('users/$uid/pendingParentRequests')
         .onValue
@@ -151,7 +153,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   }
 
   void _listenForCommands() {
-    final uid = _auth.currentUser!.uid;
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
 
     // Remote lock
     _lockSub = _lockSvc.watchLockState(uid).listen((state) {
@@ -213,7 +216,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   }
 
   Future<void> _approveParent(String parentUid) async {
-    final uid = _auth.currentUser!.uid;
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
     final childName = _childName ?? 'Child';
     await FirebaseDatabase.instance
         .ref('users/$uid/pendingParentRequests/$parentUid/status')
@@ -227,14 +231,16 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   }
 
   Future<void> _declineParent(String parentUid) async {
-    final uid = _auth.currentUser!.uid;
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
     await FirebaseDatabase.instance
         .ref('users/$uid/pendingParentRequests/$parentUid')
         .remove();
   }
 
   void _startMonitoring(String parentUid) {
-    final uid = _auth.currentUser!.uid;
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
     Navigator.push(
       context,
       MaterialPageRoute(
