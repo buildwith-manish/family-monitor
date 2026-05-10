@@ -9,13 +9,8 @@ workflows:
       - name: Get dependencies
         script: flutter pub get
       - name: Build APK
-        script: |
-          cd android && ./gradlew assembleDebug --no-daemon
-      - name: Move APK
-        script: |
-          mkdir -p build/app/outputs/flutter-apk
-          find . -name "app-debug.apk" | head -1 | xargs -I{} cp {} build/app/outputs/flutter-apk/
-          ls -la build/app/outputs/flutter-apk/
+        script: flutter build apk --debug --no-tree-shake-icons
+      - name: Find APK
+        script: find . -name "*.apk" 2>/dev/null
     artifacts:
-      - build/app/outputs/flutter-apk/*.apk
       - "**/*.apk"
