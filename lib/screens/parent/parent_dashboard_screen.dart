@@ -18,6 +18,7 @@ import 'schedule_lock_screen.dart';
 import 'call_log_screen.dart';
 import 'contacts_screen.dart';
 import 'content_filter_screen.dart';
+import 'app_usage_screen.dart';
 import 'sms_screen.dart';
 import '../../services/battery_service.dart';
 import '../../services/sms_service.dart';
@@ -609,10 +610,10 @@ class _FeatureGrid extends StatelessWidget {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
+          crossAxisCount: 3,
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
-          childAspectRatio: 0.8,
+          childAspectRatio: 0.9,
         ),
         itemCount: features.length,
         itemBuilder: (context, i) {
