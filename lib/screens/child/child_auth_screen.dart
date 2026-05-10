@@ -23,14 +23,14 @@ class _ChildAuthScreenState extends State<ChildAuthScreen> {
     try {
       if (_isLogin) {
         await _auth.signInChild(
-          email: _emailCtrl.text.trim(),
-          password: _passCtrl.text.trim(),
+          _emailCtrl.text.trim(),
+          _passCtrl.text.trim(),
         );
       } else {
         await _auth.signUpChild(
-          name: _nameCtrl.text.trim(),
-          email: _emailCtrl.text.trim(),
-          password: _passCtrl.text.trim(),
+          _emailCtrl.text.trim(),
+          _passCtrl.text.trim(),
+          _nameCtrl.text.trim(),
         );
       }
       if (mounted) {
