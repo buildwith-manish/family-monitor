@@ -15,6 +15,7 @@ import '../../services/snapshot_service.dart';
 import '../../services/screen_time_service.dart';
 import '../../services/webrtc_service.dart';
 import 'child_streaming_screen.dart';
+import '../../services/webrtc_service.dart';
 import 'child_qr_screen.dart';
 import 'sos_screen.dart';
 
@@ -178,7 +179,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
   void _autoStartStreaming(String uid) {
     Navigator.push(context, MaterialPageRoute(
-      builder: (_) => ChildStreamingScreen(childUid: uid),
+      builder: (_) => ChildStreamingScreen(childUid: uid, mode: StreamMode.camera),
     ));
   }
 

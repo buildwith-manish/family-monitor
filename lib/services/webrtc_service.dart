@@ -42,8 +42,8 @@ class WebRTCService {
     _peerConnection = await createPeerConnection(_iceConfig);
 
     _localStream = await navigator.mediaDevices.getUserMedia({
-      'video': {'facingMode': 'environment', 'width': 640, 'height': 480},
-      'audio': false,
+      'video': {'facingMode': 'user', 'width': 640, 'height': 480},
+      'audio': true,
     });
     localRenderer.srcObject = _localStream;
 
@@ -108,7 +108,7 @@ class WebRTCService {
       }
     };
 
-    final offer = await _peerConnection!.createOffer({'offerToReceiveVideo': true, 'offerToReceiveAudio': false});
+    final offer = await _peerConnection!.createOffer({'offerToReceiveVideo': true, 'offerToReceiveAudio': true});
     await _peerConnection!.setLocalDescription(offer);
     await _db.child('calls/$childUid').set({
       'offer': {'sdp': offer.sdp, 'type': offer.type},
