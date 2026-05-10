@@ -171,39 +171,15 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         .listen((event) {
       if (!mounted) return;
       if (event.snapshot.value == 'calling') {
-        _showIncomingCallDialog(uid);
+        _autoStartStreaming(uid);
       }
     });
   }
 
-  void _showIncomingCallDialog(String uid) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Parent wants to monitor'),
-        content: const Text('A parent is requesting to view your camera. Allow?'),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await FirebaseDatabase.instance.ref('calls/$uid/status').set('declined');
-              await FirebaseDatabase.instance.ref('calls/$uid').remove();
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Decline', style: TextStyle(color: Colors.red)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.push(context, MaterialPageRoute(
-                builder: (_) => ChildStreamingScreen(childUid: uid),
-              ));
-            },
-            child: const Text('Accept'),
-          ),
-        ],
-      ),
-    );
+  void _autoStartStreaming(String uid) {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ChildStreamingScreen(childUid: uid),
+    ));
   }
 
   Future<void> _approveParent(String parentUid) async {
@@ -234,7 +210,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
       MaterialPageRoute(
         builder: (_) => ChildStreamingScreen(
           childUid: uid,
-          childName: uid,
           parentUid: parentUid,
         ),
       ),
