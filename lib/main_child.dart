@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'screens/child/child_auth_screen.dart';
+import 'screens/child/child_setup_wizard_screen.dart';
 import 'screens/child/child_home_screen.dart';
 import 'screens/child/child_streaming_screen.dart';
 import 'screens/child/child_qr_screen.dart';
@@ -72,6 +73,12 @@ class _ChildAppState extends State<ChildApp> {
       ));
     });
   }
+  Future<Widget> _getStartScreen() async {
+    final auth = AuthService();
+    final wizardDone = await BackgroundMonitoringService.isWizardDone();
+    return const ChildHomeScreen();
+  }
+
   @override
   Widget build(BuildContext context) {
     return WithForegroundTask(child: MaterialApp(
@@ -79,9 +86,17 @@ class _ChildAppState extends State<ChildApp> {
       debugShowCheckedModeBanner: false,
       navigatorKey: childNavKey,
       theme: ThemeData(useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF34A853))),
-      initialRoute: '/',
+      home: FutureBuilder<Widget>(
+        future: _getStartScreen(),
+        builder: (context, snapshot) {
+            return const Scaffold(
+              backgroundColor: Color(0xFF34A853),
+              body: Center(child: CircularProgressIndicator(color: Colors.white)),
+            );
+          }
+        },
+      ),
       routes: {
-        '/':           (_) => const ChildAuthScreen(),
         '/child/home': (_) => const ChildHomeScreen(),
         '/child/qr':   (_) => ChildQrScreen(uid: '', childName: ''),
       },

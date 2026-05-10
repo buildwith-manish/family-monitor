@@ -22,6 +22,16 @@ class _ChildAuthScreenState extends State<ChildAuthScreen> {
   bool _loading = false;
   String? _error;
 
+  Future<void> _checkAlreadyLoggedIn() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+    final wizardDone = await BackgroundMonitoringService.isWizardDone();
+    if (wizardDone) {
+      Navigator.pushReplacement(context,
+        MaterialPageRoute(builder: (_) => const ChildHomeScreen()));
+    }
+  }
+
   Future<void> _submit() async {
     setState(() { _loading = true; _error = null; });
     try {
