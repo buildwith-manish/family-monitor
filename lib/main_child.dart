@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'screens/child/child_setup_wizard_screen.dart';
+import 'screens/child/child_auth_screen.dart';
 import 'screens/child/child_home_screen.dart';
 import 'screens/child/child_qr_screen.dart';
 
@@ -38,7 +38,7 @@ class ChildApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => const ChildSetupWizardScreen(),
+        '/': (context) => const ChildAuthScreen(),
         '/child/home': (context) => const ChildHomeScreen(),
         '/child/qr': (context) => ChildQrScreen(uid: '', childName: ''),
       },

