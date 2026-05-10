@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
@@ -48,6 +49,8 @@
             android:foregroundServiceType="camera|microphone|location"
             android:exported="false"/>
         <service android:name="id.flutter.flutter_background_service.BackgroundService"
+            tools:replace="android:exported"
+            android:exported="true"
             android:foregroundServiceType="camera|microphone"
             android:exported="false"/>
         <receiver android:name=".BootReceiver" android:exported="true">
