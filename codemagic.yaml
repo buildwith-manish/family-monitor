@@ -5,6 +5,11 @@ workflows:
     environment:
       flutter: 3.27.4
       java: 17
+    cache:
+      cache_paths:
+        - ~/.pub-cache
+        - ~/.gradle/caches
+        - ~/.gradle/wrapper
     scripts:
       - name: Get dependencies
         script: flutter pub get
