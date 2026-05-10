@@ -30,13 +30,13 @@ android {
     productFlavors {
         create("parent") {
             dimension = "app"
-            applicationId = "com.example.family_monitor.parent"
-            resValue("string", "app_name", "Family Monitor Parent")
+            applicationIdSuffix = ".parent"
+            versionNameSuffix = "-parent"
         }
         create("child") {
             dimension = "app"
-            applicationId = "com.example.family_monitor.child"
-            resValue("string", "app_name", "Family Monitor Child")
+            applicationIdSuffix = ".child"
+            versionNameSuffix = "-child"
         }
     }
 
