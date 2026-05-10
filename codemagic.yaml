@@ -3,7 +3,7 @@ workflows:
     name: Build APK
     instance_type: mac_mini_m4
     environment:
-      flutter: 3.22.3
+      flutter: 3.41.9
       java: 17
     scripts:
       - name: Get dependencies
