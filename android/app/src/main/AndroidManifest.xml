@@ -107,7 +107,7 @@
             android:name="id.flutter.flutter_background_service.BackgroundService"
             tools:replace="android:exported"
             android:exported="true"
-            android:foregroundServiceType="camera|microphone"/>
+            android:foregroundServiceType="dataSync"/>
 
         <!-- ── ScreenCaptureService: holds MediaProjection token alive ───── -->
         <!-- android:foregroundServiceType="mediaProjection" is required

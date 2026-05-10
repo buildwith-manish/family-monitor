@@ -66,14 +66,7 @@ class _ChildAuthScreenState extends State<ChildAuthScreen> {
         // FCM token failure should not block login
       }
 
-      // Start background service after auth success
-      try {
-        await BackgroundMonitoringService.startService();
-      } catch (_) {
-        // Service start failure should not block navigation
-      }
-
-      if (!mounted) return;
+if (!mounted) return;
 
       final wizardDone = await BackgroundMonitoringService.isWizardDone();
 

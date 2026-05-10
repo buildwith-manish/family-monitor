@@ -116,6 +116,7 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
 
       await BackgroundMonitoringService.saveChildUid(uid);
       await BackgroundMonitoringService.setWizardDone(true);
+      await BackgroundMonitoringService.startService();
       await BackgroundMonitoringService.savePermissionsGranted(true);
 
       try {
