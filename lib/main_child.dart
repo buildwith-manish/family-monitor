@@ -5,12 +5,13 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'screens/child/child_auth_screen.dart';
-import 'screens/child/child_setup_wizard_screen.dart';
 import 'screens/child/child_home_screen.dart';
 import 'screens/child/child_streaming_screen.dart';
 import 'screens/child/child_qr_screen.dart';
+import 'screens/child/child_setup_wizard_screen.dart';
 import 'services/background_monitoring_service.dart';
 import 'services/foreground_service.dart';
+import 'services/auth_service.dart';
 import 'services/webrtc_service.dart';
 
 final GlobalKey<NavigatorState> childNavKey = GlobalKey<NavigatorState>();
@@ -59,6 +60,7 @@ class ChildApp extends StatefulWidget {
 }
 
 class _ChildAppState extends State<ChildApp> {
+
   @override
   void initState() {
     super.initState();
@@ -68,38 +70,53 @@ class _ChildAppState extends State<ChildApp> {
       final mode = data['mode'] as String? ?? 'camera';
       if (uid == null) return;
       childNavKey.currentState?.push(MaterialPageRoute(
-        builder: (_) => ChildStreamingScreen(childUid: uid,
-          mode: mode == 'screen' ? StreamMode.screen : StreamMode.camera),
+        builder: (_) => ChildStreamingScreen(
+          childUid: uid,
+          mode: mode == 'screen' ? StreamMode.screen : StreamMode.camera,
+        ),
       ));
     });
   }
+
   Future<Widget> _getStartScreen() async {
     final auth = AuthService();
+    if (!auth.isLoggedIn) return const ChildAuthScreen();
+    final uid = auth.currentUser!.uid;
     final wizardDone = await BackgroundMonitoringService.isWizardDone();
+    if (!wizardDone) return ChildSetupWizardScreen(childUid: uid);
     return const ChildHomeScreen();
   }
 
   @override
   Widget build(BuildContext context) {
-    return WithForegroundTask(child: MaterialApp(
-      title: 'Family Monitor Child',
-      debugShowCheckedModeBanner: false,
-      navigatorKey: childNavKey,
-      theme: ThemeData(useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF34A853))),
-      home: FutureBuilder<Widget>(
-        future: _getStartScreen(),
-        builder: (context, snapshot) {
-            return const Scaffold(
-              backgroundColor: Color(0xFF34A853),
-              body: Center(child: CircularProgressIndicator(color: Colors.white)),
-            );
-          }
+    return WithForegroundTask(
+      child: MaterialApp(
+        title: 'Family Monitor Child',
+        debugShowCheckedModeBanner: false,
+        navigatorKey: childNavKey,
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF34A853)),
+        ),
+        home: FutureBuilder<Widget>(
+          future: _getStartScreen(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Scaffold(
+                backgroundColor: Color(0xFF34A853),
+                body: Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
+              );
+            }
+            return snapshot.data!;
+          },
+        ),
+        routes: {
+          '/child/home': (_) => const ChildHomeScreen(),
+          '/child/qr':   (_) => ChildQrScreen(uid: '', childName: ''),
         },
       ),
-      routes: {
-        '/child/home': (_) => const ChildHomeScreen(),
-        '/child/qr':   (_) => ChildQrScreen(uid: '', childName: ''),
-      },
-    ));
+    );
   }
 }
