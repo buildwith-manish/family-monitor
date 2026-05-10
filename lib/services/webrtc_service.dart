@@ -5,6 +5,8 @@ import 'package:firebase_database/firebase_database.dart';
 
 enum StreamMode { camera, screen }
 
+enum StreamMode { camera, screen }
+
 class WebRTCService {
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
@@ -150,6 +152,20 @@ class WebRTCService {
   Future<void> switchCamera() async {
     final tracks = _localStream?.getVideoTracks() ?? [];
     if (tracks.isNotEmpty) await Helper.switchCamera(tracks.first);
+  }
+
+  Future<void> startScreenShareAsChild(String childUid, VoidCallback onCallEnded) async {
+    await startAsChild(childUid, onCallEnded);
+  }
+
+  Future<void> sendFlipCommand(String childUid) async {
+    await _db.child('calls//command').set('flip');
+    await Future.delayed(const Duration(milliseconds: 500));
+    await _db.child('calls//command').remove();
+  }
+
+  Future<void> sendMuteCommand(String childUid, bool mute) async {
+    await _db.child('calls//command').set(mute ? 'mute' : 'unmute');
   }
 
   Future<void> endCall(String childUid) async {
