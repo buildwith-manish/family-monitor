@@ -54,9 +54,10 @@ class _ChildAuthScreenState extends State<ChildAuthScreen> {
 
       await BackgroundMonitoringService.saveChildUid(uid);
 
-      // Save FCM token safely
+      // Save FCM token safely (Android 13+ only for notifications)
       try {
-        final token = await FirebaseMessaging.instance.getToken();
+        final token = await FirebaseMessaging.instance.getToken()
+            .timeout(const Duration(seconds: 5));
         if (token != null) {
           await FirebaseDatabase.instance.ref('users/$uid/fcmToken').set(token);
           FirebaseMessaging.instance.onTokenRefresh.listen((t) =>

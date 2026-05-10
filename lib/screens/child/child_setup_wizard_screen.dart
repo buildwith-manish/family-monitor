@@ -61,10 +61,11 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
   }
 
   Future<void> _requestPermissions() async {
-    await [
-      Permission.camera,
-      Permission.microphone,
-    ].request();
+    final perms = [Permission.camera, Permission.microphone];
+    if (await Permission.notification.status != PermissionStatus.granted) {
+      perms.add(Permission.notification);
+    }
+    await perms.request();
   }
 
   Future<void> _checkBatteryAndScreenStatus() async {
