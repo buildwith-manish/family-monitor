@@ -198,7 +198,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     });
   }
 
-  void _autoStartStreaming(String uid) {
+  void _autoStartStreaming(String uid, String mode) {
     final nav = childNavKey.currentState ?? (mounted ? Navigator.of(context) : null);
     nav?.push(MaterialPageRoute(
       builder: (_) => ChildStreamingScreen(childUid: uid, mode: StreamMode.camera),
