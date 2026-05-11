@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:permission_handler/permission_handler.dart' show openAppSettings;
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:firebase_database/firebase_database.dart';
 import '../../services/webrtc_service.dart';
 import '../../services/screen_capture_channel.dart';
 
@@ -37,7 +35,7 @@ class ChildStreamingScreen extends StatefulWidget {
 class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
   final _webrtc    = WebRTCService();
   bool  _isConnecting = true;
-  bool  _isFrontCamera = true;
+  final bool  _isFrontCamera = true;
   bool  _retrying = false;
   String _statusMsg = 'Starting…';
 

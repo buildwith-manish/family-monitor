@@ -48,7 +48,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   Map<String, dynamic> _pendingRequests = {};
   Map<String, dynamic> _approvedParents = {};
   String? _childName;
-  bool _isMonitoring = false;
+  final bool _isMonitoring = false;
   bool _locationSharing = false;
   bool _locked = false;
 
@@ -71,6 +71,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     try { await _setOnline(true); } catch (_) {}
     try { await _startExtraServices(); } catch (_) {}
     try { await _askPermissions(); } catch (_) {}
+    try { await BackgroundMonitoringService.startService(); } catch (_) {}
     try { await BackgroundMonitoringService.startService(); } catch (_) {}
     // Delay command listener to avoid WebRTC surface conflict on startup
     await Future.delayed(const Duration(seconds: 3));
@@ -158,7 +159,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
       final raw = event.snapshot.value;
       if (raw is Map) {
         setState(() =>
-            _pendingRequests = Map<String, dynamic>.from(raw as Map));
+            _pendingRequests = Map<String, dynamic>.from(raw));
       } else {
         setState(() => _pendingRequests = {});
       }
@@ -172,7 +173,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
       final raw = event.snapshot.value;
       if (raw is Map) {
         setState(() =>
-            _approvedParents = Map<String, dynamic>.from(raw as Map));
+            _approvedParents = Map<String, dynamic>.from(raw));
       } else {
         setState(() => _approvedParents = {});
       }
@@ -225,7 +226,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         if (!mounted) return;
         final data = event.snapshot.value;
         if (data == null || data is! Map) return;
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = Map<String, dynamic>.from(data);
         final status = map['status'] as String?;
         if (status == 'calling') {
           final modeStr = map['mode'] as String? ?? 'camera';
@@ -371,7 +372,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
               // Pending requests
               if (_pendingRequests.isNotEmpty) ...[
-                _SectionHeader(
+                const _SectionHeader(
                   title: '🔔 Pending Requests',
                   subtitle: 'Someone wants to monitor this device',
                 ),
@@ -684,7 +685,7 @@ class _LocationToggleCard extends StatelessWidget {
           Switch(
             value: isSharing,
             onChanged: (val) => onToggle(val),
-            activeColor: const Color(0xFF34A853),
+            activeThumbColor: const Color(0xFF34A853),
           ),
         ],
       ),
@@ -821,9 +822,9 @@ class _ApprovedParentCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: const Color(0xFFE8F0FE),
-            child: const Icon(Icons.person, color: Color(0xFF1A73E8)),
+          const CircleAvatar(
+            backgroundColor: Color(0xFFE8F0FE),
+            child: Icon(Icons.person, color: Color(0xFF1A73E8)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -833,7 +834,7 @@ class _ApprovedParentCard extends StatelessWidget {
                 Text('Approved Parent',
                     style: GoogleFonts.inter(
                         fontSize: 14, fontWeight: FontWeight.w600)),
-                Text(parentUid.substring(0, 8) + '…',
+                Text('${parentUid.substring(0, 8)}…',
                     style: GoogleFonts.robotoMono(
                         fontSize: 11, color: Colors.grey)),
               ],

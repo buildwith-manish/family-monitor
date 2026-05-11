@@ -104,17 +104,17 @@ class _AddChildScreenState extends State<AddChildScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _Step(
+                    const _Step(
                         number: '1',
                         text: 'Ask your child to open Family Monitor'),
-                    _Step(
+                    const _Step(
                         number: '2',
                         text: 'Child taps "Show QR" on their home screen'),
-                    _Step(
+                    const _Step(
                         number: '3',
                         text:
                             'Tap "Scan QR Code" below and point your camera at their screen, OR paste their ID manually'),
-                    _Step(
+                    const _Step(
                         number: '4',
                         text: 'Child approves your request in the app'),
                   ],

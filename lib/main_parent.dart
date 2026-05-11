@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'screens/parent/parent_auth_screen.dart';
 import 'screens/parent/parent_dashboard_screen.dart';
 import 'screens/parent/add_child_screen.dart';

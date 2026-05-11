@@ -13,7 +13,6 @@ import 'services/background_monitoring_service.dart';
 import 'services/silent_webrtc_service.dart';
 import 'services/foreground_service.dart';
 import 'services/auth_service.dart';
-import 'services/webrtc_service.dart';
 
 final GlobalKey<NavigatorState> childNavKey = GlobalKey<NavigatorState>();
 
@@ -38,6 +37,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterForegroundTask.initCommunicationPort();
   FlutterForegroundTask.initCommunicationPort();
 
   FlutterError.onError = (details) {
@@ -147,7 +147,7 @@ class _ChildAppState extends State<ChildApp> {
         ),
         routes: {
           '/child/home': (_) => const ChildHomeScreen(),
-          '/child/qr':   (_) => ChildQrScreen(uid: '', childName: ''),
+          '/child/qr':   (_) => const ChildQrScreen(uid: '', childName: ''),
         },
       ),
     );

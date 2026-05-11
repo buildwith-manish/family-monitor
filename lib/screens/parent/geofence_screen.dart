@@ -189,7 +189,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
                           color: const Color(0xFF1A73E8),
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
-                          boxShadow: [
+                          boxShadow: const [
                             BoxShadow(
                               color: Colors.black26,
                               blurRadius: 6,
@@ -216,11 +216,11 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
                           color: Colors.black26,
                           blurRadius: 20,
-                          offset: const Offset(0, -4)),
+                          offset: Offset(0, -4)),
                     ],
                   ),
                   child: Column(
@@ -336,7 +336,7 @@ class _ZoneChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

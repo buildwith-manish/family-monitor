@@ -40,8 +40,10 @@ class _SmsScreenState extends State<SmsScreen> {
           icon: const Icon(Icons.sync),
           onPressed: () async {
             await SmsService.requestSync(widget.childUid);
-            if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Sync requested — child app will upload shortly')));
+            }
           },
         )],
       ),

@@ -201,8 +201,9 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Enter password';
-                    if (!_isLogin && v.length < 6)
+                    if (!_isLogin && v.length < 6) {
                       return 'Minimum 6 characters';
+                    }
                     return null;
                   },
                 ).animate(delay: 300.ms).fadeIn().slideX(begin: -0.1, end: 0),

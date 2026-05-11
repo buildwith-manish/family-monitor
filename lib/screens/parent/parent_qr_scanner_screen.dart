@@ -170,7 +170,7 @@ class _ScanOverlay extends StatelessWidget {
         Positioned(
           left: scanLeft,
           top: scanTop,
-          child: _ScanCorners(size: scanSize),
+          child: const _ScanCorners(size: scanSize),
         ),
 
         // "Align QR code here" label
@@ -228,7 +228,7 @@ class _ScanCorners extends StatelessWidget {
       return Transform.scale(
         scaleX: flipX ? -1 : 1,
         scaleY: flipY ? -1 : 1,
-        child: SizedBox(
+        child: const SizedBox(
           width: cornerLen,
           height: cornerLen,
           child: CustomPaint(
@@ -266,7 +266,7 @@ class _CornerPainter extends CustomPainter {
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
-    final r = const Radius.circular(4);
+    const r = Radius.circular(4);
     canvas.drawLine(
         Offset(0, size.height), const Offset(0, 0), paint);
     canvas.drawLine(const Offset(0, 0), Offset(size.width, 0), paint);

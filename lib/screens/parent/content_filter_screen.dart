@@ -165,7 +165,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
               trailing: Switch(
                 value: blocked,
                 onChanged: (_) => _toggleCategory(category),
-                activeColor: const Color(0xFFEA4335),
+                activeThumbColor: const Color(0xFFEA4335),
               ),
             ),
           ).animate(delay: Duration(milliseconds: e.key * 60)).fadeIn();

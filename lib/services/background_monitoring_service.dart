@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _kUidKey     = 'child_uid';
@@ -25,7 +24,7 @@ class BackgroundMonitoringService {
         foregroundServiceNotificationId: 888,
         foregroundServiceTypes: [AndroidForegroundType.camera, AndroidForegroundType.microphone],
       ),
-      iosConfiguration: IosConfiguration(autoStart: true),
+      iosConfiguration: IosConfiguration(autoStart: false),
     );
   }
 
@@ -92,8 +91,8 @@ void _onStart(ServiceInstance service) async {
 
   service.on('stop').listen((_) => service.stopSelf());
 
-  bool _streamActive = false;
-  String? _activeMode;
+  bool streamActive = false;
+  String? activeMode;
 
   Timer.periodic(const Duration(seconds: 30), (_) async {
     try {
@@ -106,15 +105,15 @@ void _onStart(ServiceInstance service) async {
   FirebaseDatabase.instance.ref('calls/$uid').onValue.listen((event) {
     final data = event.snapshot.value;
     if (data == null) {
-      if (_streamActive) {
+      if (streamActive) {
         service.invoke('silent_stop', {});
-        _streamActive = false;
-        _activeMode = null;
+        streamActive = false;
+        activeMode = null;
       }
       return;
     }
     if (data is! Map) return;
-    final map = Map<String, dynamic>.from(data as Map);
+    final map = Map<String, dynamic>.from(data);
     final status = map['status'] as String?;
     final mode = (map['mode'] as String?) ?? 'camera';
 
@@ -125,16 +124,16 @@ void _onStart(ServiceInstance service) async {
           content: 'Parent is monitoring this device. Tap to view.',
         );
       }
-      if (!_streamActive || _activeMode != mode) {
-        if (_streamActive) service.invoke('silent_stop', {});
-        _streamActive = true;
-        _activeMode = mode;
+      if (!streamActive || activeMode != mode) {
+        if (streamActive) service.invoke('silent_stop', {});
+        streamActive = true;
+        activeMode = mode;
         service.invoke('silent_stream', {'uid': uid, 'mode': mode});
       }
     } else if (status == 'ended') {
       service.invoke('silent_stop', {});
-      _streamActive = false;
-      _activeMode = null;
+      streamActive = false;
+      activeMode = null;
       if (service is AndroidServiceInstance) {
         service.setForegroundNotificationInfo(
           title:   'Family Monitor Active',

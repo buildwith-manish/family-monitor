@@ -10,7 +10,6 @@ import 'screens/parent/parent_dashboard_screen.dart';
 import 'screens/parent/add_child_screen.dart';
 import 'screens/child/child_setup_wizard_screen.dart';
 import 'screens/child/child_home_screen.dart';
-import 'screens/child/child_qr_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 import '../../services/auth_service.dart';
@@ -20,9 +19,7 @@ import 'call_log_screen.dart';
 import 'contacts_screen.dart';
 import 'content_filter_screen.dart';
 import 'app_usage_screen.dart';
-import 'sms_screen.dart';
 import '../../services/battery_service.dart';
-import '../../services/sms_service.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});
@@ -52,7 +49,9 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   @override
   void dispose() {
     _sosSub?.cancel();
-    for (final s in _batterySubs.values) s.cancel();
+    for (final s in _batterySubs.values) {
+      s.cancel();
+    }
     super.dispose();
   }
 
@@ -229,7 +228,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               deviceInfo: _deviceInfo,
             ),
           );
-        }).values.toList(),
+        }).values,
 
         const SizedBox(height: 16),
         OutlinedButton.icon(
@@ -251,7 +250,7 @@ class _SosBanner extends StatelessWidget {
   const _SosBanner({required this.alerts, required this.onAcknowledge});
 
   Widget _batteryBadge(String childUid) {
-    final info = const <String,dynamic>{};
+    const info = <String,dynamic>{};
     if (info.isEmpty) return const SizedBox.shrink();
     final level = (info['batteryLevel'] as num?)?.toInt() ?? 0;
     final charging = info['isCharging'] as bool? ?? false;
