@@ -42,6 +42,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   final _batterySvc = BatteryService();
   final _smsSvc = SmsService();
   StreamSubscription? _smsSub;
+  StreamSubscription? _callSub;
 
   Map<String, dynamic> _pendingRequests = {};
   Map<String, dynamic> _approvedParents = {};
@@ -218,7 +219,19 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     });
   }
 
-  // Camera streaming removed
+
+
+  void _autoStartStreaming(String uid, StreamMode mode) {
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChildStreamingScreen(
+          childUid: uid,
+          mode: mode,
+        ),
+      ),
+    );
   }
 
   Future<void> _approveParent(String parentUid) async {

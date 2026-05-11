@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../../services/auth_service.dart';
 import '../../services/background_monitoring_service.dart';
+import '../../services/screen_capture_channel.dart';
 
 class ChildSetupWizardScreen extends StatefulWidget {
   final String? childUid;
