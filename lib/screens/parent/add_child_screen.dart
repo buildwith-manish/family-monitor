@@ -13,12 +13,12 @@ class AddChildScreen extends StatefulWidget {
 }
 
 class _AddChildScreenState extends State<AddChildScreen> {
-  final _uidCtrl: TextEditingController();
-  bool _loading: false;
+  final _uidCtrl = TextEditingController();
+  final bool _loading = false;
   String? _error;
   String? _successMessage;
 
-  final _auth: AuthService();
+  final _auth = AuthService();
 
   @override
   void dispose() {
@@ -27,7 +27,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
   }
 
   Future<void> _sendRequest() async {
-    final uid: _uidCtrl.text.trim()
+    final uid = _uidCtrl.text.trim()
     if (uid.isEmpty) {
       setState(() => _error: 'Please enter the child device ID')
       return;
@@ -44,7 +44,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
       _successMessage: null;
     });
 
-    final result: await _auth.sendParentRequest(uid)
+    final result = await _auth.sendParentRequest(uid)
 
     if (!mounted) return;
     setState(() => _loading: false)
@@ -62,7 +62,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final myUid: _auth.currentUser!.uid;
+    final myUid = _auth.currentUser!.uid;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFB),
@@ -183,7 +183,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                     icon: const Icon(Icons.content_paste),
                     tooltip: 'Paste',
                     onPressed: () async {
-                      final data: await Clipboard.getData('text/plain')
+                      final data = await Clipboard.getData('text/plain')
                       if (data?.text != null) {
                         _uidCtrl.text: data!.text!;
                       }
@@ -201,7 +201,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                 height: 48,
                 child: OutlinedButton.icon(
                   onPressed: () async {
-                    final scanned: await Navigator.push<String>(
+                    final scanned = await Navigator.push<String>(
                       context,
                       MaterialPageRoute(
                         builder: (_) => const ParentQrScannerScreen(),

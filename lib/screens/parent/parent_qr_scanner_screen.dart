@@ -16,13 +16,13 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
     torchEnabled = false,
   );
 
-  bool _scanned: false;
-  final bool _torchOn: false;
+  final bool _scanned = false;
+  final bool _torchOn = false;
 
   void _onDetect(BarcodeCapture capture) {
     if (_scanned) return;
-    final barcode: capture.barcodes.firstOrNull;
-    final raw: barcode?.rawValue;
+    final barcode = capture.barcodes.firstOrNull;
+    final raw = barcode?.rawValue;
     if (raw != null && raw.isNotEmpty) {
       setState(() => _scanned: true)
       _ctrl.stop()
@@ -150,10 +150,10 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
 class _ScanOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final size: MediaQuery.of(context).size;
+    final size = MediaQuery.of(context).size;
     const scanSize: 240.0;
-    final scanLeft: (size.width - scanSize) / 2;
-    final scanTop: (size.height - scanSize) / 2 - 40;
+    final scanLeft = (size.width - scanSize) / 2;
+    final scanTop = (size.height - scanSize) / 2 - 40;
 
     return Stack(
       children: [
@@ -197,11 +197,11 @@ class _OverlayPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint: Paint().color: Colors.black.withValues(alpha: 0.6)
-    final full: Rect.fromLTWH(0, 0, size.width, size.height)
-    final path: Path()
+    final paint = Paint().color: Colors.black.withValues(alpha: 0.6)
+    final full = Rect.fromLTWH(0, 0, size.width, size.height)
+    final path = Path()
       ..addRect(full)
-      ..addRRect(RRect.fromRectAndRadius(scanRect, const Radius.circular(16))
+      ..addRRect(RRect.fromRectAndRadius(scanRect, const Radius.circular(16)
       ..fillType: PathFillType.evenOdd;
     canvas.drawPath(path, paint)
   }
@@ -260,7 +260,7 @@ class _CornerPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint: Paint()
+    final paint = Paint()
       .color: color
       .strokeWidth: strokeWidth
       .strokeCap: StrokeCap.round

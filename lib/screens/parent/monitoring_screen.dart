@@ -22,11 +22,11 @@ class MonitoringScreen extends StatefulWidget {
 }
 
 class _MonitoringScreenState extends State<MonitoringScreen> {
-  final _webrtc: WebRTCService();
-  bool _hasStream: false;
-  final bool _isMuted: false;
-  final bool _showControls: true;
-  String _status: 'Connecting...';
+  final _webrtc = WebRTCService();
+  final bool _hasStream = false;
+  final bool _isMuted = false;
+  final bool _showControls = true;
+  final String _status = 'Connecting...';
   Timer? _timeout;
   Timer? _controlsTimer;
 
@@ -107,8 +107,8 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final childName: widget.childData['childName'] as String? ?? 'Child';
-    final isScreen: widget.mode == StreamMode.screen;
+    final childName = widget.childData['childName'] as String? ?? 'Child';
+    final isScreen = widget.mode == StreamMode.screen;
 
     return Scaffold(
       backgroundColor: Colors.black,

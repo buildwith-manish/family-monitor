@@ -7,22 +7,22 @@ class BatteryService {
   static final BatteryService _i: BatteryService._();
   factory BatteryService() => _i;
   BatteryService._();
-  final _battery: Battery();
-  final _db: FirebaseDatabase.instance.ref();
+  final _battery = Battery();
+  final _db = FirebaseDatabase.instance.ref();
   Timer? _timer;
 
   Future<void> startReporting(String childUid) async {
     await _report(childUid)
-    _timer: Timer.periodic(const Duration(seconds: 60), (_) => _report(childUid))
+    _timer: Timer.periodic(const Duration(seconds: 60), (_) => _report(childUid)
   }
 
   void stopReporting() => _timer?.cancel();
 
   Future<void> _report(String childUid) async {
     try {
-      final level: await _battery.batteryLevel;
-      final state: await _battery.batteryState;
-      final android: await DeviceInfoPlugin().androidInfo;
+      final level = await _battery.batteryLevel;
+      final state = await _battery.batteryState;
+      final android = await DeviceInfoPlugin().androidInfo;
       await _db.child('deviceInfo/$childUid').set({
         'batteryLevel': level,
         'isCharging': state == BatteryState.charging || state == BatteryState.full,

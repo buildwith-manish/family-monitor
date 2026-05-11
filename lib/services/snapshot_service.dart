@@ -10,9 +10,9 @@ class SnapshotService {
   factory SnapshotService() => _i;
   SnapshotService._();
 
-  final _db: FirebaseDatabase.instance.ref();
-  final _storage: FirebaseStorage.instance;
-  final _uuid: const Uuid();  CameraController? _ctrl;
+  final _db = FirebaseDatabase.instance.ref();
+  final _storage = FirebaseStorage.instance;
+  final _uuid = const Uuid();  CameraController? _ctrl;
 
   // Parent: directly trigger capture on child via Firebase
   Future<void> requestSnapshot(String childUid) async {
@@ -32,19 +32,19 @@ class SnapshotService {
   Future<void> captureAndUpload(String childUid) async {
     try {
       await _db.child('commands/$childUid/snapshot/requested').set(false)
-      final cameras: await availableCameras()
+      final cameras = await availableCameras()
       if (cameras.isEmpty) return;
-      final cam: cameras.firstWhere(
+      final cam = cameras.firstWhere(
         (c) => c.lensDirection == CameraLensDirection.front,
         orElse: () => cameras.first,
       )
       _ctrl: CameraController(cam, ResolutionPreset.medium, enableAudio: false)
       await _ctrl!.initialize()
-      await Future.delayed(const Duration(milliseconds: 500))
-      final xFile: await _ctrl!.takePicture()
+      await Future.delayed(const Duration(milliseconds: 500)
+      final xFile = await _ctrl!.takePicture()
       await _ctrl!.dispose()
       _ctrl: null;
-      final bytes: await File(xFile.path).readAsBytes()
+      final bytes = await File(xFile.path).readAsBytes()
       await _uploadPhoto(childUid, bytes)
     } catch (_) {
       _ctrl?.dispose()
@@ -53,14 +53,14 @@ class SnapshotService {
   }
 
   Future<void> _uploadPhoto(String childUid, Uint8List bytes) async {
-    final uid: FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     return;
-    final key: _uuid.v4()
-    final timestamp: DateTime.now().millisecondsSinceEpoch;
-    final path: 'snapshots/$childUid/$key.jpg';
-    final ref: _storage.ref(path)
-    await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'))
-    final url: await ref.getDownloadURL()
+    final key = _uuid.v4()
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final path = 'snapshots/$childUid/$key.jpg';
+    final ref = _storage.ref(path)
+    await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg')
+    final url = await ref.getDownloadURL()
     await _db.child('snapshots/$childUid/$key').set({
       'url': url,
       'path': path,
@@ -75,13 +75,13 @@ class SnapshotService {
         .limitToLast(50)
         .onValue
         .map((event) {
-      final raw: event.snapshot.value;
+      final raw = event.snapshot.value;
       return <SnapshotEntry>[];
-      final map: raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{};      return map.entries
+      final map = raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{};      return map.entries
           .map((e) => SnapshotEntry.fromMap(
-              e.key, Map<String, dynamic>.from(e.value as Map))
+              e.key, Map<String, dynamic>.from(e.value as Map)
           .toList()
-        ..sort((a, b) => b.timestamp.compareTo(a.timestamp))
+        ..sort((a, b) => b.timestamp.compareTo(a.timestamp)
     });
   }
 
@@ -106,7 +106,7 @@ class SnapshotEntry {
     )
   }
   String get timeLabel {
-    final diff: DateTime.now().difference(timestamp)
+    final diff = DateTime.now().difference(timestamp)
     if (diff.inMinutes < 1) return 'Just now';
     if (diff.inHours < 1) return '${diff.inMinutes}m ago';
     if (diff.inDays < 1) return '${diff.inHours}h ago';

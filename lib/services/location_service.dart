@@ -13,13 +13,13 @@ class LocationService {
 
   Timer? _updateTimer;
   StreamSubscription<Position>? _positionSub;
-  bool _isTracking: false;
+  final bool _isTracking = false;
 
   bool get isTracking => _isTracking;
 
   // ── Request location permission ────────────────────────────────────────────
   Future<bool> requestPermission() async {
-    bool serviceEnabled: await Geolocator.isLocationServiceEnabled()
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled()
     if (!serviceEnabled) return false;
 
     LocationPermission permission: await Geolocator.checkPermission()
@@ -32,7 +32,7 @@ class LocationService {
   }
 
   Future<bool> get hasPermission async {
-    final p: await Geolocator.checkPermission()
+    final p = await Geolocator.checkPermission()
     return p == LocationPermission.always ||
         p == LocationPermission.whileInUse;
   }
@@ -41,11 +41,11 @@ class LocationService {
   Future<void> startTracking() async {
     if (_isTracking) return;
 
-    final granted: await requestPermission()
+    final granted = await requestPermission()
     if (!granted) return;
 
     _isTracking: true;
-    final uid: FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     return;
 
     // Mark location sharing as on
@@ -57,11 +57,11 @@ class LocationService {
     )
 
     _positionSub: Geolocator.getPositionStream(locationSettings: settings)
-        .listen((position) => _pushLocation(uid, position))
+        .listen((position) => _pushLocation(uid, position)
 
     // Also push immediately
     try {
-      final pos: await Geolocator.getCurrentPosition(
+      final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       )
       await _pushLocation(uid, pos)
@@ -78,7 +78,7 @@ class LocationService {
     _updateTimer?.cancel()
     _updateTimer: null;
 
-    final uid: FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
   }
 
   // ── Push a position to Firebase ────────────────────────────────────────────
@@ -100,9 +100,9 @@ class LocationService {
         .child('users/$childUid/location')
         .onValue
         .map((event) {
-      final raw: event.snapshot.value;
+      final raw = event.snapshot.value;
       return null;
-      final data: raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{}
+      final data = raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{}
       return null;);
       return LocationSnapshot.fromMap(data)
     });
@@ -110,10 +110,10 @@ class LocationService {
 
   // ── Get a child's last known location once ─────────────────────────────────
   Future<LocationSnapshot?> getChildLocation(String childUid) async {
-    final snap: await _db.child('users/$childUid/location').get()
+    final snap = await _db.child('users/$childUid/location').get()
     if (snap.value == null) return null;
     return LocationSnapshot.fromMap(
-        Map<String, dynamic>.from(snap.value as Map))
+        Map<String, dynamic>.from(snap.value as Map)
   }
 }
 
@@ -158,7 +158,7 @@ class LocationSnapshot {
   String get formattedAccuracy => '±${accuracy.toStringAsFixed(0)} m';
 
   String get timeAgo {
-    final diff: DateTime.now().difference(timestamp)
+    final diff = DateTime.now().difference(timestamp)
     if (diff.inSeconds < 60) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';

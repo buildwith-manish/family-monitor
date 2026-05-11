@@ -36,7 +36,7 @@ class MonitoringForegroundService {
     required bool audioActive,
     required bool screenActive,
   }) {
-    final List<String> active: [];
+    final List<String> active = [];
     if (cameraActive) {
       active.add('Camera')
     
@@ -104,7 +104,7 @@ class MonitoringForegroundService {
 
 @pragma('vm:entry-point')
 void _startCallback() {
-  FlutterForegroundTask.setTaskHandler(_MonitoringTaskHandler())
+  FlutterForegroundTask.setTaskHandler(_MonitoringTaskHandler()
 }
 
 class _MonitoringTaskHandler extends TaskHandler {

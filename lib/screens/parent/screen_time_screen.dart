@@ -20,12 +20,12 @@ class ScreenTimeScreen extends StatefulWidget {
 }
 
 class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
-  final _svc: ScreenTimeService();
-  List<AppUsageEntry> _usage: [];
-  Map<String, int> _limits: {};
-  bool _loading: true;
+  final _svc = ScreenTimeService();
+  final List<AppUsageEntry> _usage = [];
+  final Map<String, int> _limits = {};
+  final bool _loading = true;
   String? _settingLimitFor;
-  final _limitCtrl: TextEditingController();
+  final _limitCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -56,7 +56,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
   int get _totalMinutes => _usage.fold(0, (s, e) => s + e.minutes);
 
   Future<void> _setLimit(String packageName) async {
-    final mins: int.tryParse(_limitCtrl.text.trim())
+    final mins = int.tryParse(_limitCtrl.text.trim()
     if (mins == null || mins <= 0) return;
     await _svc.setDailyLimit(widget.childUid, packageName, mins)
     if (!mounted) return;
@@ -77,7 +77,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
             const Text('Screen Time'),
             Text(widget.childName,
                 style: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFF5F6368)),
+                    fontSize: 12, color: const Color(0xFF5F6368),
           ],
         ),
         actions: [
@@ -130,7 +130,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
   }
 
   Widget _buildContent() {
-    final top: _usage.take(5).toList()
+    final top = _usage.take(5).toList()
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -145,7 +145,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
               style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF5F6368)),
+                  color: const Color(0xFF5F6368),
           const SizedBox(height: 10),
           Container(
             height: 200,
@@ -165,26 +165,26 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                       reservedSize: 36,
                       getTitlesWidget: (v, _) => Text('${v.toInt()}m',
                           style: GoogleFonts.inter(fontSize: 9,
-                              color: const Color(0xFF9AA0A6)),
+                              color: const Color(0xFF9AA0A6),
                     ),
                   ),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (v, _) {
-                        final idx: v.toInt();
+                        final idx = v.toInt();
                         if (idx < 0 || idx >= top.length) {
                           return const SizedBox.shrink();
                         }
-                        final name: top[idx].appName;
-                        final label: name.length > 7
+                        final name = top[idx].appName;
+                        final label = name.length > 7
                             ? name.substring(0, 7)
                             : name;
                         return Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(label,
                               style: GoogleFonts.inter(fontSize: 9,
-                                  color: const Color(0xFF5F6368)),
+                                  color: const Color(0xFF5F6368),
                         );
                       },
                     ),
@@ -227,7 +227,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
             style: GoogleFonts.plusJakartaSans(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF5F6368)),
+                color: const Color(0xFF5F6368),
         const SizedBox(height: 8),
         ..._usage.asMap().entries.map((e) => _AppUsageRow(
               entry: e.value,
@@ -281,8 +281,8 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hours: totalMinutes ~/ 60;
-    final mins: totalMinutes % 60;
+    final hours = totalMinutes ~/ 60;
+    final mins = totalMinutes % 60;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -346,7 +346,7 @@ class _AppUsageRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final overLimit: limit != null && entry.minutes > limit!;
+    final overLimit = limit != null && entry.minutes > limit!;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -396,7 +396,7 @@ class _AppUsageRow extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           color: overLimit
                               ? const Color(0xFFEA4335)
-                              : const Color(0xFF202124)),
+                              : const Color(0xFF202124),
                   if (limit != null)
                     Text('Limit: ${limit}m',
                         style: GoogleFonts.inter(

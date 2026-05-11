@@ -31,7 +31,7 @@ void main() async {
     ),
   )
 
-  runApp(const FamilyMonitorApp())
+  runApp(const FamilyMonitorApp()
 }
 
 class FamilyMonitorApp extends StatelessWidget {
@@ -57,7 +57,7 @@ class FamilyMonitorApp extends StatelessWidget {
   }
 
   ThemeData _buildTheme() {
-    final base: ThemeData(
+    final base = ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
         seedColor: const Color(0xFF1A73E8),

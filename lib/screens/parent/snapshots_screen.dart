@@ -19,9 +19,9 @@ class SnapshotsScreen extends StatefulWidget {
 }
 
 class _SnapshotsScreenState extends State<SnapshotsScreen> {
-  final _svc: SnapshotService();
-  List<SnapshotEntry> _snapshots: [];
-  final bool _requesting: false;
+  final _svc = SnapshotService();
+  final List<SnapshotEntry> _snapshots = [];
+  final bool _requesting = false;
 
   @override
   void initState() {
@@ -47,7 +47,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
   }
 
   Future<void> _deleteSnapshot(SnapshotEntry entry) async {
-    final confirmed: await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete snapshot?'),
@@ -59,7 +59,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
           TextButton(
               onPressed: () => Navigator.pop(context, true),
               child: const Text('Delete',
-                  style: TextStyle(color: Color(0xFFEA4335)),
+                  style: TextStyle(color: Color(0xFFEA4335),
         ],
       ),
     )
@@ -79,7 +79,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
             const Text('Snapshots'),
             Text(widget.childName,
                 style: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFF5F6368)),
+                    fontSize: 12, color: const Color(0xFF5F6368),
           ],
         ),
         actions: [
@@ -153,7 +153,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
       ),
       itemCount: _snapshots.length,
       itemBuilder: (context, index) {
-        final snap: _snapshots[index];
+        final snap = _snapshots[index];
         return _SnapshotTile(
           entry: snap,
           delay: index * 60,

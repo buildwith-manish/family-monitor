@@ -22,7 +22,7 @@ void main() async {
       appId: "1:758644747673:android:69ef23a2fa4b508122f708",
     ),
   )
-  runApp(const ParentApp())
+  runApp(const ParentApp()
 }
 
 class ParentApp extends StatelessWidget {

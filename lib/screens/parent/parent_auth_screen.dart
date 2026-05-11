@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-
 class ParentAuthScreen extends StatefulWidget {
   const ParentAuthScreen({super.key});
 
@@ -11,17 +10,17 @@ class ParentAuthScreen extends StatefulWidget {
 }
 
 class _ParentAuthScreenState extends State<ParentAuthScreen> {
-  bool _isLogin: false;
-  bool _loading: false;
-  bool _obscurePassword: true;
+  final bool _isLogin = false;
+  final bool _loading = false;
+  final bool _obscurePassword = true;
   String? _error;
 
-  final _nameCtrl: TextEditingController();
-  final _emailCtrl: TextEditingController();
-  final _passCtrl: TextEditingController();
-  final _formKey: GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
 
-  final _auth: AuthService();
+  final _auth = AuthService();
 
   @override
   void dispose() {

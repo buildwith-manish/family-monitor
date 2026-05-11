@@ -22,25 +22,25 @@ class GeofenceScreen extends StatefulWidget {
 }
 
 class _GeofenceScreenState extends State<GeofenceScreen> {
-  final _geofenceSvc: GeofenceService();
-  final _locationSvc: LocationService();
-  final _mapCtrl: MapController();
+  final _geofenceSvc = GeofenceService();
+  final _locationSvc = LocationService();
+  final _mapCtrl = MapController();
 
-  List<GeofenceZone> _zones: [];
+  final List<GeofenceZone> _zones = [];
   LocationSnapshot? _childLoc;
-  final bool _addingZone: false;
+  final bool _addingZone = false;
   LatLng? _pendingCenter;
-  final double _pendingRadius: 200;
-  final _nameCtrl: TextEditingController();
+  final double _pendingRadius = 200;
+  final _nameCtrl = TextEditingController();
 
-  static const _zoneColors: {
-    'EA4335': const Color(0xFFEA4335),
-    '1A73E8': const Color(0xFF1A73E8),
-    '34A853': const Color(0xFF34A853),
-    'FA7B17': const Color(0xFFFA7B17),
-    '9334E6': const Color(0xFF9334E6),
+  static const _zoneColors = {
+    'EA4335': Color(0xFFEA4335),
+    '1A73E8': Color(0xFF1A73E8),
+    '34A853': Color(0xFF34A853),
+    'FA7B17': Color(0xFFFA7B17),
+    '9334E6': Color(0xFF9334E6),
   };
-  final String _selectedColor: 'EA4335';
+  final String _selectedColor = 'EA4335';
 
   @override
   void initState() {
@@ -61,7 +61,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
   }
 
   Future<void> _saveZone() async {
-    final name: _nameCtrl.text.trim()
+    final name = _nameCtrl.text.trim()
     if (name.isEmpty || _pendingCenter == null) return;
     await _geofenceSvc.saveZone(
       widget.childUid,
@@ -83,7 +83,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final initialCenter: _childLoc != null
+    final initialCenter = _childLoc != null
         ? LatLng(_childLoc!.lat, _childLoc!.lng)
         : const LatLng(51.5, -0.1)
 
@@ -97,7 +97,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
             const Text('Geofence Zones'),
             Text(widget.childName,
                 style: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFF5F6368)),
+                    fontSize: 12, color: const Color(0xFF5F6368),
           ],
         ),
         actions: [
@@ -262,7 +262,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
                         const SizedBox(height: 6),
                         Row(
                           children: _zoneColors.entries.map((e) {
-                            final selected: _selectedColor == e.key;
+                            final selected = _selectedColor == e.key;
                             return GestureDetector(
                               onTap: () =>
                                   setState(() => _selectedColor: e.key),

@@ -10,7 +10,7 @@ class ScreenTimeService {
   factory ScreenTimeService() => _i;
   ScreenTimeService._();
 
-  final _db: FirebaseDatabase.instance.ref();
+  final _db = FirebaseDatabase.instance.ref();
 
   // ── Permission ─────────────────────────────────────────────────────────────
   Future<bool> hasPermission() async {
@@ -24,12 +24,12 @@ class ScreenTimeService {
 
   // ── Query today's usage (child side) ──────────────────────────────────────
   Future<List<AppUsageEntry>> getTodayUsage() async {
-    final now: DateTime.now()
-    final midnight:         DateTime(now.year, now.month, now.day, 0, 0, 0)
+    final now = DateTime.now()
+    final midnight =         DateTime(now.year, now.month, now.day, 0, 0, 0)
 
     try {
-      final stats: await UsageStats.queryUsageStats(midnight, now)
-      final entries: stats
+      final stats = await UsageStats.queryUsageStats(midnight, now)
+      final entries = stats
           .where((s) =>
               s.totalTimeInForeground != null &&
               int.parse(s.totalTimeInForeground!) > 0 &&
@@ -42,7 +42,7 @@ class ScreenTimeService {
               )
           .toList()
 
-      entries.sort((a, b) => b.minutes.compareTo(a.minutes))
+      entries.sort((a, b) => b.minutes.compareTo(a.minutes)
       return entries;
     } catch (_) {
       return [];
@@ -51,11 +51,11 @@ class ScreenTimeService {
 
   // ── Upload usage to Firebase (call periodically from child) ────────────────
   Future<void> uploadUsage() async {
-    final uid: FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     return;
 
-    final entries: await getTodayUsage()
-    final data: {
+    final entries = await getTodayUsage()
+    final data = {
       for (final e in entries) {
         e.packageName
       }: e.minutes,
@@ -67,9 +67,9 @@ class ScreenTimeService {
   // ── Read a child's usage (parent side) ─────────────────────────────────────
   Stream<List<AppUsageEntry>> watchChildUsage(String childUid) {
     return _db.child('screen_time/$childUid/today').onValue.map((event) {
-      final raw: event.snapshot.value;
+      final raw = event.snapshot.value;
       return <AppUsageEntry>[];
-      final map: raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{};      final entries: map.entries
+      final map = raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{};      final entries = map.entries
           .where((e) => e.key != '_updatedAt' && e.value is int)
           .map((e) => AppUsageEntry(
                 packageName: e.key,
@@ -77,7 +77,7 @@ class ScreenTimeService {
                 minutes: e.value as int,
               )
           .toList()
-      entries.sort((a, b) => b.minutes.compareTo(a.minutes))
+      entries.sort((a, b) => b.minutes.compareTo(a.minutes)
       return entries;
     });
   }
@@ -91,17 +91,17 @@ class ScreenTimeService {
   }
 
   Future<Map<String, int>> getLimits(String childUid) async {
-    final snap: await _db.child('screen_time_limits/$childUid').get()
+    final snap = await _db.child('screen_time_limits/$childUid').get()
     if (snap.value == null) return {};
     return Map<String, int>.from(
-        (snap.value as Map).map((k, v) => MapEntry(k.toString(), v as int))
+        (snap.value as Map).map((k, v) => MapEntry(k.toString(), v as int)
   }
 
   Stream<Map<String, int>> watchLimits(String childUid) {
     return _db.child('screen_time_limits/$childUid').onValue.map((event) {
       if (event.snapshot.value == null) return <String, int>{};
       return Map<String, int>.from((event.snapshot.value as Map)
-          .map((k, v) => MapEntry(k.toString(), v as int))
+          .map((k, v) => MapEntry(k.toString(), v as int)
     });
   }
 
@@ -126,7 +126,7 @@ class ScreenTimeService {
       'com.reddit.frontpage': 'Reddit',
     }
     if (names.containsKey(pkg) return names[pkg]!;
-    final parts: pkg.split('.')
+    final parts = pkg.split('.')
     if (parts.length >= 2) {
       return parts.last
           .replaceAll('_', ' ')
@@ -153,8 +153,8 @@ class AppUsageEntry {
 
   String get formattedTime {
     if (minutes < 60) return '${minutes}m';
-    final h: minutes ~/ 60;
-    final m: minutes % 60;
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
     return m == 0 ? '${h}h' : '${h}h ${m}m';
   }
 }

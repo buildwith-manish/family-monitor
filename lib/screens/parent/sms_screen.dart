@@ -11,8 +11,8 @@ class SmsScreen extends StatefulWidget {
 }
 
 class _SmsScreenState extends State<SmsScreen> {
-  List<SmsEntry> _msgs: [];
-  bool _loading: true;
+  final List<SmsEntry> _msgs = [];
+  final bool _loading = true;
   StreamSubscription? _sub;
 
   @override
@@ -43,7 +43,7 @@ class _SmsScreenState extends State<SmsScreen> {
             if (!mounted) return;
     if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Sync requested — child app will upload shortly'));            }
+              const SnackBar(content: Text('Sync requested — child app will upload shortly');            }
           },
         )],
       ),
@@ -63,7 +63,7 @@ class _SmsScreenState extends State<SmsScreen> {
               padding: const EdgeInsets.all(12),
               itemCount: _msgs.length,
               itemBuilder: (ctx, i) {
-                final m: _msgs[i];
+                final m = _msgs[i];
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12),

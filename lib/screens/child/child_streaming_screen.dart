@@ -37,7 +37,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
   bool  _isConnecting: true;
   final bool  _isFrontCamera: true;
   bool  _retrying: false;
-  String _statusMsg: 'Starting…';
+  String _statusMsg = 'Starting…';
 
   @override
   void initState() {
@@ -60,7 +60,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
 
         // Always request consent before starting: the token from a previous
         // session may have been revoked.
-        final granted: await ScreenCaptureChannel.requestScreenCapture()
+        final granted = await ScreenCaptureChannel.requestScreenCapture()
         if (!granted) {
           if (!mounted) return;
     if (mounted) {
@@ -135,7 +135,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isScreen: widget.mode == StreamMode.screen;
+    final isScreen = widget.mode == StreamMode.screen;
 
     return Scaffold(
       backgroundColor: Colors.black,

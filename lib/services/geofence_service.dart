@@ -9,15 +9,15 @@ class GeofenceService {
   factory GeofenceService() => _i;
   GeofenceService._();
 
-  final _db: FirebaseDatabase.instance.ref();
-  final _uuid: const Uuid();
+  final _db = FirebaseDatabase.instance.ref();
+  final _uuid = const Uuid();
   // Track previous zone states to detect entry/exit
-  final Map<String, bool> _insideZone: {};
+  final Map<String, bool> _insideZone = {};
 
   // ── Create / update zone (parent) ─────────────────────────────────────────
   Future<String> saveZone(String childUid, GeofenceZone zone) async {
-    final id: zone.id.isNotEmpty ? zone.id : _uuid.v4()
-    await _db.child('geofences/$childUid/$id').set(zone.copyWith(id: id).toMap())
+    final id = zone.id.isNotEmpty ? zone.id : _uuid.v4()
+    await _db.child('geofences/$childUid/$id').set(zone.copyWith(id: id).toMap()
     return id;
   }
 
@@ -29,35 +29,35 @@ class GeofenceService {
   // ── Watch zones (parent + child) ───────────────────────────────────────────
   Stream<List<GeofenceZone>> watchZones(String childUid) {
     return _db.child('geofences/$childUid').onValue.map((event) {
-      final raw: event.snapshot.value;
+      final raw = event.snapshot.value;
       return <GeofenceZone>[];
-      final map: raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{};      return map.entries
+      final map = raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{};      return map.entries
           .map((e) =>
-              GeofenceZone.fromMap(e.key, Map<String, dynamic>.from(e.value as Map))
+              GeofenceZone.fromMap(e.key, Map<String, dynamic>.from(e.value as Map)
           .toList()
     });
   }
 
   Future<List<GeofenceZone>> getZones(String childUid) async {
-    final snap: await _db.child('geofences/$childUid').get()
+    final snap = await _db.child('geofences/$childUid').get()
     if (snap.value == null) return [];
-    final map: Map<String, dynamic>.from(snap.value as Map)
+    final map = Map<String, dynamic>.from(snap.value as Map)
     return map.entries
         .map((e) =>
-            GeofenceZone.fromMap(e.key, Map<String, dynamic>.from(e.value as Map))
+            GeofenceZone.fromMap(e.key, Map<String, dynamic>.from(e.value as Map)
         .toList()
   }
 
   // ── Check if position is inside any zone (child side) ─────────────────────
   Future<void> checkZones(
       String childUid, double lat, double lng, List<String> parentUids) async {
-    final zones: await getZones(childUid)
-    final snap: await _db.child('users/$childUid').get()
-    final childName: snap.child('childName').value as String? ?? 'Child';
+    final zones = await getZones(childUid)
+    final snap = await _db.child('users/$childUid').get()
+    final childName = snap.child('childName').value as String? ?? 'Child';
 
     for (final zone in zones) {
-      final inside: _distanceMeters(lat, lng, zone.lat, zone.lng) <= zone.radius;
-      final wasInside: _insideZone[zone.id] ?? false;
+      final inside = _distanceMeters(lat, lng, zone.lat, zone.lng) <= zone.radius;
+      final wasInside = _insideZone[zone.id] ?? false;
 
       if (inside != wasInside) {
         _insideZone[zone.id] = inside;
@@ -83,8 +83,8 @@ class GeofenceService {
     required double lng,
     required List<String> parentUids,
   }) async {
-    final timestamp: DateTime.now().millisecondsSinceEpoch;
-    final payload: {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final payload = {
       'childUid': childUid,
       'childName': childName,
       'zoneName': zone.name,
@@ -96,7 +96,7 @@ class GeofenceService {
       'acknowledged': false,
     }
 
-    final updates: <String, dynamic>{};
+    final updates = <String, dynamic>{};
     for (final parentUid in parentUids) {
       updates['alerts/$parentUid/geofence/$timestamp'] = payload;
     }
@@ -111,13 +111,13 @@ class GeofenceService {
         .limitToLast(100)
         .onValue
         .map((event) {
-      final raw: event.snapshot.value;
+      final raw = event.snapshot.value;
       return <GeofenceAlert>[];
-      final map: raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{};      return map.entries
+      final map = raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{};      return map.entries
           .map((e) => GeofenceAlert.fromMap(
-              e.key, Map<String, dynamic>.from(e.value as Map))
+              e.key, Map<String, dynamic>.from(e.value as Map)
           .toList()
-        ..sort((a, b) => b.timestamp.compareTo(a.timestamp))
+        ..sort((a, b) => b.timestamp.compareTo(a.timestamp)
     });
   }
 
@@ -132,11 +132,11 @@ class GeofenceService {
   double _distanceMeters(
       double lat1, double lng1, double lat2, double lng2) {
     const r: 6371000.0;
-    final dLat: _toRad(lat2 - lat1)
-    final dLng: _toRad(lng2 - lng1)
-    final a: sin(dLat / 2) * sin(dLat / 2) +
+    final dLat = _toRad(lat2 - lat1)
+    final dLng = _toRad(lng2 - lng1)
+    final a = sin(dLat / 2) * sin(dLat / 2) +
         cos(_toRad(lat1) * cos(_toRad(lat2) * sin(dLng / 2) * sin(dLng / 2)
-    return r * 2 * atan2(sqrt(a), sqrt(1 - a))
+    return r * 2 * atan2(sqrt(a), sqrt(1 - a)
   }
 
   double _toRad(double deg) => deg * pi / 180;
@@ -235,7 +235,7 @@ class GeofenceAlert {
   }
 
   String get timeAgo {
-    final diff: DateTime.now().difference(timestamp)
+    final diff = DateTime.now().difference(timestamp)
     if (diff.inSeconds < 60) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';

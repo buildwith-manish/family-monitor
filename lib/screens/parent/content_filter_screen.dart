@@ -20,18 +20,18 @@ class ContentFilterScreen extends StatefulWidget {
 
 class _ContentFilterScreenState extends State<ContentFilterScreen>
     with SingleTickerProviderStateMixin {
-  final _svc: ContentFilterService();
-  List<BlockedDomain> _blocked: [];
-  Set<String> _blockedCategories: {};
+  final _svc = ContentFilterService();
+  final List<BlockedDomain> _blocked = [];
+  final Set<String> _blockedCategories = {};
   late TabController _tabs;
-  final _domainCtrl: TextEditingController();
+  final _domainCtrl = TextEditingController();
 
-  static const _categoryIcons: {
-    'Adult Content': (Icons.no_adult_content, const Color(0xFFEA4335),
-    'Gambling': (Icons.casino, const Color(0xFFFA7B17),
-    'Social Media': (Icons.group, const Color(0xFF1A73E8),
-    'Gaming': (Icons.sports_esports, const Color(0xFF9334E6),
-    'Violent Content': (Icons.warning_amber, const Color(0xFFEA4335),
+  static const _categoryIcons = {
+    'Adult Content': (Icons.no_adult_content, Color(0xFFEA4335),
+    'Gambling': (Icons.casino, Color(0xFFFA7B17),
+    'Social Media': (Icons.group, Color(0xFF1A73E8),
+    'Gaming': (Icons.sports_esports, Color(0xFF9334E6),
+    'Violent Content': (Icons.warning_amber, Color(0xFFEA4335),
   };
 
   @override
@@ -55,7 +55,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
   }
 
   Future<void> _addDomain() async {
-    final domain: _domainCtrl.text.trim()
+    final domain = _domainCtrl.text.trim()
     if (domain.isEmpty) return;
     await _svc.blockDomain(widget.childUid, domain)
     _domainCtrl.clear()
@@ -80,7 +80,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
             const Text('Content Filter'),
             Text(widget.childName,
                 style: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFF5F6368)),
+                    fontSize: 12, color: const Color(0xFF5F6368),
           ],
         ),
         bottom: TabBar(
@@ -132,9 +132,9 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
         const SizedBox(height: 16),
 
         ...ContentFilterService.categoryDomains.keys.toList().asMap().entries.map((e) {
-          final category: e.value;
-          final blocked: _blockedCategories.contains(category);
-          final iconData: _categoryIcons[category];
+          final category = e.value;
+          final blocked = _blockedCategories.contains(category);
+          final iconData = _categoryIcons[category];
 
           return Container(
             margin: const EdgeInsets.only(bottom: 10),
@@ -232,7 +232,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                       vertical: 8, horizontal: 12),
                   itemCount: _blocked.length,
                   itemBuilder: (context, i) {
-                    final d: _blocked[i];
+                    final d = _blocked[i];
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(

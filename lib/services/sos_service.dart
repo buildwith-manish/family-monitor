@@ -8,12 +8,12 @@ class SosService {
   factory SosService() => _i;
   SosService._();
 
-  final _db: FirebaseDatabase.instance.ref();
-  final _locationSvc: LocationService();
+  final _db = FirebaseDatabase.instance.ref();
+  final _locationSvc = LocationService();
 
   // ── Send SOS (child side) ──────────────────────────────────────────────────
   Future<void> sendSos(List<String> parentUids) async {
-    final uid: FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || parentUids.isEmpty) return;
 
     // Try to get current location
@@ -22,11 +22,11 @@ class SosService {
       loc: await _locationSvc.getChildLocation(uid)
     } catch (_) {}
 
-    final timestamp: DateTime.now().millisecondsSinceEpoch;
-    final snap: await _db.child('users/$uid').get()
-    final childName: snap.child('childName').value as String? ?? 'Child';
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final snap = await _db.child('users/$uid').get()
+    final childName = snap.child('childName').value as String? ?? 'Child';
 
-    final payload: {
+    final payload = {
       'childUid': uid,
       'childName': childName,
       'timestamp': timestamp,
@@ -36,7 +36,7 @@ class SosService {
     }
 
     // Write to every approved parent's alerts node
-    final updates: <String, dynamic>{};
+    final updates = <String, dynamic>{};
     for (final parentUid in parentUids) {
       updates['alerts/$parentUid/sos/$timestamp'] = payload;
     }
@@ -51,13 +51,13 @@ class SosService {
         .limitToLast(50)
         .onValue
         .map((event) {
-      final raw: event.snapshot.value;
+      final raw = event.snapshot.value;
       return <SosAlert>[];
-      final map: raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{};      return map.entries
+      final map = raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{};      return map.entries
           .map((e) => SosAlert.fromMap(
-              e.key, Map<String, dynamic>.from(e.value as Map))
+              e.key, Map<String, dynamic>.from(e.value as Map)
           .toList()
-        ..sort((a, b) => b.timestamp.compareTo(a.timestamp))
+        ..sort((a, b) => b.timestamp.compareTo(a.timestamp)
     });
   }
 
@@ -110,7 +110,7 @@ class SosAlert {
   bool get hasLocation => lat != null && lng != null;
 
   String get timeAgo {
-    final diff: DateTime.now().difference(timestamp)
+    final diff = DateTime.now().difference(timestamp)
     if (diff.inSeconds < 60) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';

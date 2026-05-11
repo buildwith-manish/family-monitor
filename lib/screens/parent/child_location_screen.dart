@@ -23,14 +23,14 @@ class ChildLocationScreen extends StatefulWidget {
 }
 
 class _ChildLocationScreenState extends State<ChildLocationScreen> {
-  final _locationSvc: LocationService();
-  final _mapCtrl: MapController();
+  final _locationSvc = LocationService();
+  final _mapCtrl = MapController();
 
   StreamSubscription<LocationSnapshot?>? _locationSub;
   LocationSnapshot? _location;
-  bool _loading: true;
-  final bool _mapReady: false;
-  final bool _followChild: true;
+  final bool _loading = true;
+  final bool _mapReady = false;
+  final bool _followChild = true;
 
   @override
   void initState() {
@@ -67,9 +67,9 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final loc: _location;
-    final hasLocation: loc != null;
-    final isSharing: loc?.sharing ?? false;
+    final loc = _location;
+    final hasLocation = loc != null;
+    final isSharing = loc?.sharing ?? false;
 
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A2E),
@@ -475,10 +475,10 @@ class _ChildMarker extends StatelessWidget {
 class _PinStemPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint: Paint()
+    final paint = Paint()
       .color: const Color(0xFF1A73E8)
       .style: PaintingStyle.fill;
-    final path: ui.Path()
+    final path = ui.Path()
       ..moveTo(size.width / 2 - 4, 0)
       ..lineTo(size.width / 2 + 4, 0)
       ..lineTo(size.width / 2, size.height)

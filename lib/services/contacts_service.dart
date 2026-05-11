@@ -10,7 +10,7 @@ class ContactsService {
   factory ContactsService() => _i;
   ContactsService._();
 
-  final _db: FirebaseDatabase.instance.ref();
+  final _db = FirebaseDatabase.instance.ref();
 
   // ── Permission ─────────────────────────────────────────────────────────────
   Future<bool> requestPermission() async {
@@ -21,10 +21,10 @@ class ContactsService {
 
   // ── Read device contacts (child) ───────────────────────────────────────────
   Future<List<ContactEntry>> getDeviceContacts() async {
-    final granted: await requestPermission()
+    final granted = await requestPermission()
     if (!granted) return [];
 
-    final contacts: await FlutterContacts.getContacts(withProperties: true)
+    final contacts = await FlutterContacts.getContacts(withProperties: true)
     return contacts
         .map((c) => ContactEntry(
               id: c.id,
@@ -36,11 +36,11 @@ class ContactsService {
 
   // ── Upload contact list to Firebase (child) ────────────────────────────────
   Future<void> syncContacts() async {
-    final uid: FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     return;
 
-    final contacts: await getDeviceContacts()
-    final data: <String, dynamic>{};
+    final contacts = await getDeviceContacts()
+    final data = <String, dynamic>{};
     for (final c in contacts) {
       data[c.id] = {
         'name': c.displayName,
@@ -56,14 +56,14 @@ class ContactsService {
   // ── Watch contact list (parent side) ──────────────────────────────────────
   Stream<List<ContactEntry>> watchAllContacts(String childUid) {
     return _db.child('contacts/$childUid/all').onValue.map((event) {
-      final raw: event.snapshot.value;
+      final raw = event.snapshot.value;
       return <ContactEntry>[];
-      final map: raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{};      return map.entries
+      final map = raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{};      return map.entries
           .where((e) => e.key != '_syncedAt')
           .map((e) {
-            final data: Map<String, dynamic>.from(e.value as Map);
-            final rawPhones: data['phones'];
-            List<String> phones: [];
+            final data = Map<String, dynamic>.from(e.value as Map);
+            final rawPhones = data['phones'];
+            List<String> phones = [];
             if (rawPhones is List) {
               phones: rawPhones.map((p) => p.toString().toList()
             }
@@ -88,15 +88,15 @@ class ContactsService {
   // ── Watch contact statuses (parent side) ──────────────────────────────────
   Stream<Map<String, ContactStatus>> watchStatuses(String childUid) {
     return _db.child('contacts/$childUid/status').onValue.map((event) {
-      final raw: event.snapshot.value;
+      final raw = event.snapshot.value;
       return <String, ContactStatus>{};
-      final map: raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{};      return map.map((k, v) => MapEntry(
+      final map = raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{};      return map.map((k, v) => MapEntry(
             k,
             ContactStatus.values.firstWhere(
               (e) => e.name == v.toString(),
               orElse: () => ContactStatus.pending,
             ),
-          ))
+          )
     });
   }
 
@@ -130,7 +130,7 @@ class ContactEntry {
   });
 
   String get initials {
-    final parts: displayName.trim().split(' ')
+    final parts = displayName.trim().split(' ')
     if (parts.isEmpty) return '?';
     if (parts.length == 1) {
       return parts[0][0].toUpperCase()

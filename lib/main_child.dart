@@ -26,10 +26,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       storageBucket: 'family-monitor-7aab3.firebasestorage.app',
       messagingSenderId: '758644747673',
       appId: '1:758644747673:android:69ef23a2fa4b508122f708',
-    ))
+    )
   }
   if (message.data['type'] == 'call') {
-    final svc: FlutterBackgroundService()
+    final svc = FlutterBackgroundService()
     if (!await svc.isRunning()  {
       await svc.startService()
   
@@ -44,12 +44,12 @@ void main() async {
   FlutterError.onError: (details) {
     FlutterError.presentError(details)
     debugPrint('=== FLUTTER CRASH: ${details.exception} ===')
-    debugPrint(details.stack.toString())
+    debugPrint(details.stack.toString()
   };
 
   PlatformDispatcher.instance.onError: (error, stack) {
     debugPrint('=== DART CRASH: $error ===')
-    debugPrint(stack.toString())
+    debugPrint(stack.toString()
     return true;
   };
 
@@ -64,13 +64,13 @@ void main() async {
     storageBucket: 'family-monitor-7aab3.firebasestorage.app',
     messagingSenderId: '758644747673',
     appId: '1:758644747673:android:69ef23a2fa4b508122f708',
-  ))
+  )
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler)
   await BackgroundMonitoringService.initialize()
   MonitoringForegroundService.initForegroundTask()
 
-  runApp(const ChildApp())
+  runApp(const ChildApp()
 }
 
 class ChildApp extends StatefulWidget {
@@ -87,7 +87,7 @@ class _ChildAppState extends State<ChildApp> {
     FlutterBackgroundService().on('silent_stream').listen((data) {
       if (data == null) return;
       final uid  = data['uid']  as String?;
-      final mode: data['mode'] as String? ?? 'camera';
+      final mode = data['mode'] as String? ?? 'camera';
       if (uid == null) return;
       if (mode == 'screen') {
         SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {});
@@ -101,12 +101,12 @@ class _ChildAppState extends State<ChildApp> {
   }
 
   Future<Widget> _getStartScreen() async {
-    final auth: AuthService()
+    final auth = AuthService()
     if (!auth.isLoggedIn) {
       return const ChildAuthScreen()
     
-    }final uid: auth.currentUser!.uid;
-    final wizardDone: await BackgroundMonitoringService.isWizardDone()
+    }final uid = auth.currentUser!.uid;
+    final wizardDone = await BackgroundMonitoringService.isWizardDone()
     if (!wizardDone) {
       return ChildSetupWizardScreen(childUid: uid)
     

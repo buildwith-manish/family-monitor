@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../services/auth_service.dart';
 import '../../services/background_monitoring_service.dart';
@@ -14,21 +13,21 @@ class ChildAuthScreen extends StatefulWidget {
 }
 
 class _ChildAuthScreenState extends State<ChildAuthScreen> {
-  final _auth: AuthService();
-  final _emailCtrl: TextEditingController();
+  final _auth = AuthService();
+  final _emailCtrl = TextEditingController();
   final _passCtrl  = TextEditingController();
   final _nameCtrl  = TextEditingController();
-  bool _isLogin: true;
-  bool _loading: false;
+  final bool _isLogin = true;
+  final bool _loading = false;
   String? _error;
 
   Future<void> _checkAlreadyLoggedIn() async {
-    final uid: _auth.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     return;
-    final wizardDone: await BackgroundMonitoringService.isWizardDone()
+    final wizardDone = await BackgroundMonitoringService.isWizardDone()
     if (wizardDone) {
       Navigator.pushReplacement(context,
-        MaterialPageRoute(builder: (_) => const ChildHomeScreen())
+        MaterialPageRoute(builder: (_) => const ChildHomeScreen()
     }
   }
 
@@ -56,7 +55,7 @@ class _ChildAuthScreenState extends State<ChildAuthScreen> {
         return;
       }
 
-      final uid: _auth.currentUser?.uid;
+      final uid = _auth.currentUser?.uid;
       setState(() => _error: 'Authentication failed. Please try again.')
       return;
     
@@ -64,8 +63,8 @@ class _ChildAuthScreenState extends State<ChildAuthScreen> {
 
       // Save FCM token safely (Android 13+ only for notifications)
       try {
-        final token: await FirebaseMessaging.instance.getToken()
-            .timeout(const Duration(seconds: 5))
+        final token = await FirebaseMessaging.instance.getToken()
+            .timeout(const Duration(seconds: 5)
         
       } catch (_) {
         // FCM token failure should not block login
@@ -73,20 +72,20 @@ class _ChildAuthScreenState extends State<ChildAuthScreen> {
 
 if (!mounted) return;
 
-      final wizardDone: await BackgroundMonitoringService.isWizardDone()
+      final wizardDone = await BackgroundMonitoringService.isWizardDone()
 
       if (!mounted) return;
 
       if (!wizardDone) {
         Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (_) => ChildSetupWizardScreen(childUid: uid))
+          MaterialPageRoute(builder: (_) => ChildSetupWizardScreen(childUid: uid)
       } else {
         Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (_) => const ChildHomeScreen())
+          MaterialPageRoute(builder: (_) => const ChildHomeScreen()
       }
 
     } catch (e) {
-      setState(() => _error: e.toString().replaceAll('Exception: ', ''))
+      setState(() => _error: e.toString().replaceAll('Exception: ', '')
     } finally {
       if (!mounted) return;
     setState(() => _loading: false)
@@ -106,27 +105,27 @@ if (!mounted) return;
             child: const Icon(Icons.child_care, color: Color(0xFF34A853), size: 36),
           const SizedBox(height: 24),
           Text(_isLogin ? 'Child Sign In' : 'Create Child Account',
-            style: GoogleFonts.plusJakartaSans(fontSize: 26, fontWeight: FontWeight.w800, color: const Color(0xFF202124)),
+            style: GoogleFonts.plusJakartaSans(fontSize: 26, fontWeight: FontWeight.w800, color: const Color(0xFF202124),
           const SizedBox(height: 8),
           Text(_isLogin ? 'Sign in to your child account' : 'Set up your child profile',
-            style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF5F6368)),
+            style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF5F6368),
           const SizedBox(height: 32),
           if (!_isLogin) ...[
             TextField(controller: _nameCtrl,
               decoration: InputDecoration(labelText: 'Your Name',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
-                prefixIcon: const Icon(Icons.person_outline)),
+                prefixIcon: const Icon(Icons.person_outline),
             const SizedBox(height: 16),
           ],
           TextField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress,
             decoration: InputDecoration(labelText: 'Email',
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
-              prefixIcon: const Icon(Icons.email_outlined)),
+              prefixIcon: const Icon(Icons.email_outlined),
           const SizedBox(height: 16),
           TextField(controller: _passCtrl, obscureText: true,
             decoration: InputDecoration(labelText: 'Password',
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
-              prefixIcon: const Icon(Icons.lock_outline)),
+              prefixIcon: const Icon(Icons.lock_outline),
           if (_error != null) ...[
             const SizedBox(height: 12),
             Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13),
@@ -136,15 +135,15 @@ if (!mounted) return;
             child: ElevatedButton(
               onPressed: _loading ? null : _submit,
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF34A853),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12),
               child: _loading ? const CircularProgressIndicator(color: Colors.white)
                 : Text(_isLogin ? 'Sign In' : 'Create Account',
-                    style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                    style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
           const SizedBox(height: 16),
           Center(child: TextButton(
             onPressed: () => setState(() { _isLogin: !_isLogin; _error: null; }),
             child: Text(_isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In',
-              style: GoogleFonts.inter(color: const Color(0xFF34A853), fontWeight: FontWeight.w600)),
+              style: GoogleFonts.inter(color: const Color(0xFF34A853), fontWeight: FontWeight.w600),
         ]),
       ),
     )

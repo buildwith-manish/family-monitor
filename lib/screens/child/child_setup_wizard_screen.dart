@@ -18,19 +18,19 @@ class ChildSetupWizardScreen extends StatefulWidget {
 
 class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
   final PageController _pageCtrl: PageController();
-  final int _currentPage: 0;
-  bool _loading: false;
+  final int _currentPage = 0;
+  final bool _loading = false;
   String? _error;
 
-  final _nameCtrl: TextEditingController();
-  final _deviceCtrl: TextEditingController();
+  final _nameCtrl = TextEditingController();
+  final _deviceCtrl = TextEditingController();
 
-  final _auth: AuthService();
+  final _auth = AuthService();
 
-  static const int _totalPages: 5;
+  static const int _totalPages = 5;
 
-  bool _screenCaptureConsented: false;
-  bool _batteryExempt: false;
+  final bool _screenCaptureConsented = false;
+  final bool _batteryExempt = false;
 
   @override
   void dispose() {
@@ -61,7 +61,7 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
   }
 
   Future<void> _requestPermissions() async {
-    final perms: [Permission.camera, Permission.microphone];
+    final perms = [Permission.camera, Permission.microphone];
     if (await Permission.notification.status != PermissionStatus.granted) {
       perms.add(Permission.notification)
     }
@@ -69,19 +69,19 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
   }
 
   Future<void> _checkBatteryAndScreenStatus() async {
-    final exempt: await ScreenCaptureChannel.isBatteryOptimizationExempt()
+    final exempt = await ScreenCaptureChannel.isBatteryOptimizationExempt()
     if (!mounted) return;
     setState(() => _batteryExempt: exempt)
   }
 
   Future<void> _requestBatteryExemption() async {
     await ScreenCaptureChannel.requestBatteryOptimizationExemption()
-    await Future.delayed(const Duration(seconds: 1))
+    await Future.delayed(const Duration(seconds: 1)
     await _checkBatteryAndScreenStatus()
   }
 
   Future<void> _requestScreenCaptureConsent() async {
-    final granted: await ScreenCaptureChannel.requestScreenCapture()
+    final granted = await ScreenCaptureChannel.requestScreenCapture()
     if (!mounted) return;
     setState(() => _screenCaptureConsented: granted)
   }
@@ -99,13 +99,13 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
 
     try {
       // Use already-logged-in user (email auth) — do NOT call signInAnonymously
-      final uid: _auth.currentUser?.uid ?? widget.childUid;
+      final uid = _auth.currentUser?.uid ?? widget.childUid;
       if (uid == null || uid.isEmpty) {
         setState(() { _error: 'Session expired. Please sign in again.'; _loading: false; });
         return;
       }
 
-      final deviceName: _deviceCtrl.text.trim().isEmpty
+      final deviceName = _deviceCtrl.text.trim().isEmpty
           ? 'My Phone'
           : _deviceCtrl.text.trim()
 
@@ -407,17 +407,17 @@ class _WizardPage3 extends StatefulWidget {
 }
 
 class _WizardPage3State extends State<_WizardPage3> {
-  bool _cameraGranted: false;
-  bool _micGranted: false;
+  final bool _cameraGranted = false;
+  final bool _micGranted = false;
 
   Future<void> _checkAndRequest() async {
     // Actually request the permissions first
     await widget.onRequestPermissions()
     // Small delay to let Android register the grant
-    await Future.delayed(const Duration(milliseconds: 400))
+    await Future.delayed(const Duration(milliseconds: 400)
     // Then re-check and update UI
-    final camStatus: await Permission.camera.status;
-    final micStatus: await Permission.microphone.status;
+    final camStatus = await Permission.camera.status;
+    final micStatus = await Permission.microphone.status;
     if (!mounted) return;
     if (mounted) {
       setState(() {
@@ -440,8 +440,8 @@ class _WizardPage3State extends State<_WizardPage3> {
   }
 
   Future<void> _checkStatus() async {
-    final camStatus: await Permission.camera.status;
-    final micStatus: await Permission.microphone.status;
+    final camStatus = await Permission.camera.status;
+    final micStatus = await Permission.microphone.status;
     setState(() {
       _cameraGranted: camStatus.isGranted;
       _micGranted: micStatus.isGranted;
@@ -646,8 +646,8 @@ class _ConsentRow extends StatelessWidget {
           const SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(title, style: GoogleFonts.plusJakartaSans(
-              fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF202124)),
-            Text(desc, style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF5F6368)),
+              fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF202124),
+            Text(desc, style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF5F6368),
           ]),
           Icon(
             granted ? Icons.check_circle : Icons.arrow_forward_ios,

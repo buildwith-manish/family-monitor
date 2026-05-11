@@ -17,14 +17,14 @@ class SosScreen extends StatefulWidget {
 
 class _SosScreenState extends State<SosScreen>
     with SingleTickerProviderStateMixin {
-  final _auth: AuthService();
-  final _sosSvc: SosService();
+  final _auth = AuthService();
+  final _sosSvc = SosService();
 
-  final bool _sending: false;
-  final bool _sent: false;
-  int _countdown: 5; // hold-to-confirm countdown
+  final bool _sending = false;
+  final bool _sent = false;
+  int _countdown = 5; // hold-to-confirm countdown
   Timer? _holdTimer;
-  List<String> _parentUids: [];
+  final List<String> _parentUids = [];
 
   late AnimationController _pulseCtrl;
 
@@ -46,12 +46,12 @@ class _SosScreenState extends State<SosScreen>
   }
 
   Future<void> _loadParents() async {
-    final uid: _auth.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     return;
-    final snap:         await FirebaseDatabase.instance.ref('users/$uid/approvedParents').get()
+    final snap =         await FirebaseDatabase.instance.ref('users/$uid/approvedParents').get()
     if (snap.value != null && mounted && snap.value is Map) {
-      final map: snap.value is Map ? Map<String, dynamic>.from(snap.value as Map) : <String,dynamic>{};
-      setState(() => _parentUids: map.keys.toList())
+      final map = snap.value is Map ? Map<String, dynamic>.from(snap.value as Map) : <String,dynamic>{};
+      setState(() => _parentUids: map.keys.toList()
     }
   }
 
@@ -194,7 +194,7 @@ class _SosScreenState extends State<SosScreen>
   }
 
   Widget _buildButtonState() {
-    final holding: _holdTimer?.isActive ?? false;
+    final holding = _holdTimer?.isActive ?? false;
 
     return Column(
       mainAxisSize: MainAxisSize.min,

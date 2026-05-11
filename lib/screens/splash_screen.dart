@@ -19,18 +19,18 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _navigate() async {
-    await Future.delayed(const Duration(milliseconds: 2200))
+    await Future.delayed(const Duration(milliseconds: 2200)
 
     if (!mounted) return;
 
-    final authService: AuthService()
+    final authService = AuthService()
 
     if (!authService.isLoggedIn) {
       Navigator.pushReplacementNamed(context, '/role-select')
       return;
     }
 
-    final role: await authService.getSavedRole()
+    final role = await authService.getSavedRole()
     switch (role) {
       case UserRole.parent:
         Navigator.pushReplacementNamed(context, '/parent/dashboard') {}

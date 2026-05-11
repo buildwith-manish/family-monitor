@@ -19,11 +19,11 @@ class ContactsScreen extends StatefulWidget {
 }
 
 class _ContactsScreenState extends State<ContactsScreen> {
-  final _svc: ContactsService();
-  List<ContactEntry> _contacts: [];
-  Map<String, ContactStatus> _statuses: {};
-  final bool _requesting: false;
-  final String _query: '';
+  final _svc = ContactsService();
+  final List<ContactEntry> _contacts = [];
+  final Map<String, ContactStatus> _statuses = {};
+  final bool _requesting = false;
+  final String _query = '';
 
   @override
   void initState() {
@@ -57,11 +57,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   List<ContactEntry> get _filtered {
     if (_query.isEmpty) return _contacts;
-    final q: _query.toLowerCase()
+    final q = _query.toLowerCase()
     return _contacts
         .where((c) =>
             c.displayName.toLowerCase().contains(q) ||
-            c.phones.any((p) => p.contains(q))
+            c.phones.any((p) => p.contains(q)
         .toList()
   }
 
@@ -76,7 +76,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
             const Text('Contact Approval'),
             Text(widget.childName,
                 style: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFF5F6368)),
+                    fontSize: 12, color: const Color(0xFF5F6368),
           ],
         ),
         actions: [
@@ -149,13 +149,13 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   Widget _buildList() {
-    final filtered: _filtered;
+    final filtered = _filtered;
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       itemCount: filtered.length,
       itemBuilder: (context, i) {
-        final contact: filtered[i];
-        final status: _statuses[contact.id] ?? ContactStatus.pending;
+        final contact = filtered[i];
+        final status = _statuses[contact.id] ?? ContactStatus.pending;
         return _ContactRow(
           contact: contact,
           status: status,
@@ -177,9 +177,9 @@ class _StatsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final approved:         statuses.values.where((s) => s == ContactStatus.approved).length;
-    final blocked:         statuses.values.where((s) => s == ContactStatus.blocked).length;
-    final pending: contacts.length - approved - blocked;
+    final approved =         statuses.values.where((s) => s == ContactStatus.approved).length;
+    final blocked =         statuses.values.where((s) => s == ContactStatus.blocked).length;
+    final pending = contacts.length - approved - blocked;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -272,7 +272,7 @@ class _ContactRow extends StatelessWidget {
                 style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1A73E8)),
+                    color: const Color(0xFF1A73E8),
           ),
           const SizedBox(width: 12),
 
@@ -317,21 +317,21 @@ class _ContactRow extends StatelessWidget {
                         dense: true,
                         leading: Icon(Icons.check_circle,
                             color: Color(0xFF34A853),
-                        title: Text('Approve')),
+                        title: Text('Approve'),
               if (status != ContactStatus.blocked)
                 const PopupMenuItem(
                     value: 'block',
                     child: ListTile(
                         dense: true,
                         leading: Icon(Icons.block, color: Color(0xFFEA4335),
-                        title: Text('Block')),
+                        title: Text('Block'),
               if (status != ContactStatus.pending)
                 const PopupMenuItem(
                     value: 'reset',
                     child: ListTile(
                         dense: true,
                         leading: Icon(Icons.undo),
-                        title: Text('Reset to pending')),
+                        title: Text('Reset to pending'),
             ],
             onSelected: (v) {
               if (v == 'approve') onApprove();

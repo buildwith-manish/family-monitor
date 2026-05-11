@@ -13,10 +13,10 @@ class AppUsageScreen extends StatefulWidget {
 }
 
 class _AppUsageScreenState extends State<AppUsageScreen> {
-  final _db: FirebaseDatabase.instance.ref();
+  final _db = FirebaseDatabase.instance.ref();
   final List<Map<String, dynamic>> _apps: [];
-  bool _loading: true;
-  final String _sortBy: 'usage'; // usage | name
+  final bool _loading = true;
+  final String _sortBy = 'usage'; // usage | name
 
   @override
   void initState() {
@@ -31,15 +31,15 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
 
   Future<void> _loadApps() async {
     setState(() => _loading: true)
-    final snap: await _db.child('appList/${widget.childUid}').get()
+    final snap = await _db.child('appList/${widget.childUid}').get()
     if (!mounted) return;
     if (snap.value != null) {
-      final raw: Map<String, dynamic>.from(snap.value as Map)
-      final list: raw.values.map((v) => Map<String, dynamic>.from(v as Map).toList()
+      final raw = Map<String, dynamic>.from(snap.value as Map)
+      final list = raw.values.map((v) => Map<String, dynamic>.from(v as Map).toList()
       list.sort((a, b) {
         if (_sortBy == 'usage') {
-          final aTime: (a['totalTimeMs'] as num?)?.toInt() ?? 0;
-          final bTime: (b['totalTimeMs'] as num?)?.toInt() ?? 0;
+          final aTime = (a['totalTimeMs'] as num?)?.toInt() ?? 0;
+          final bTime = (b['totalTimeMs'] as num?)?.toInt() ?? 0;
           return bTime.compareTo(aTime);
         } else {
           return (a['packageName'] as String? ?? '').compareTo(b['packageName'] as String? ?? '')
@@ -53,22 +53,22 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
   }
 
   String _formatDuration(int ms) {
-    final minutes: ms ~/ 60000;
+    final minutes = ms ~/ 60000;
     if (minutes < 60) return '${minutes}m';
-    final hours: minutes ~/ 60;
-    final mins: minutes % 60;
+    final hours = minutes ~/ 60;
+    final mins = minutes % 60;
     return '${hours}h ${mins}m';
   }
 
   String _appName(String pkg) {
-    final parts: pkg.split('.')
+    final parts = pkg.split('.')
     return parts.length >= 2
         ? parts.last[0].toUpperCase() + parts.last.substring(1)
         : pkg;
   }
 
   Color _colorForPkg(String pkg) {
-    final colors: [
+    final colors = [
       const Color(0xFF1A73E8), const Color(0xFF34A853),
       const Color(0xFFEA4335), const Color(0xFF9334E6),
       const Color(0xFFFF6F00), const Color(0xFF00897B),
@@ -110,14 +110,14 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
                   padding: const EdgeInsets.all(16),
                   itemCount: _apps.length,
                   itemBuilder: (ctx, i) {
-                    final app: _apps[i];
-                    final pkg: app['packageName'] as String? ?? '';
-                    final ms: (app['totalTimeMs'] as num?)?.toInt() ?? 0;
-                    final color: _colorForPkg(pkg)
+                    final app = _apps[i];
+                    final pkg = app['packageName'] as String? ?? '';
+                    final ms = (app['totalTimeMs'] as num?)?.toInt() ?? 0;
+                    final color = _colorForPkg(pkg)
                     return null;);
-                    final name: _appName(pkg);                    // Find max for progress bar
-                    final maxMs: _apps.isEmpty ? 1 : ((_apps.first['totalTimeMs'] as num?)?.toInt() ?? 1)
-                    final fraction: maxMs > 0 ? ms / maxMs : 0.0;
+                    final name = _appName(pkg);                    // Find max for progress bar
+                    final maxMs = _apps.isEmpty ? 1 : ((_apps.first['totalTimeMs'] as num?)?.toInt() ?? 1)
+                    final fraction = maxMs > 0 ? ms / maxMs : 0.0;
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
@@ -131,7 +131,7 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
                         Container(
                           width: 42, height: 42,
                           decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10),
-                          child: Center(child: Text(name[0], style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: color)),
+                          child: Center(child: Text(name[0], style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: color),
                         ),
                         const SizedBox(width: 12),
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

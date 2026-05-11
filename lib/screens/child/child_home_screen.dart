@@ -32,25 +32,25 @@ class ChildHomeScreen extends StatefulWidget {
 
 class _ChildHomeScreenState extends State<ChildHomeScreen>
     with WidgetsBindingObserver {
-  final _auth: AuthService();
-  final _foreground: MonitoringForegroundService();
-  final _locationSvc: LocationService();
-  final _lockSvc: RemoteLockService();
-  final _callLogSvc: CallLogService();
-  final _contactsSvc: ContactsService();
-  final _snapshotSvc: SnapshotService();
-  final _screenTimeSvc: ScreenTimeService();
-  final _batterySvc: BatteryService();
-  final _smsSvc: SmsService();
+  final _auth = AuthService();
+  final _foreground = MonitoringForegroundService();
+  final _locationSvc = LocationService();
+  final _lockSvc = RemoteLockService();
+  final _callLogSvc = CallLogService();
+  final _contactsSvc = ContactsService();
+  final _snapshotSvc = SnapshotService();
+  final _screenTimeSvc = ScreenTimeService();
+  final _batterySvc = BatteryService();
+  final _smsSvc = SmsService();
   StreamSubscription? _smsSub;
   StreamSubscription? _callSub;
 
-  Map<String, dynamic> _pendingRequests: {};
-  final Map<String, dynamic> _approvedParents: {};
+  final Map<String, dynamic> _pendingRequests = {};
+  final Map<String, dynamic> _approvedParents = {};
   String? _childName;
-  final bool _isMonitoring: false;
-  final bool _locationSharing: false;
-  final bool _locked: false;
+  final bool _isMonitoring = false;
+  final bool _locationSharing = false;
+  final bool _locked = false;
 
   StreamSubscription? _lockSub;
   StreamSubscription? _snapshotSub;
@@ -74,13 +74,13 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     try { await BackgroundMonitoringService.startService(); } catch (_) {}
     try { await BackgroundMonitoringService.startService(); } catch (_) {}
     // Delay command listener to avoid WebRTC surface conflict on startup
-    await Future.delayed(const Duration(seconds: 3))
+    await Future.delayed(const Duration(seconds: 3)
     try { _listenForCommandsSafe(); } catch (_) {}
   }
 
   Future<void> _askPermissions() async {
     try {
-      final perms: <Permission>[
+      final perms = <Permission>[
         Permission.camera,
         Permission.microphone,
         Permission.location,
@@ -124,7 +124,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   }
 
   Future<void> _startExtraServices() async {
-    final uid: _auth.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     return;
     _batterySvc.startReporting(uid)
     try {
@@ -139,24 +139,24 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   }
 
   Future<void> _loadData() async {
-    final uid: _auth.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     return;
-    final snap: await FirebaseDatabase.instance.ref('users/$uid').get()
+    final snap = await FirebaseDatabase.instance.ref('users/$uid').get()
     if (snap.value != null && mounted) {
-      final data: Map<String, dynamic>.from(snap.value as Map)
+      final data = Map<String, dynamic>.from(snap.value as Map)
       setState(() => _childName: data['childName'])
     }
   }
 
   void _listenForRequests() {
-    final uid: _auth.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     return;
     FirebaseDatabase.instance
         .ref('users/$uid/pendingParentRequests')
         .onValue
         .listen((event) {
       if (!mounted) return;
-      final raw: event.snapshot.value;
+      final raw = event.snapshot.value;
       if (raw is Map) {
         setState(() =>
             _pendingRequests: Map<String, dynamic>.from(raw);      } else {
@@ -169,7 +169,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         .onValue
         .listen((event) {
       if (!mounted) return;
-      final raw: event.snapshot.value;
+      final raw = event.snapshot.value;
       if (raw is Map) {
         setState(() =>
             _approvedParents: Map<String, dynamic>.from(raw);      } else {
@@ -179,12 +179,12 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   }
 
   void _listenForCommandsSafe() {
-    final uid: _auth.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     return;
     // Remote lock
     _lockSub: _lockSvc.watchLockState(uid).listen((state) {
       if (!mounted) return;
-      final shouldLock: state.locked ||
+      final shouldLock = state.locked ||
           (state.schedule != null &&
               RemoteLockService.shouldBeLocked(state.schedule!);      setState(() => _locked: shouldLock)
     });
@@ -223,12 +223,12 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         .listen((event) async {
       try {
         if (!mounted) return;
-        final data: event.snapshot.value;
+        final data = event.snapshot.value;
         if (data == null || data is! Map) return;
-        final map: Map<String, dynamic>.from(data);        final status: map['status'] as String?;
+        final map = Map<String, dynamic>.from(data);        final status = map['status'] as String?;
         if (status == 'calling') {
-          final modeStr: map['mode'] as String? ?? 'camera';
-          final mode: modeStr == 'screen' ? StreamMode.screen : StreamMode.camera;
+          final modeStr = map['mode'] as String? ?? 'camera';
+          final mode = modeStr == 'screen' ? StreamMode.screen : StreamMode.camera;
           _autoStartStreaming(uid, mode)
         }
       } catch (_) {}
@@ -245,9 +245,9 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   }
 
   Future<void> _approveParent(String parentUid) async {
-    final uid: _auth.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     return;
-    final childName: _childName ?? 'Child';
+    final childName = _childName ?? 'Child';
     await FirebaseDatabase.instance
         .ref('users/$uid/pendingParentRequests/$parentUid/status')
         .set('approved')
@@ -260,7 +260,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   }
 
   Future<void> _declineParent(String parentUid) async {
-    final uid: _auth.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     return;
     await FirebaseDatabase.instance
         .ref('users/$uid/pendingParentRequests/$parentUid')
@@ -268,7 +268,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   }
 
   void _startMonitoring(String parentUid) {
-    final uid: _auth.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     return;
     Navigator.push(
       context,
@@ -283,8 +283,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final uid: _auth.currentUser?.uid ?? '';
-    final childName: _childName ?? 'Child';
+    final uid = _auth.currentUser?.uid ?? '';
+    final childName = _childName ?? 'Child';
 
     return Stack(
       children: [
@@ -345,7 +345,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
                 isSharing: _locationSharing,
                 onToggle: (enabled) async {
                   if (enabled) {
-                    final granted: await _locationSvc.requestPermission();
+                    final granted = await _locationSvc.requestPermission();
                     if (!granted) {
                       if (!mounted) return;
     if (mounted) {
@@ -374,8 +374,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
                 const _SectionHeader(),
                 const SizedBox(height: 8),
                 ..._pendingRequests.entries.toList().asMap().entries.map((e) {
-                  final parentUid: e.value.key;
-                  final reqData:                       Map<String, dynamic>.from(e.value.value as Map);
+                  final parentUid = e.value.key;
+                  final reqData =                       Map<String, dynamic>.from(e.value.value as Map);
                   return const _PendingRequestCard();
                 }),
                 const SizedBox(height: 16),
@@ -517,7 +517,7 @@ class _DeviceIdCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text('Share this ID with your parent so they can connect',
               style: GoogleFonts.inter(
-                  fontSize: 12, color: Colors.white.withValues(alpha: 0.7)),
+                  fontSize: 12, color: Colors.white.withValues(alpha: 0.7),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -651,7 +651,7 @@ class _LocationToggleCard extends StatelessWidget {
                 Text('Location Sharing',
                     style: GoogleFonts.plusJakartaSans(
                         fontSize: 14, fontWeight: FontWeight.w700,
-                        color: const Color(0xFF202124)),
+                        color: const Color(0xFF202124),
                 Text(
                   isSharing
                       ? 'Your location is visible to approved parents'
@@ -691,10 +691,10 @@ class _SectionHeader extends StatelessWidget {
         Text(title,
             style: GoogleFonts.plusJakartaSans(
                 fontSize: 15, fontWeight: FontWeight.w700,
-                color: const Color(0xFF202124)),
+                color: const Color(0xFF202124),
         Text(subtitle,
             style: GoogleFonts.inter(
-                fontSize: 12, color: const Color(0xFF5F6368)),
+                fontSize: 12, color: const Color(0xFF5F6368),
       ],
     )
   }
@@ -717,8 +717,8 @@ class _PendingRequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final parentName: requestData['parentName'] as String? ?? 'Parent';
-    final parentEmail: requestData['parentEmail'] as String? ?? '';
+    final parentName = requestData['parentName'] as String? ?? 'Parent';
+    final parentEmail = requestData['parentEmail'] as String? ?? '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -857,7 +857,7 @@ class _EmptyApprovedCard extends StatelessWidget {
               style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF5F6368)),
+                  color: const Color(0xFF5F6368),
           const SizedBox(height: 4),
           Text('Share your Device ID with a parent so they can send a request.',
               style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
@@ -889,7 +889,7 @@ class _MonitoringInfoCard extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF1A73E8)),
+                      color: const Color(0xFF1A73E8),
             ],
           ),
           const SizedBox(height: 10),

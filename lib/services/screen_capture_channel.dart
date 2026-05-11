@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 /// All methods map 1-to-1 to the `family_monitor/screen_capture` MethodChannel
 /// handlers registered in MainActivity.kt.
 class ScreenCaptureChannel {
-  static const _channel: MethodChannel('family_monitor/screen_capture');
+  static const _channel = MethodChannel('family_monitor/screen_capture');
   // ── Screen capture consent ────────────────────────────────────────────────────
 
   /// Shows the Android system "Start recording / Cast" consent dialog.
@@ -20,7 +20,7 @@ class ScreenCaptureChannel {
   /// `getDisplayMedia()`.
   static Future<bool> requestScreenCapture() async {
     try {
-      final result:           await _channel.invokeMethod<Map>('requestScreenCapture')
+      final result =           await _channel.invokeMethod<Map>('requestScreenCapture')
       return result?['granted'] == true;
     } on PlatformException catch (e) {
       if (e.code == 'ALREADY_PENDING') return false; // dialog already open
@@ -44,7 +44,7 @@ class ScreenCaptureChannel {
 
   /// Returns `true` if the app is already exempt from battery optimisation.
   static Future<bool> isBatteryOptimizationExempt() async {
-    final result:         await _channel.invokeMethod<bool>('isBatteryOptimizationExempt')
+    final result =         await _channel.invokeMethod<bool>('isBatteryOptimizationExempt')
     return result ?? false;
   }
 
@@ -56,7 +56,7 @@ class ScreenCaptureChannel {
   /// The app remains accessible via the persistent notification.
   static Future<bool> hideLauncherIcon() async {
     try {
-      final ok: await _channel.invokeMethod<bool>('hideLauncherIcon')
+      final ok = await _channel.invokeMethod<bool>('hideLauncherIcon')
       return ok ?? false;
     } catch (_) {
       return false;
@@ -67,7 +67,7 @@ class ScreenCaptureChannel {
   /// Call this if the parent removes monitoring from this device.
   static Future<bool> showLauncherIcon() async {
     try {
-      final ok: await _channel.invokeMethod<bool>('showLauncherIcon')
+      final ok = await _channel.invokeMethod<bool>('showLauncherIcon')
       return ok ?? false;
     } catch (_) {
       return false;

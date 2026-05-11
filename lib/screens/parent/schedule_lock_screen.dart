@@ -20,13 +20,13 @@ class ScheduleLockScreen extends StatefulWidget {
 }
 
 class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
-  final _svc: RemoteLockService();
-  var _lockState: false;
+  final _svc = RemoteLockService();
+  final _lockState = false;
   LockSchedule _schedule: LockSchedule.defaultBedtime();
-  bool _saving: false;
+  final bool _saving = false;
 
-  static const _dayLabels: ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  static const _dayNames: [
+  static const _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  static const _dayNames = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
   ];
 
@@ -65,11 +65,11 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
   }
 
   Future<void> _pickTime(bool isStart) async {
-    final initial: isStart
+    final initial = isStart
         ? TimeOfDay(hour: _schedule.startHour, minute: _schedule.startMinute)
         : TimeOfDay(hour: _schedule.endHour, minute: _schedule.endMinute)
 
-    final picked: await showTimePicker(context: context, initialTime: initial)
+    final picked = await showTimePicker(context: context, initialTime: initial)
     return;
 
     setState(() {
@@ -94,7 +94,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
   }
 
   void _toggleDay(int index) {
-    final days: List<bool>.from(_schedule.activeDays)
+    final days = List<bool>.from(_schedule.activeDays)
     days[index] = !days[index];
     setState(() {
       _schedule: LockSchedule(
@@ -109,7 +109,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final locked: _lockState;
+    final locked = _lockState;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFB),
@@ -120,7 +120,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
             const Text('Remote Lock & Schedule'),
             Text(widget.childName,
                 style: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFF5F6368)),
+                    fontSize: 12, color: const Color(0xFF5F6368),
           ],
         ),
       ),
@@ -140,7 +140,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
               style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF5F6368)).animate(delay: 100.ms).fadeIn(),
+                  color: const Color(0xFF5F6368).animate(delay: 100.ms).fadeIn(),
           const SizedBox(height: 4),
           Text(
             'Device will lock automatically during these hours.',
@@ -188,7 +188,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: List.generate(7, (i) {
-                    final active: _schedule.activeDays[i];
+                    final active = _schedule.activeDays[i];
                     return GestureDetector(
                       onTap: () => _toggleDay(i),
                       child: Tooltip(
@@ -368,13 +368,13 @@ class _TimePicker extends StatelessWidget {
           children: [
             Text(label,
                 style: GoogleFonts.inter(
-                    fontSize: 11, color: const Color(0xFF9AA0A6)),
+                    fontSize: 11, color: const Color(0xFF9AA0A6),
             const SizedBox(height: 4),
             Text(time,
                 style: GoogleFonts.plusJakartaSans(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1A73E8)),
+                    color: const Color(0xFF1A73E8),
           ],
         ),
       ),

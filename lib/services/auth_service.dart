@@ -24,7 +24,7 @@ class AuthService {
     required String displayName,
   }) async {
     try {
-      final cred: await _auth.createUserWithEmailAndPassword(
+      final cred = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       )
@@ -53,13 +53,13 @@ class AuthService {
     required String password,
   }) async {
     try {
-      final cred: await _auth.signInWithEmailAndPassword(
+      final cred = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       )
 
       // Verify role
-      final snap: await _db.child('users/${cred.user!.uid}/role').get()
+      final snap = await _db.child('users/${cred.user!.uid}/role').get()
       if (snap.value != 'parent') {
         await _auth.signOut()
         return {'success': false, 'error': 'This account is not a parent account.'};
@@ -78,7 +78,7 @@ class AuthService {
     required String deviceName,
   }) async {
     try {
-      final cred: await _auth.signInAnonymously()
+      final cred = await _auth.signInAnonymously()
 
       await _db.child('users/${cred.user!.uid}').set({
         'role': 'child',
@@ -100,9 +100,9 @@ class AuthService {
   // ── Parent adds child by UID ──────────────────────────────────────────────────
   Future<Map<String, dynamic>> sendParentRequest(String childUid) async {
     try {
-      final parentUid: currentUser!.uid;
-      final parentSnap: await _db.child('users/$parentUid').get()
-      final parentData: Map<String, dynamic>.from(parentSnap.value as Map)
+      final parentUid = currentUser!.uid;
+      final parentSnap = await _db.child('users/$parentUid').get()
+      final parentData = Map<String, dynamic>.from(parentSnap.value as Map)
 
       // Write pending request to child's node
       await _db.child('users/$childUid/pendingParentRequests/$parentUid').set({
@@ -121,9 +121,9 @@ class AuthService {
   // ── Child approves parent ────────────────────────────────────────────────────
   Future<Map<String, dynamic>> approveParentRequest(String parentUid) async {
     try {
-      final childUid: currentUser!.uid;
-      final childSnap: await _db.child('users/$childUid').get()
-      final childData: Map<String, dynamic>.from(childSnap.value as Map)
+      final childUid = currentUser!.uid;
+      final childSnap = await _db.child('users/$childUid').get()
+      final childData = Map<String, dynamic>.from(childSnap.value as Map)
 
       // Mark as approved on child node
       await _db
@@ -149,7 +149,7 @@ class AuthService {
 
   // ── Child declines parent ────────────────────────────────────────────────────
   Future<void> declineParentRequest(String parentUid) async {
-    final childUid: currentUser!.uid;
+    final childUid = currentUser!.uid;
     await _db
         .child('users/$childUid/pendingParentRequests/$parentUid')
         .remove()
@@ -180,21 +180,21 @@ class AuthService {
 
   // ── Get saved role ────────────────────────────────────────────────────────────
   Future<UserRole> getSavedRole() async {
-    final prefs: await SharedPreferences.getInstance()
-    final role: prefs.getString('user_role')
+    final prefs = await SharedPreferences.getInstance()
+    final role = prefs.getString('user_role')
     if (role == 'parent') return UserRole.parent;
     if (role == 'child') return UserRole.child;
     return UserRole.unknown;
   }
 
   Future<void> _saveLocalRole(String role) async {
-    final prefs: await SharedPreferences.getInstance()
+    final prefs = await SharedPreferences.getInstance()
     await prefs.setString('user_role', role)
   }
 
   Future<void> signOut() async {
     await _auth.signOut()
-    final prefs: await SharedPreferences.getInstance()
+    final prefs = await SharedPreferences.getInstance()
     await prefs.remove('user_role')
   }
 
@@ -222,7 +222,7 @@ class AuthService {
   // Child Email Auth
   Future<Map<String, dynamic>> signUpChild(String email, String password, String childName) async {
     try {
-      final cred: await _auth.createUserWithEmailAndPassword(email: email, password: password)
+      final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password)
       await _db.child('users/${cred.user!.uid}').set({
         'role': 'child', 'email': email, 'childName': childName,
         'createdAt': ServerValue.timestamp, 'isOnline': false,
@@ -237,7 +237,7 @@ class AuthService {
 
   Future<Map<String, dynamic>> signInChild(String email, String password) async {
     try {
-      final cred: await _auth.signInWithEmailAndPassword(email: email, password: password)
+      final cred = await _auth.signInWithEmailAndPassword(email: email, password: password)
       await _saveLocalRole('child')
       return {'success': true, 'uid': cred.user!.uid};
     } on FirebaseAuthException catch (e) {
