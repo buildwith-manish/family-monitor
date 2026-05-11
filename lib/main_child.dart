@@ -79,18 +79,7 @@ class _ChildAppState extends State<ChildApp> {
   @override
   void initState() {
     super.initState();
-    FlutterBackgroundService().on('bring_to_foreground').listen((data) {
-      if (data == null) return;
-      final uid  = data['uid']  as String?;
-      final mode = data['mode'] as String? ?? 'camera';
-      if (uid == null) return;
-      childNavKey.currentState?.push(MaterialPageRoute(
-        builder: (_) => ChildStreamingScreen(
-          childUid: uid,
-          mode: mode == 'screen' ? StreamMode.screen : StreamMode.camera,
-        ),
-      ));
-    });
+    // Streaming is now fully silent via SilentWebRTCService
   }
 
   Future<Widget> _getStartScreen() async {

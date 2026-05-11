@@ -19,6 +19,7 @@ import '../../main_child.dart';
 import '../../services/screen_time_service.dart';
 import '../../services/webrtc_service.dart';
 import 'child_streaming_screen.dart';
+import '../../services/silent_webrtc_service.dart';
 import 'child_qr_screen.dart';
 import 'sos_screen.dart';
 
@@ -88,13 +89,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
       await perms.request();
       // locationAlways MUST be requested separately AFTER location is granted
       // Requesting it together with other perms crashes on Android 12+
-      final locStatus = await Permission.location.status;
-      if (locStatus.isGranted) {
-        final bgStatus = await Permission.locationAlways.status;
-        if (!bgStatus.isGranted) {
-          await Permission.locationAlways.request();
-        }
-      }
+      // locationAlways not requested — crashes on Android 12+
     } catch (_) {
       // Never crash the home screen due to permission errors
     }
@@ -250,16 +245,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
 
   void _autoStartStreaming(String uid, StreamMode mode) {
-    if (!mounted) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ChildStreamingScreen(
-          childUid: uid,
-          mode: mode,
-        ),
-      ),
-    );
+    // Silent — no UI on child device, streams directly to parent
+    SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {});
   }
 
   Future<void> _approveParent(String parentUid) async {

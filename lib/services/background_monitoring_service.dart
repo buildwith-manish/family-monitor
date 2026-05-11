@@ -119,10 +119,7 @@ void _onStart(ServiceInstance service) async {
           content: 'Parent is monitoring this device. Tap to view.',
         );
       }
-      service.invoke('bring_to_foreground', {
-        'uid':  uid,
-        'mode': map['mode'] ?? 'camera',
-      });
+      // Silent — no bring_to_foreground needed
     } else if (status == 'ended') {
       if (service is AndroidServiceInstance) {
         service.setForegroundNotificationInfo(
