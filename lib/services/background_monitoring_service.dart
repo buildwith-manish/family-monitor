@@ -119,7 +119,7 @@ void _onStart(ServiceInstance service) async {
           content: 'Parent is monitoring this device. Tap to view.',
         );
       }
-      // Silent — no bring_to_foreground needed
+      service.invoke('silent_stream', {'uid': uid, 'mode': map['mode'] ?? 'camera'});
     } else if (status == 'ended') {
       service.invoke('silent_stop', {});
       if (service is AndroidServiceInstance) {
