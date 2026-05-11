@@ -7,19 +7,19 @@ import '../../services/auth_service.dart';
 import 'parent_qr_scanner_screen.dart';
 
 class AddChildScreen extends StatefulWidget {
-  const AddChildScreen({super.key}));
+  const AddChildScreen({super.key});
 
   @override
-  State<AddChildScreen> createState() => _AddChildScreenState());
+  State<AddChildScreen> createState() => _AddChildScreenState();
 }
 
 class _AddChildScreenState extends State<AddChildScreen> {
-  final _uidCtrl = TextEditingController());
+  final _uidCtrl = TextEditingController();
   bool _loading = false;
   String? _error;
   String? _successMessage;
 
-  final _auth = AuthService());
+  final _auth = AuthService();
 
   @override
   void dispose() {
@@ -54,7 +54,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
       setState(() {
         _successMessage =
             'Request sent! Ask your child to open Family Monitor and approve your request.';
-        _uidCtrl.clear());
+        _uidCtrl.clear();
       }))
     } else {
       setState(() => _error = result['error'] ??
@@ -208,19 +208,19 @@ class _AddChildScreenState extends State<AddChildScreen> {
                       MaterialPageRoute(
                         builder: (_) => const ParentQrScannerScreen(),
                       ),
-                    ));
+                    );
                     if (scanned != null && scanned.isNotEmpty) {
                       setState(() {
                         _uidCtrl.text = scanned;
                         _error = null;
                         _successMessage = null;
-                      }));
+                      });
                     }
                   },
                   icon: Icon(Icons.qr_code_scanner, size = 18),
                   label: Text('Scan QR Code Instead'),
                 ),
-              ).animate(delay = 225.ms).fadeIn(),
+              ).animate(delay: 225.ms).fadeIn(),
 
               SizedBox(height = 16),
 
@@ -237,7 +237,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                         )
                       : const Text('Send Connection Request'),
                 ),
-              ).animate(delay = 275.ms).fadeIn(),
+              ).animate(delay: 275.ms).fadeIn(),
 
               SizedBox(height = 32),
 
@@ -296,27 +296,27 @@ class _AddChildScreenState extends State<AddChildScreen> {
                       icon: const Icon(Icons.copy, size: 18),
                       tooltip: 'Copy ID',
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: myUid)));
+                        Clipboard.setData(ClipboardData(text: myUid);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('ID copied to clipboard')),
-                        ));
+                        );
                       },
                     ),
                   ],
                 ),
-              ).animate(delay = 350.ms).fadeIn(),
+              ).animate(delay: 350.ms).fadeIn(),
             ],
           ),
         ),
       ),
-    ));
+    );
   }
 }
 
 class _Step extends StatelessWidget {
   final String number;
   final String text;
-  const _Step({required this.number, required this.text}));
+  const _Step({required this.number, required this.text});
 
   @override
   Widget build(BuildContext context) {

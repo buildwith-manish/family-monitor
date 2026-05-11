@@ -5,10 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../services/auth_service.dart';
 
 class ParentAuthScreen extends StatefulWidget {
-  const ParentAuthScreen({super.key}));
+  const ParentAuthScreen({super.key});
 
   @override
-  State<ParentAuthScreen> createState() => _ParentAuthScreenState());
+  State<ParentAuthScreen> createState() => _ParentAuthScreenState();
 }
 
 class _ParentAuthScreenState extends State<ParentAuthScreen> {
@@ -17,12 +17,12 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
   bool _obscurePassword = true;
   String? _error;
 
-  final _nameCtrl = TextEditingController());
-  final _emailCtrl = TextEditingController());
-  final _passCtrl = TextEditingController());
-  final _formKey = GlobalKey<FormState>());
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
 
-  final _auth = AuthService());
+  final _auth = AuthService();
 
   @override
   void dispose() {

@@ -22,16 +22,16 @@ import 'app_usage_screen.dart';
 import '../../services/battery_service.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
-  const ParentDashboardScreen({super.key}));
+  const ParentDashboardScreen({super.key});
 
   @override
-  State<ParentDashboardScreen> createState() => _ParentDashboardScreenState());
+  State<ParentDashboardScreen> createState() => _ParentDashboardScreenState();
 }
 
 class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
-  final _auth = AuthService());
-  final _sosSvc = SosService());
-  final _db = FirebaseDatabase.instance.ref());
+  final _auth = AuthService();
+  final _sosSvc = SosService();
+  final _db = FirebaseDatabase.instance.ref();
 
   Map<String, dynamic> _children = {};
   final List<SosAlert> _sosAlerts = [];
@@ -60,14 +60,14 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
       if (!mounted) return;
       final data = event.snapshot.value;
       final newChildren = data != null ? Map<String, dynamic>.from(data as Map) : <String,dynamic>{};
-      setState(() => _children = newChildren));
+      setState(() => _children = newChildren);
       for (final uid in newChildren.keys) {
         if (_batterySubs.containsKey(uid)) continue;
         _batterySubs[uid] = BatteryService.watchDeviceInfo(uid).listen((info) {
           if (mounted) setState(() => _deviceInfo[uid] = info))
         }))
       }
-    }));
+    });
   }
 
   void _listenForSos() {
@@ -124,8 +124,8 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
           PopupMenuButton<String>(
             onSelected: (v) async {
               if (v == 'signout') {
-                await _auth.signOut());
-                if (mounted) Navigator.pushReplacementNamed(context, '/role-select'));
+                await _auth.signOut();
+                if (mounted) Navigator.pushReplacementNamed(context, '/role-select');
               }
             },
             itemBuilder: (_) => [
@@ -166,7 +166,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
           ),
         ],
       ),
-    ));
+    );
   }
 
   Widget _buildEmptyState() {
@@ -218,7 +218,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
 
         ..._children.entries.toList().asMap().map((index, entry) {
           final childUid = entry.key;
-          final childData = Map<String, dynamic>.from(entry.value as Map));
+          final childData = Map<String, dynamic>.from(entry.value as Map);
           return MapEntry(
             index,
             _ChildCard(
@@ -227,7 +227,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               delay: index * 80,
               deviceInfo: _deviceInfo,
             ),
-          ));
+          );
         }).values,
 
         SizedBox(height = 16),
@@ -236,9 +236,9 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               MaterialPageRoute(builder: (_) => const AddChildScreen())),
           icon = const Icon(Icons.add),
           label = const Text('Add Another Device'),
-        ).animate(delay = 300.ms).fadeIn(),
+        ).animate(delay: 300.ms).fadeIn(),
       ],
-    ));
+    );
   }
 }
 
@@ -247,7 +247,7 @@ class _SosBanner extends StatelessWidget {
   final List<SosAlert> alerts;
   final VoidCallback onAcknowledge;
 
-  const _SosBanner({required this.alerts, required this.onAcknowledge}));
+  const _SosBanner({required this.alerts, required this.onAcknowledge});
 
   Widget _batteryBadge(String childUid) {
     const info = <String,dynamic>{};
@@ -328,10 +328,10 @@ class _ChildCard extends StatefulWidget {
     required this.childData,
     required this.delay,
     required this.deviceInfo,
-  }));
+  });
 
   @override
-  State<_ChildCard> createState() => _ChildCardState());
+  State<_ChildCard> createState() => _ChildCardState();
 }
 
 class _ChildCardState extends State<_ChildCard> {
@@ -345,8 +345,8 @@ class _ChildCardState extends State<_ChildCard> {
         .ref('users/${widget.childUid}/isOnline')
         .onValue
         .listen((e) {
-      if (mounted) setState(() => _isOnline = e.snapshot.value == true));
-    }));
+      if (mounted) setState(() => _isOnline = e.snapshot.value == true);
+    });
   }
 
   void _go(Widget screen) {
@@ -533,7 +533,7 @@ class _FeatureGrid extends StatelessWidget {
     required this.childName,
     required this.onNavigate,
     required this.deviceInfo,
-  }));
+  });
 
   Widget _batteryBadge(String childUid) {
     final info = deviceInfo[childUid] ?? {};
@@ -629,5 +629,5 @@ class _Feature {
     required this.label,
     required this.color,
     required this.screen,
-  }));
+  });
 }

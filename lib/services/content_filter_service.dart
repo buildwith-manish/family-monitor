@@ -7,11 +7,11 @@ import 'package:firebase_database/firebase_database.dart';
 /// See SETUP.md for instructions on enabling system-level filtering.
 /// This service handles the rule management and app-level WebView filtering.
 class ContentFilterService {
-  static final ContentFilterService _i = ContentFilterService._());
+  static final ContentFilterService _i = ContentFilterService._();
   factory ContentFilterService() => _i;
-  ContentFilterService._());
+  ContentFilterService._();
 
-  final _db = FirebaseDatabase.instance.ref());
+  final _db = FirebaseDatabase.instance.ref();
 
   // ── Preset category blocklists ─────────────────────────────────────────────
   static const Map<String, List<String>> categoryDomains = {
@@ -81,13 +81,13 @@ class ContentFilterService {
     return _db.child('content_filter/$childUid/blocked').onValue.map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return <BlockedDomain>[];
-      final map = Map<String, dynamic>.from(raw as Map));
+      final map = Map<String, dynamic>.from(raw as Map);
       return map.entries
           .map((e) => BlockedDomain.fromMap(
               e.key, Map<String, dynamic>.from(e.value as Map)))
           .toList()
         ..sort((a, b) => a.domain.compareTo(b.domain)))
-    }));
+    });
   }
 
   // ── Watch blocked categories ───────────────────────────────────────────────
@@ -98,12 +98,12 @@ class ContentFilterService {
         .map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return <String>{};
-      final map = Map<String, dynamic>.from(raw as Map));
+      final map = Map<String, dynamic>.from(raw as Map);
       return map.entries
           .where((e) => e.value == true)
           .map((e) => e.key)
           .toSet())
-    }));
+    });
   }
 
   // ── Check if a URL is blocked (child WebView guard) ───────────────────────
@@ -132,7 +132,7 @@ class ContentFilterService {
   }
 
   String _keyOf(String domain) =>
-      domain.replaceAll('.', '_').replaceAll('-', '__'));
+      domain.replaceAll('.', '_').replaceAll('-', '__');
 }
 
 class BlockedDomain {
@@ -146,7 +146,7 @@ class BlockedDomain {
     required this.domain,
     this.category,
     required this.addedAt,
-  }));
+  });
 
   factory BlockedDomain.fromMap(String key, Map<String, dynamic> map) {
     return BlockedDomain(

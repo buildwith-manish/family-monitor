@@ -26,7 +26,7 @@ void main() async {
 }
 
 class ParentApp extends StatelessWidget {
-  const ParentApp({super.key}));
+  const ParentApp({super.key});
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

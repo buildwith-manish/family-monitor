@@ -12,14 +12,14 @@ class ContactsScreen extends StatefulWidget {
     super.key,
     required this.childUid,
     required this.childName,
-  }));
+  });
 
   @override
-  State<ContactsScreen> createState() => _ContactsScreenState());
+  State<ContactsScreen> createState() => _ContactsScreenState();
 }
 
 class _ContactsScreenState extends State<ContactsScreen> {
-  final _svc = ContactsService());
+  final _svc = ContactsService();
   List<ContactEntry> _contacts = [];
   Map<String, ContactStatus> _statuses = {};
   final bool _requesting = false;
@@ -32,8 +32,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
       if (mounted) setState(() => _contacts = data))
     }))
     _svc.watchStatuses(widget.childUid).listen((data) {
-      if (mounted) setState(() => _statuses = data));
-    }));
+      if (mounted) setState(() => _statuses = data);
+    });
   }
 
   Future<void> _requestSync() async {
@@ -171,7 +171,7 @@ class _StatsBar extends StatelessWidget {
   final List<ContactEntry> contacts;
   final Map<String, ContactStatus> statuses;
 
-  const _StatsBar({required this.contacts, required this.statuses}));
+  const _StatsBar({required this.contacts, required this.statuses});
 
   @override
   Widget build(BuildContext context) {
@@ -201,7 +201,7 @@ class _Stat extends StatelessWidget {
   final int value;
   final String label;
   final Color color;
-  const _Stat({required this.value, required this.label, required this.color}));
+  const _Stat({required this.value, required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -232,7 +232,7 @@ class _ContactRow extends StatelessWidget {
     required this.onApprove,
     required this.onBlock,
     required this.onReset,
-  }));
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -334,13 +334,13 @@ class _ContactRow extends StatelessWidget {
                         title: Text('Reset to pending'))),
             ],
             onSelected: (v) {
-              if (v == 'approve') onApprove());
-              if (v == 'block') onBlock());
-              if (v == 'reset') onReset());
+              if (v == 'approve') onApprove();
+              if (v == 'block') onBlock();
+              if (v == 'reset') onReset();
             },
           ),
         ],
       ),
-    ).animate(delay = Duration(milliseconds: delay)).fadeIn(duration = 250.ms));
+    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 250.ms);
   }
 }
