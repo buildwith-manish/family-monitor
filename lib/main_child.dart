@@ -1,5 +1,4 @@
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -37,33 +36,23 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
 }
 
-Future<void> _writeCrashLog(Object error, StackTrace stack) async {
-  try {
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File('\${dir.path}/crash_log.txt');
-    await file.writeAsString(
-      'TIME: \${DateTime.now()}
-ERROR: \$error
-STACK:
-\$stack
-',
-    );
-  } catch (_) {}
-}
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  FlutterError.onError = (details) async {
-    await _writeCrashLog(details.exception, details.stack ?? StackTrace.empty);
+
+  FlutterError.onError = (details) {
     FlutterError.presentError(details);
+    debugPrint("=== FLUTTER CRASH: ${details.exception} ===");
+    debugPrint(details.stack.toString());
   };
-  
+
   PlatformDispatcher.instance.onError = (error, stack) {
-    _writeCrashLog(error, stack);
+    debugPrint("=== DART CRASH: $error ===");
+    debugPrint(stack.toString());
     return true;
   };
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
+
+  await SystemChrome.setPreferredOrientations(
+      [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
   await Firebase.initializeApp(options: const FirebaseOptions(
     apiKey: "AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4",
     authDomain: "family-monitor-7aab3.firebaseapp.com",
@@ -105,17 +94,6 @@ class _ChildAppState extends State<ChildApp> {
   }
 
   Future<Widget> _getStartScreen() async {
-    // Show last crash log if exists
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('\${dir.path}/crash_log.txt');
-      if (await file.exists()) {
-        final log = await file.readAsString();
-        await file.delete(); // Clear after reading
-        return _CrashScreen(error: log, stack: null);
-      }
-    } catch (_) {}
-    
     final auth = AuthService();
     if (!auth.isLoggedIn) return const ChildAuthScreen();
     final uid = auth.currentUser!.uid;
@@ -138,6 +116,20 @@ class _ChildAppState extends State<ChildApp> {
         home: FutureBuilder<Widget>(
           future: _getStartScreen(),
           builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Scaffold(
+                backgroundColor: Colors.red,
+                body: SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'ERROR:\n${snapshot.error}\n\nSTACK:\n${snapshot.stackTrace}',
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ),
+                ),
+              );
+            }
             if (!snapshot.hasData) {
               return const Scaffold(
                 backgroundColor: Color(0xFF34A853),
