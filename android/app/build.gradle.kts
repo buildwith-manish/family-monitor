@@ -42,19 +42,6 @@ android {
     }
 
 
-    flavorDimensions += "app"
-    productFlavors {
-        create("child") {
-            dimension = "app"
-            applicationIdSuffix = ".child"
-            versionNameSuffix = "-child"
-        }
-        create("parent") {
-            dimension = "app"
-            applicationIdSuffix = ".parent"
-            versionNameSuffix = "-parent"
-        }
-    }
 
     buildTypes {
         release {
