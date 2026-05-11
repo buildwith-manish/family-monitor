@@ -117,15 +117,22 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
 
       await BackgroundMonitoringService.saveChildUid(uid);
       await BackgroundMonitoringService.setWizardDone(true);
-      await BackgroundMonitoringService.startService();
       await BackgroundMonitoringService.savePermissionsGranted(true);
 
-      try {
-        await ScreenCaptureChannel.hideLauncherIcon();
-      } catch (_) {}
-
       if (!mounted) return;
+      // Navigate FIRST — service start must never block or crash navigation
       Navigator.pushReplacementNamed(context, '/child/home');
+
+      // Start service fire-and-forget AFTER navigation
+      // Any failure here cannot crash the UI
+      Future.microtask(() async {
+        try {
+          await BackgroundMonitoringService.startService();
+        } catch (_) {}
+        try {
+          await ScreenCaptureChannel.hideLauncherIcon();
+        } catch (_) {}
+      });
     } catch (e) {
       if (mounted) setState(() => _error = 'Setup failed: ${e.toString()}');
     } finally {
