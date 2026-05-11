@@ -104,13 +104,13 @@ void _startCallback() {
 
 class _MonitoringTaskHandler extends TaskHandler {
   @override
-  Future<void> onStart(DateTime timestamp) async {}
+  Future<void> onStart(DateTime timestamp, TaskStarter starter) async {}
 
   @override
   Future<void> onRepeatEvent(DateTime timestamp) async {}
 
   @override
-  Future<void> onDestroy(DateTime timestamp) async {}
+  Future<void> onDestroy(DateTime timestamp, bool isTimeout) async {}
 
   @override
   void onNotificationPressed() {
