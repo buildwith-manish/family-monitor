@@ -4,11 +4,11 @@ import 'location_service.dart';
 
 /// Manages SOS alerts sent from child to all approved parents.
 class SosService {
-  static final SosService _i = SosService._());
+  static final SosService _i = SosService._();
   factory SosService() => _i;
-  SosService._());
+  SosService._();
 
-  final _db = FirebaseDatabase.instance.ref());
+  final _db = FirebaseDatabase.instance.ref();
   final _locationSvc = LocationService());
 
   // ── Send SOS (child side) ──────────────────────────────────────────────────
@@ -59,7 +59,7 @@ class SosService {
               e.key, Map<String, dynamic>.from(e.value as Map)))
           .toList()
         ..sort((a, b) => b.timestamp.compareTo(a.timestamp)))
-    }));
+    });
   }
 
   // ── Acknowledge a SOS alert (parent) ──────────────────────────────────────
@@ -93,7 +93,7 @@ class SosAlert {
     this.lat,
     this.lng,
     required this.acknowledged,
-  }));
+  });
 
   factory SosAlert.fromMap(String key, Map<String, dynamic> map) {
     return SosAlert(

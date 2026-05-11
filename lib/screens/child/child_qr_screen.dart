@@ -12,7 +12,7 @@ class ChildQrScreen extends StatelessWidget {
     super.key,
     required this.uid,
     required this.childName,
-  }));
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +144,7 @@ class ChildQrScreen extends StatelessWidget {
                         content: Text('Device ID copied to clipboard'),
                         duration: Duration(seconds: 2),
                       ),
-                    ));
+                    );
                   },
                   icon: const Icon(Icons.copy, size: 18),
                   label: const Text('Copy Device ID'),

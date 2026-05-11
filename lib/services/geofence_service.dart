@@ -5,11 +5,11 @@ import 'package:uuid/uuid.dart';
 /// Stores geofence zones in Firebase and evaluates entry/exit events.
 /// Child location service calls [checkZones] on every position update.
 class GeofenceService {
-  static final GeofenceService _i = GeofenceService._());
+  static final GeofenceService _i = GeofenceService._();
   factory GeofenceService() => _i;
-  GeofenceService._());
+  GeofenceService._();
 
-  final _db = FirebaseDatabase.instance.ref());
+  final _db = FirebaseDatabase.instance.ref();
   final _uuid = const Uuid());
 
   // Track previous zone states to detect entry/exit
@@ -37,7 +37,7 @@ class GeofenceService {
           .map((e) =>
               GeofenceZone.fromMap(e.key, Map<String, dynamic>.from(e.value as Map)))
           .toList())
-    }));
+    });
   }
 
   Future<List<GeofenceZone>> getZones(String childUid) async {
@@ -121,7 +121,7 @@ class GeofenceService {
               e.key, Map<String, dynamic>.from(e.value as Map)))
           .toList()
         ..sort((a, b) => b.timestamp.compareTo(a.timestamp)))
-    }));
+    });
   }
 
   Future<void> acknowledgeGeofenceAlert(
@@ -162,7 +162,7 @@ class GeofenceZone {
     required this.lng,
     required this.radius,
     this.color = 'EA4335',
-  }));
+  });
 
   factory GeofenceZone.fromMap(String id, Map<String, dynamic> map) {
     return GeofenceZone(
@@ -221,7 +221,7 @@ class GeofenceAlert {
     required this.lng,
     required this.timestamp,
     required this.acknowledged,
-  }));
+  });
 
   factory GeofenceAlert.fromMap(String key, Map<String, dynamic> map) {
     return GeofenceAlert(

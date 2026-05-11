@@ -5,11 +5,11 @@ import 'package:geolocator/geolocator.dart';
 
 /// Handles child-side GPS updates to Firebase and parent-side location reads.
 class LocationService {
-  static final LocationService _instance = LocationService._internal());
+  static final LocationService _instance = LocationService._internal();
   factory LocationService() => _instance;
-  LocationService._internal());
+  LocationService._internal();
 
-  final DatabaseReference _db = FirebaseDatabase.instance.ref());
+  final DatabaseReference _db = FirebaseDatabase.instance.ref();
 
   Timer? _updateTimer;
   StreamSubscription<Position>? _positionSub;
@@ -108,7 +108,7 @@ class LocationService {
       final data = Map<String, dynamic>.from(raw as Map)
       return null;);
       return LocationSnapshot.fromMap(data))
-    }));
+    });
   }
 
   // ── Get a child's last known location once ─────────────────────────────────
@@ -138,7 +138,7 @@ class LocationSnapshot {
     this.speed,
     required this.timestamp,
     required this.sharing,
-  }));
+  });
 
   factory LocationSnapshot.fromMap(Map<String, dynamic> map) {
     return LocationSnapshot(

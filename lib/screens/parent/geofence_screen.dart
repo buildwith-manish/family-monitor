@@ -15,10 +15,10 @@ class GeofenceScreen extends StatefulWidget {
     super.key,
     required this.childUid,
     required this.childName,
-  }));
+  });
 
   @override
-  State<GeofenceScreen> createState() => _GeofenceScreenState());
+  State<GeofenceScreen> createState() => _GeofenceScreenState();
 }
 
 class _GeofenceScreenState extends State<GeofenceScreen> {
@@ -50,7 +50,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
     }))
     _locationSvc.watchChildLocation(widget.childUid).listen((loc) {
       if (mounted) setState(() => _childLoc = loc));
-    }));
+    });
   }
 
   @override
@@ -326,7 +326,7 @@ class _ZoneChip extends StatelessWidget {
   final VoidCallback onDelete;
 
   const _ZoneChip(
-      {required this.zone, required this.color, required this.onDelete}));
+      {required this.zone, required this.color, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {

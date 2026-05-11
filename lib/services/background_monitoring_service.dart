@@ -41,19 +41,19 @@ class BackgroundMonitoringService {
   }
 
   static Future<void> saveChildUid(String uid) async =>
-      (await SharedPreferences.getInstance()).setString(_kUidKey, uid));
+      (await SharedPreferences.getInstance()).setString(_kUidKey, uid);
 
   static Future<String?> getChildUid() async =>
-      (await SharedPreferences.getInstance()).getString(_kUidKey));
+      (await SharedPreferences.getInstance()).getString(_kUidKey);
 
   static Future<void> setWizardDone(bool v) async =>
-      (await SharedPreferences.getInstance()).setBool(_kWizardDone, v));
+      (await SharedPreferences.getInstance()).setBool(_kWizardDone, v);
 
   static Future<bool> isWizardDone() async =>
       (await SharedPreferences.getInstance()).getBool(_kWizardDone) ?? false;
 
   static Future<void> savePermissionsGranted(bool v) async =>
-      (await SharedPreferences.getInstance()).setBool(_kPermKey, v));
+      (await SharedPreferences.getInstance()).setBool(_kPermKey, v);
 
   static Future<bool> arePermissionsGranted() async =>
       (await SharedPreferences.getInstance()).getBool(_kPermKey) ?? false;
@@ -141,7 +141,7 @@ void _onStart(ServiceInstance service) async {
         ))
       }
     }
-  }));
+  });
 
   Timer.periodic(Duration(seconds = 20), (_) => service.invoke('ping')));
 }

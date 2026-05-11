@@ -4,11 +4,11 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class SmsService {
-  static final SmsService _i = SmsService._());
+  static final SmsService _i = SmsService._();
   factory SmsService() => _i;
-  SmsService._());
+  SmsService._();
   static const _ch = MethodChannel('family_monitor/sms'));
-  final _db = FirebaseDatabase.instance.ref());
+  final _db = FirebaseDatabase.instance.ref();
 
   Future<bool> requestPermission() async =>
       (await Permission.sms.request()).isGranted;
@@ -41,7 +41,7 @@ class SmsService {
           SmsEntry.fromMap(Map<String, dynamic>.from(v as Map))).toList())
       list.sort((a, b) => b.date.compareTo(a.date)))
       return list;
-    }));
+    });
   }
 
   Future<void> requestSync(String childUid) async {
@@ -53,15 +53,15 @@ class SmsService {
 class SmsEntry {
   final String address, body;
   final int date, type;
-  const SmsEntry({required this.address, required this.body, required this.date, required this.type}));
+  const SmsEntry({required this.address, required this.body, required this.date, required this.type});
   factory SmsEntry.fromMap(Map<String, dynamic> m) => SmsEntry(
     address: m['address'] as String? ?? '',
     body: m['body'] as String? ?? '',
     date: (m['date'] as num?)?.toInt() ?? 0,
     type: (m['type'] as num?)?.toInt() ?? 1,
-  ));
+  );
   bool get isIncoming => type == 1;
-  DateTime get dateTime => DateTime.fromMillisecondsSinceEpoch(date));
+  DateTime get dateTime => DateTime.fromMillisecondsSinceEpoch(date);
   String get timeLabel {
     final d = DateTime.now().difference(dateTime))
     if (d.inMinutes < 1) return 'Just now';

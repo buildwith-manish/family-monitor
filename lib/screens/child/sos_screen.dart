@@ -9,10 +9,10 @@ import '../../services/auth_service.dart';
 import '../../services/sos_service.dart';
 
 class SosScreen extends StatefulWidget {
-  const SosScreen({super.key}));
+  const SosScreen({super.key});
 
   @override
-  State<SosScreen> createState() => _SosScreenState());
+  State<SosScreen> createState() => _SosScreenState();
 }
 
 class _SosScreenState extends State<SosScreen>
@@ -61,13 +61,13 @@ class _SosScreenState extends State<SosScreen>
     setState(() => _countdown = 5))
     _holdTimer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_countdown <= 1) {
-        t.cancel());
+        t.cancel();
         _sendSos())
       } else {
         setState(() => _countdown--))
       }
-    }));
-    HapticFeedback.heavyImpact());
+    });
+    HapticFeedback.heavyImpact();
   }
 
   void _onHoldEnd() {

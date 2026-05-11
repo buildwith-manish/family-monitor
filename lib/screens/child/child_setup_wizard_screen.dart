@@ -10,14 +10,14 @@ import '../../services/screen_capture_channel.dart';
 
 class ChildSetupWizardScreen extends StatefulWidget {
   final String? childUid;
-  const ChildSetupWizardScreen({super.key, this.childUid}));
+  const ChildSetupWizardScreen({super.key, this.childUid});
 
   @override
-  State<ChildSetupWizardScreen> createState() => _ChildSetupWizardScreenState());
+  State<ChildSetupWizardScreen> createState() => _ChildSetupWizardScreenState();
 }
 
 class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
-  final PageController _pageCtrl = PageController());
+  final PageController _pageCtrl = PageController();
   final int _currentPage = 0;
   bool _loading = false;
   String? _error;
@@ -130,12 +130,12 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
       // Any failure here cannot crash the UI
       Future.microtask(() async {
         try {
-          await BackgroundMonitoringService.startService());
+          await BackgroundMonitoringService.startService();
         } catch (_) {}
         try {
           await ScreenCaptureChannel.hideLauncherIcon())
         } catch (_) {}
-      }));
+      });
     } catch (e) {
       if (mounted) setState(() => _error = 'Setup failed: ${e.toString()}'))
     } finally {
@@ -396,10 +396,10 @@ class _WizardPage2 extends StatelessWidget {
 // ── Page 3: Permissions ──────────────────────────────────────────────────────────
 class _WizardPage3 extends StatefulWidget {
   final Future<void> Function() onRequestPermissions;
-  const _WizardPage3({required this.onRequestPermissions}));
+  const _WizardPage3({required this.onRequestPermissions});
 
   @override
-  State<_WizardPage3> createState() => _WizardPage3State());
+  State<_WizardPage3> createState() => _WizardPage3State();
 }
 
 class _WizardPage3State extends State<_WizardPage3> {
@@ -534,7 +534,7 @@ class _WizardPage3b extends StatelessWidget {
     required this.batteryExempt,
     required this.onRequestScreenCapture,
     required this.onRequestBattery,
-  }));
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -615,7 +615,7 @@ class _ConsentRow extends StatelessWidget {
   const _ConsentRow({
     required this.icon, required this.title, required this.desc,
     required this.granted, required this.onTap,
-  }));
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -668,7 +668,7 @@ class _WizardPage4 extends StatelessWidget {
     required this.deviceCtrl,
     this.error,
     required this.loading,
-  }));
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -766,7 +766,7 @@ class _FeatureRow extends StatelessWidget {
     required this.title,
     required this.desc,
     required this.delay,
-  }));
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -817,7 +817,7 @@ class _MonitorItem extends StatelessWidget {
     required this.title,
     required this.desc,
     required this.delay,
-  }));
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -884,7 +884,7 @@ class _PermissionRow extends StatelessWidget {
     required this.desc,
     required this.granted,
     required this.delay,
-  }));
+  });
 
   @override
   Widget build(BuildContext context) {

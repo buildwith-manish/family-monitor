@@ -4,17 +4,17 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 class ParentQrScannerScreen extends StatefulWidget {
-  const ParentQrScannerScreen({super.key}));
+  const ParentQrScannerScreen({super.key});
 
   @override
-  State<ParentQrScannerScreen> createState() => _ParentQrScannerScreenState());
+  State<ParentQrScannerScreen> createState() => _ParentQrScannerScreenState();
 }
 
 class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
   final MobileScannerController _ctrl = MobileScannerController(
     facing: CameraFacing.back,
     torchEnabled: false,
-  ));
+  );
 
   bool _scanned = false;
   final bool _torchOn = false;
@@ -86,7 +86,7 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
                           size: 24,
                         ),
                         onPressed: () {
-                          _ctrl.toggleTorch());
+                          _ctrl.toggleTorch();
                           setState(() => _torchOn = !_torchOn));
                         },
                       ),
@@ -194,7 +194,7 @@ class _ScanOverlay extends StatelessWidget {
 
 class _OverlayPainter extends CustomPainter {
   final Rect scanRect;
-  const _OverlayPainter({required this.scanRect}));
+  const _OverlayPainter({required this.scanRect});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -213,7 +213,7 @@ class _OverlayPainter extends CustomPainter {
 
 class _ScanCorners extends StatelessWidget {
   final double size;
-  const _ScanCorners({required this.size}));
+  const _ScanCorners({required this.size});
 
   @override
   Widget build(BuildContext context) {
@@ -257,7 +257,7 @@ class _ScanCorners extends StatelessWidget {
 class _CornerPainter extends CustomPainter {
   final Color color;
   final double strokeWidth;
-  const _CornerPainter({required this.color, required this.strokeWidth}));
+  const _CornerPainter({required this.color, required this.strokeWidth});
 
   @override
   void paint(Canvas canvas, Size size) {

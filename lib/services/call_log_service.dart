@@ -11,7 +11,7 @@ class CallRecord {
     required this.type,
     required this.date,
     required this.duration,
-  }));
+  });
 
   String get displayName => name.isNotEmpty ? name : number;
 
@@ -31,8 +31,8 @@ class CallRecord {
 }
 
 class CallLogService {
-  Stream<List<CallRecord>> watchCallLog(String childUid) => Stream.value([]));
+  Stream<List<CallRecord>> watchCallLog(String childUid) => Stream.value([]);
   Future<void> requestSync(String childUid) async {}
   Future<void> syncCallLog() async {}
-  Stream<bool> watchSyncRequest(String uid) => Stream.value(false));
+  Stream<bool> watchSyncRequest(String uid) => Stream.value(false);
 }

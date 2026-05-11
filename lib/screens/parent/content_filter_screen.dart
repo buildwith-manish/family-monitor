@@ -12,10 +12,10 @@ class ContentFilterScreen extends StatefulWidget {
     super.key,
     required this.childUid,
     required this.childName,
-  }));
+  });
 
   @override
-  State<ContentFilterScreen> createState() => _ContentFilterScreenState());
+  State<ContentFilterScreen> createState() => _ContentFilterScreenState();
 }
 
 class _ContentFilterScreenState extends State<ContentFilterScreen>
@@ -43,7 +43,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
     }))
     _svc.watchBlockedCategories(widget.childUid).listen((data) {
       if (mounted) setState(() => _blockedCategories = data));
-    }));
+    });
   }
 
   @override
@@ -132,7 +132,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
 
         ...ContentFilterService.categoryDomains.keys.toList().asMap().entries.map((e) {
           final category = e.value;
-          final blocked = _blockedCategories.contains(category));
+          final blocked = _blockedCategories.contains(category);
           final iconData = _categoryIcons[category];
 
           return Container(
@@ -168,10 +168,10 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                 activeThumbColor: const Color(0xFFEA4335),
               ),
             ),
-          ).animate(delay: Duration(milliseconds: e.key * 60)).fadeIn());
+          ).animate(delay: Duration(milliseconds: e.key * 60)).fadeIn();
         }),
       ],
-    ));
+    );
   }
 
   Widget _buildDomains() {

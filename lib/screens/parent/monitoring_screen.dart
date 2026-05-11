@@ -16,9 +16,9 @@ class MonitoringScreen extends StatefulWidget {
     required this.childUid,
     required this.childData,
     this.mode = StreamMode.camera,
-  }));
+  });
   @override
-  State<MonitoringScreen> createState() => _MonitoringScreenState());
+  State<MonitoringScreen> createState() => _MonitoringScreenState();
 }
 
 class _MonitoringScreenState extends State<MonitoringScreen> {
@@ -51,11 +51,11 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       await _webrtc.startAsParent(widget.childUid, widget.mode, () {
         if (!mounted) return;
     if (mounted) {
-          _timeout?.cancel());
+          _timeout?.cancel();
           setState(() { _hasStream = true; _status = 'Connected'; }))
           _startControlsTimer())
         }
-      }));
+      });
     } catch (e) {
       if (mounted) setState(() => _status = 'Error: $e'))
     }
@@ -232,7 +232,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       const SizedBox(width: 6),
       Text('LIVE', style: GoogleFonts.inter(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
     ]),
-  ));
+  );
 
   Widget _controlBtn({
     required IconData icon,
@@ -251,5 +251,5 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       const SizedBox(height: 6),
       Text(label, style: GoogleFonts.inter(color: Colors.white70, fontSize: 11)),
     ]),
-  ));
+  );
 }

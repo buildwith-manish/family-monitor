@@ -73,9 +73,9 @@ void main() async {
 }
 
 class ChildApp extends StatefulWidget {
-  const ChildApp({super.key}));
+  const ChildApp({super.key});
   @override
-  State<ChildApp> createState() => _ChildAppState());
+  State<ChildApp> createState() => _ChildAppState();
 }
 
 class _ChildAppState extends State<ChildApp> {
@@ -89,14 +89,14 @@ class _ChildAppState extends State<ChildApp> {
       final mode = data['mode'] as String? ?? 'camera';
       if (uid == null) return;
       if (mode == 'screen') {
-        SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {}));
+        SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {});
       } else {
         SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {}))
       }
-    }));
+    });
     FlutterBackgroundService().on('silent_stop').listen((_) {
-      SilentWebRTCService.instance.stopSilent());
-    }));
+      SilentWebRTCService.instance.stopSilent();
+    });
   }
 
   Future<Widget> _getStartScreen() async {
@@ -134,7 +134,7 @@ class _ChildAppState extends State<ChildApp> {
                     ),
                   ),
                 ),
-              ));
+              );
             }
             if (!snapshot.hasData) {
               return const Scaffold(
@@ -150,6 +150,6 @@ class _ChildAppState extends State<ChildApp> {
           '/child/qr':   (_) => const ChildQrScreen(uid: '', childName: ''),
         },
       ),
-    ));
+    );
   }
 }

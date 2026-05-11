@@ -6,8 +6,8 @@ import 'package:firebase_database/firebase_database.dart';
 class SilentWebRTCService {
   static SilentWebRTCService? _instance;
   static SilentWebRTCService get instance =>
-      _instance ??= SilentWebRTCService._());
-  SilentWebRTCService._());
+      _instance ??= SilentWebRTCService._();
+  SilentWebRTCService._();
 
   RTCPeerConnection? _pc;
   MediaStream? _localStream;
@@ -138,7 +138,7 @@ class SilentWebRTCService {
       _offerSub = db.child('calls/$childUid/offer').onValue.listen((e) async {
         if (e.snapshot.value == null || _pc == null || _answerSet) return;
         try {
-          final d = Map<String, dynamic>.from(e.snapshot.value as Map));
+          final d = Map<String, dynamic>.from(e.snapshot.value as Map);
           await _pc!.setRemoteDescription(
               RTCSessionDescription(d['sdp'], d['type'])))
           final ans = await _pc!.createAnswer({
@@ -155,7 +155,7 @@ class SilentWebRTCService {
         } catch (ex) {
           debugPrint('[SilentWebRTC] Answer error: $ex'))
         }
-      }));
+      });
 
       final _candidateSub = db
           .child('calls/$childUid/parentCandidates')
@@ -163,11 +163,11 @@ class SilentWebRTCService {
           .listen((e) async {
         if (e.snapshot.value == null || _pc == null) return;
         try {
-          final c = Map<String, dynamic>.from(e.snapshot.value as Map));
+          final c = Map<String, dynamic>.from(e.snapshot.value as Map);
           await _pc!.addCandidate(RTCIceCandidate(
               c['candidate'], c['sdpMid'], c['sdpMLineIndex'])));
         } catch (_) {}
-      }));
+      });
 
       _commandSub =
           db.child('calls/$childUid/command').onValue.listen((e) async {
@@ -184,7 +184,7 @@ class SilentWebRTCService {
         if (cmd == 'unmute') {
           _localStream?.getAudioTracks().forEach((t) => t.enabled = true))
         }
-      }));
+      });
 
       _statusSub =
           db.child('calls/$childUid/status').onValue.listen((e) async {
@@ -192,7 +192,7 @@ class SilentWebRTCService {
         if (status == 'ended' || status == null) {
           await stopSilent())
         }
-      }));
+      });
 
       _startWatchdog(childUid));
       debugPrint('[SilentWebRTC] Streaming silently (mode: $_activeMode)'));
@@ -215,7 +215,7 @@ class SilentWebRTCService {
       if (!_active) return;
       await _cleanupPcOnly());
       await _connect(childUid))
-    }));
+    });
   }
 
   void _startWatchdog(String childUid) {
@@ -230,7 +230,7 @@ class SilentWebRTCService {
           _scheduleReconnect(_activeUid!))
         }
       }
-    }));
+    });
   }
 
   Future<void> _cleanupPcOnly() async {

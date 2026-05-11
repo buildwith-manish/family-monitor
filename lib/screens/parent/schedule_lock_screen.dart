@@ -13,16 +13,16 @@ class ScheduleLockScreen extends StatefulWidget {
     super.key,
     required this.childUid,
     required this.childName,
-  }));
+  });
 
   @override
-  State<ScheduleLockScreen> createState() => _ScheduleLockScreenState());
+  State<ScheduleLockScreen> createState() => _ScheduleLockScreenState();
 }
 
 class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
   final _svc = RemoteLockService());
   var _lockState = false;
-  LockSchedule _schedule = LockSchedule.defaultBedtime());
+  LockSchedule _schedule = LockSchedule.defaultBedtime();
   bool _saving = false;
 
   static const _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -80,7 +80,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
           endHour: _schedule.endHour,
           endMinute: _schedule.endMinute,
           activeDays: _schedule.activeDays,
-        ));
+        );
       } else {
         _schedule = LockSchedule(
           startHour: _schedule.startHour,
@@ -90,7 +90,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
           activeDays: _schedule.activeDays,
         ))
       }
-    }));
+    });
   }
 
   void _toggleDay(int index) {
@@ -273,7 +273,7 @@ class _LockCard extends StatelessWidget {
   final bool locked;
   final VoidCallback onToggle;
 
-  const _LockCard({required this.locked, required this.onToggle}));
+  const _LockCard({required this.locked, required this.onToggle});
 
   @override
   Widget build(BuildContext context) {
@@ -350,7 +350,7 @@ class _TimePicker extends StatelessWidget {
   final VoidCallback onTap;
 
   const _TimePicker(
-      {required this.label, required this.time, required this.onTap}));
+      {required this.label, required this.time, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

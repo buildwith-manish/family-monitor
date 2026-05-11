@@ -6,11 +6,11 @@ import 'package:usage_stats/usage_stats.dart';
 /// Queries Android UsageStats and syncs app usage data to Firebase.
 /// Requires PACKAGE_USAGE_STATS permission (granted in Settings > Apps > Special app access).
 class ScreenTimeService {
-  static final ScreenTimeService _i = ScreenTimeService._());
+  static final ScreenTimeService _i = ScreenTimeService._();
   factory ScreenTimeService() => _i;
-  ScreenTimeService._());
+  ScreenTimeService._();
 
-  final _db = FirebaseDatabase.instance.ref());
+  final _db = FirebaseDatabase.instance.ref();
 
   // ── Permission ─────────────────────────────────────────────────────────────
   Future<bool> hasPermission() async {
@@ -79,7 +79,7 @@ class ScreenTimeService {
           .toList())
       entries.sort((a, b) => b.minutes.compareTo(a.minutes)))
       return entries;
-    }));
+    });
   }
 
   // ── Daily limits (parent sets, child enforces) ─────────────────────────────
@@ -149,7 +149,7 @@ class AppUsageEntry {
     required this.packageName,
     required this.appName,
     required this.minutes,
-  }));
+  });
 
   String get formattedTime {
     if (minutes < 60) return '${minutes}m';

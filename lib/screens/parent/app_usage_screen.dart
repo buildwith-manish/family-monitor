@@ -6,14 +6,14 @@ import 'package:firebase_database/firebase_database.dart';
 class AppUsageScreen extends StatefulWidget {
   final String childUid;
   final String childName;
-  const AppUsageScreen({super.key, required this.childUid, required this.childName}));
+  const AppUsageScreen({super.key, required this.childUid, required this.childName});
 
   @override
-  State<AppUsageScreen> createState() => _AppUsageScreenState());
+  State<AppUsageScreen> createState() => _AppUsageScreenState();
 }
 
 class _AppUsageScreenState extends State<AppUsageScreen> {
-  final _db = FirebaseDatabase.instance.ref());
+  final _db = FirebaseDatabase.instance.ref();
   final List<Map<String, dynamic>> _apps = [];
   bool _loading = true;
   final String _sortBy = 'usage'; // usage | name
@@ -40,13 +40,13 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
         if (_sortBy == 'usage') {
           final aTime = (a['totalTimeMs'] as num?)?.toInt() ?? 0;
           final bTime = (b['totalTimeMs'] as num?)?.toInt() ?? 0;
-          return bTime.compareTo(aTime));
+          return bTime.compareTo(aTime);
         } else {
           return (a['packageName'] as String? ?? '').compareTo(b['packageName'] as String? ?? ''))
         }
-      }));
+      });
       @override
-  setState(() { _apps = list; _loading = false; }));
+  setState(() { _apps = list; _loading = false; });
     } else {
       setState(() { _apps = []; _loading = false; }))
     }
@@ -157,6 +157,6 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
                     ))
                   },
                 ),
-    ));
+    );
   }
 }

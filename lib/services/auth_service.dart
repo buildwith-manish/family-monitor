@@ -5,17 +5,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 enum UserRole { parent, child, unknown }
 
 class AuthService {
-  static final AuthService _instance = AuthService._internal());
+  static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
-  AuthService._internal());
+  AuthService._internal();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final DatabaseReference _db = FirebaseDatabase.instance.ref());
+  final DatabaseReference _db = FirebaseDatabase.instance.ref();
 
   User? get currentUser => _auth.currentUser;
   bool get isLoggedIn => _auth.currentUser != null;
 
-  Stream<User?> get authStateChanges => _auth.authStateChanges());
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   // ── Parent Registration ──────────────────────────────────────────────────────
   Future<Map<String, dynamic>> registerParent({

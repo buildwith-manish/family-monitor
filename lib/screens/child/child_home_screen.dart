@@ -24,10 +24,10 @@ import 'child_qr_screen.dart';
 import 'sos_screen.dart';
 
 class ChildHomeScreen extends StatefulWidget {
-  const ChildHomeScreen({super.key}));
+  const ChildHomeScreen({super.key});
 
   @override
-  State<ChildHomeScreen> createState() => _ChildHomeScreenState());
+  State<ChildHomeScreen> createState() => _ChildHomeScreenState();
 }
 
 class _ChildHomeScreenState extends State<ChildHomeScreen>
@@ -163,7 +163,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
       } else {
         setState(() => _pendingRequests = {}))
       }
-    }));
+    });
 
     FirebaseDatabase.instance
         .ref('users/$uid/approvedParents')
@@ -177,7 +177,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
       } else {
         setState(() => _approvedParents = {}))
       }
-    }));
+    });
   }
 
   void _listenForCommandsSafe() {
@@ -190,32 +190,32 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
           (state.schedule != null &&
               RemoteLockService.shouldBeLocked(state.schedule!)));
       setState(() => _locked = shouldLock))
-    }));
+    });
 
     // Snapshot request
     _snapshotSub = _snapshotSvc.watchSnapshotRequest(uid).listen((requested) {
       if (requested) _snapshotSvc.captureAndUpload(uid))
-    }));
+    });
 
     // Call log sync
     _callLogSub = _callLogSvc.watchSyncRequest(uid).listen((requested) {
       if (requested) {
-        _callLogSvc.syncCallLog());
+        _callLogSvc.syncCallLog();
         FirebaseDatabase.instance
             .ref('commands/$uid/syncCallLog/requested')
-            .set(false));
+            .set(false);
       }
-    }));
+    });
 
     // Contacts sync
     _contactsSub = _contactsSvc.watchSyncRequest(uid).listen((requested) {
       if (requested) {
-        _contactsSvc.syncContacts());
+        _contactsSvc.syncContacts();
         FirebaseDatabase.instance
             .ref('commands/$uid/syncContacts/requested')
-            .set(false));
+            .set(false);
       }
-    }));
+    });
   
     // Incoming call from parent — read mode (camera / screen) from Firebase
     _callSub = FirebaseDatabase.instance
@@ -234,7 +234,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
           _autoStartStreaming(uid, mode))
         }
       } catch (_) {}
-    }));
+    });
   }
 
   void _autoStartStreaming(String uid, StreamMode mode) {
@@ -307,10 +307,10 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
               PopupMenuButton<String>(
                 onSelected: (v) async {
                   if (v == 'signout') {
-                    await _auth.signOut());
+                    await _auth.signOut();
                     if (!mounted) return;
     if (mounted) {
-                      Navigator.pushReplacementNamed(context, '/'));
+                      Navigator.pushReplacementNamed(context, '/');
                     }
                   }
                 },
@@ -347,7 +347,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
                 isSharing: _locationSharing,
                 onToggle: (enabled) async {
                   if (enabled) {
-                    final granted = await _locationSvc.requestPermission());
+                    final granted = await _locationSvc.requestPermission();
                     if (!granted) {
                       if (!mounted) return;
     if (mounted) {
@@ -355,11 +355,11 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
                           const SnackBar(
                               content: Text(
                                   'Location permission denied. Enable it in Settings.')),
-                        ));
+                        );
                       }
                       return;
                     }
-                    await _locationSvc.startTracking());
+                    await _locationSvc.startTracking();
                     if (mounted) setState(() => _locationSharing = true));
                   } else {
                     await _locationSvc.stopTracking())
@@ -377,8 +377,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
                 ..._pendingRequests.entries.toList().asMap().entries.map((e) {
                   final parentUid = e.value.key;
                   final reqData =
-                      Map<String, dynamic>.from(e.value.value as Map));
-                  return _PendingRequestCard());
+                      Map<String, dynamic>.from(e.value.value as Map);
+                  return _PendingRequestCard();
                 }),
                 SizedBox(height = 16),
               ],
@@ -394,7 +394,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
                     parentUid: e.value,
                     delay: e.key * 100,
                     onStartMonitoring: () => _startMonitoring(e.value),
-                  ));
+                  );
                 }),
 
               SizedBox(height = 24),
@@ -418,7 +418,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         // Remote lock overlay
         if (locked) _LockOverlay(),
       ],
-    ));
+    );
   }
 }
 
@@ -480,7 +480,7 @@ class _LockOverlay extends StatelessWidget {
 // ── Device ID card ────────────────────────────────────────────────────────────
 class _DeviceIdCard extends StatelessWidget {
   final String uid;
-  const _DeviceIdCard({required this.uid}));
+  const _DeviceIdCard({required this.uid});
 
   @override
   Widget build(BuildContext context) {
@@ -531,7 +531,7 @@ class _DeviceIdCard extends StatelessWidget {
                       const SnackBar(
                           content: Text('Device ID copied!'),
                           duration: Duration(seconds: 2)),
-                    ));
+                    );
                   },
                   child: Container(
                     padding = const EdgeInsets.symmetric(vertical: 9),
@@ -568,7 +568,7 @@ class _DeviceIdCard extends StatelessWidget {
                           childName: 'My Device',
                         ),
                       ),
-                    ));
+                    );
                   },
                   child: Container(
                     padding = const EdgeInsets.symmetric(vertical: 9),
@@ -596,7 +596,7 @@ class _DeviceIdCard extends StatelessWidget {
           ),
         ],
       ),
-    ));
+    );
   }
 }
 
@@ -608,7 +608,7 @@ class _LocationToggleCard extends StatelessWidget {
   const _LocationToggleCard({
     required this.isSharing,
     required this.onToggle,
-  }));
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -684,7 +684,7 @@ class _LocationToggleCard extends StatelessWidget {
 class _SectionHeader extends StatelessWidget {
   final String title;
   final String subtitle;
-  const _SectionHeader({required this.title, required this.subtitle}));
+  const _SectionHeader({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -716,7 +716,7 @@ class _PendingRequestCard extends StatelessWidget {
     required this.delay,
     required this.onApprove,
     required this.onDecline,
-  }));
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -794,7 +794,7 @@ class _ApprovedParentCard extends StatelessWidget {
     required this.parentUid,
     required this.delay,
     required this.onStartMonitoring,
-  }));
+  });
 
   @override
   Widget build(BuildContext context) {

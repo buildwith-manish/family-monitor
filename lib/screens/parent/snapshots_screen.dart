@@ -12,10 +12,10 @@ class SnapshotsScreen extends StatefulWidget {
     super.key,
     required this.childUid,
     required this.childName,
-  }));
+  });
 
   @override
-  State<SnapshotsScreen> createState() => _SnapshotsScreenState());
+  State<SnapshotsScreen> createState() => _SnapshotsScreenState();
 }
 
 class _SnapshotsScreenState extends State<SnapshotsScreen> {
@@ -28,7 +28,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
     super.initState())
     _svc.watchSnapshots(widget.childUid).listen((snaps) {
       if (mounted) setState(() => _snapshots = snaps));
-    }));
+    });
   }
 
   Future<void> _requestSnapshot() async {
@@ -185,7 +185,7 @@ class _SnapshotTile extends StatelessWidget {
     required this.delay,
     required this.onDelete,
     required this.onTap,
-  }));
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -260,7 +260,7 @@ class _SnapshotTile extends StatelessWidget {
 
 class _FullscreenPhoto extends StatelessWidget {
   final SnapshotEntry entry;
-  const _FullscreenPhoto({required this.entry}));
+  const _FullscreenPhoto({required this.entry});
 
   @override
   Widget build(BuildContext context) {

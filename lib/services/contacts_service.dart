@@ -6,11 +6,11 @@ import 'package:permission_handler/permission_handler.dart';
 /// Reads device contacts (child side) and stores the parent-approved list
 /// in Firebase. Parents can approve or block specific contacts.
 class ContactsService {
-  static final ContactsService _i = ContactsService._());
+  static final ContactsService _i = ContactsService._();
   factory ContactsService() => _i;
-  ContactsService._());
+  ContactsService._();
 
-  final _db = FirebaseDatabase.instance.ref());
+  final _db = FirebaseDatabase.instance.ref();
 
   // ── Permission ─────────────────────────────────────────────────────────────
   Future<bool> requestPermission() async {
@@ -62,7 +62,7 @@ class ContactsService {
       return map.entries
           .where((e) => e.key != '_syncedAt')
           .map((e) {
-            final data = Map<String, dynamic>.from(e.value as Map));
+            final data = Map<String, dynamic>.from(e.value as Map);
             final rawPhones = data['phones'];
             List<String> phones = [];
             if (rawPhones is List) {
@@ -75,8 +75,8 @@ class ContactsService {
             ))
           })
           .toList()
-        ..sort((a, b) => a.displayName.compareTo(b.displayName)));
-    }));
+        ..sort((a, b) => a.displayName.compareTo(b.displayName));
+    });
   }
 
   // ── Approve / block a contact (parent side) ───────────────────────────────
@@ -100,7 +100,7 @@ class ContactsService {
               orElse: () => ContactStatus.pending,
             ),
           )))
-    }));
+    });
   }
 
   // ── Request sync from parent ───────────────────────────────────────────────
@@ -130,7 +130,7 @@ class ContactEntry {
     required this.id,
     required this.displayName,
     required this.phones,
-  }));
+  });
 
   String get initials {
     final parts = displayName.trim().split(' '))

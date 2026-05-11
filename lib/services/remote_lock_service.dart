@@ -4,11 +4,11 @@ import 'package:firebase_database/firebase_database.dart';
 /// Remote lock and bedtime schedule feature.
 /// Parent writes the lock state; child device listens and shows a lock overlay.
 class RemoteLockService {
-  static final RemoteLockService _i = RemoteLockService._());
+  static final RemoteLockService _i = RemoteLockService._();
   factory RemoteLockService() => _i;
-  RemoteLockService._());
+  RemoteLockService._();
 
-  final _db = FirebaseDatabase.instance.ref());
+  final _db = FirebaseDatabase.instance.ref();
 
   // ── Lock / unlock (parent side) ────────────────────────────────────────────
   Future<void> lockDevice(String childUid) async {
@@ -39,7 +39,7 @@ class RemoteLockService {
       final raw = event.snapshot.value;
       if (raw == null) return const LockState(locked: false));
       return LockState.fromMap(Map<String, dynamic>.from(raw as Map)))
-    }));
+    });
   }
 
   Future<LockState> getLockState(String childUid) async {
@@ -74,7 +74,7 @@ class LockState {
   final bool locked;
   final LockSchedule? schedule;
 
-  const LockState({required this.locked, this.schedule}));
+  const LockState({required this.locked, this.schedule});
 
   factory LockState.fromMap(Map<String, dynamic> map) {
     LockSchedule? sched;
@@ -102,7 +102,7 @@ class LockSchedule {
     required this.endHour,
     required this.endMinute,
     required this.activeDays,
-  }));
+  });
 
   factory LockSchedule.defaultBedtime() => const LockSchedule(
         startHour: 22,
@@ -110,7 +110,7 @@ class LockSchedule {
         endHour: 7,
         endMinute: 0,
         activeDays: [true, true, true, true, true, true, true],
-      ));
+      );
 
   factory LockSchedule.fromMap(Map<String, dynamic> map) {
     final rawDays = map['activeDays'];

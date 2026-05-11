@@ -296,7 +296,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                       icon: const Icon(Icons.copy, size: 18),
                       tooltip: 'Copy ID',
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: myUid);
+                        Clipboard.setData(ClipboardData(text: myUid));
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('ID copied to clipboard')),
                         );

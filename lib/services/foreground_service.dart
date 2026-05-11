@@ -2,9 +2,9 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 class MonitoringForegroundService {
   static final MonitoringForegroundService _instance =
-      MonitoringForegroundService._internal());
+      MonitoringForegroundService._internal();
   factory MonitoringForegroundService() => _instance;
-  MonitoringForegroundService._internal());
+  MonitoringForegroundService._internal();
 
   static void initForegroundTask() {
     FlutterForegroundTask.init(

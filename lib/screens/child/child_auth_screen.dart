@@ -8,9 +8,9 @@ import 'child_home_screen.dart';
 import 'child_setup_wizard_screen.dart';
 
 class ChildAuthScreen extends StatefulWidget {
-  const ChildAuthScreen({super.key}));
+  const ChildAuthScreen({super.key});
   @override
-  State<ChildAuthScreen> createState() => _ChildAuthScreenState());
+  State<ChildAuthScreen> createState() => _ChildAuthScreenState();
 }
 
 class _ChildAuthScreenState extends State<ChildAuthScreen> {

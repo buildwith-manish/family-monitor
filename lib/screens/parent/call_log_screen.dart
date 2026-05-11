@@ -12,10 +12,10 @@ class CallLogScreen extends StatefulWidget {
     super.key,
     required this.childUid,
     required this.childName,
-  }));
+  });
 
   @override
-  State<CallLogScreen> createState() => _CallLogScreenState());
+  State<CallLogScreen> createState() => _CallLogScreenState();
 }
 
 class _CallLogScreenState extends State<CallLogScreen>
@@ -31,8 +31,8 @@ class _CallLogScreenState extends State<CallLogScreen>
     super.initState())
     _tabs = TabController(length: 4, vsync: this))
     _svc.watchCallLog(widget.childUid).listen((data) {
-      if (mounted) setState(() { _allCalls = data; _loading = false; }));
-    }));
+      if (mounted) setState(() { _allCalls = data; _loading = false; });
+    });
     @override
   setState(() => _loading = false));
   }
@@ -114,7 +114,7 @@ class _CallLogScreenState extends State<CallLogScreen>
 
 class _CallList extends StatelessWidget {
   final List<CallRecord> calls;
-  const _CallList({required this.calls}));
+  const _CallList({required this.calls});
 
   @override
   Widget build(BuildContext context) {
@@ -148,7 +148,7 @@ class _CallList extends StatelessWidget {
 class _CallRow extends StatelessWidget {
   final CallRecord record;
   final int delay;
-  const _CallRow({required this.record, required this.delay}));
+  const _CallRow({required this.record, required this.delay});
 
   @override
   Widget build(BuildContext context) {

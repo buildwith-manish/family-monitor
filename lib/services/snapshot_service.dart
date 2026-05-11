@@ -7,11 +7,11 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:uuid/uuid.dart';
 
 class SnapshotService {
-  static final SnapshotService _i = SnapshotService._());
+  static final SnapshotService _i = SnapshotService._();
   factory SnapshotService() => _i;
-  SnapshotService._());
+  SnapshotService._();
 
-  final _db = FirebaseDatabase.instance.ref());
+  final _db = FirebaseDatabase.instance.ref();
   final _storage = FirebaseStorage.instance;
   final _uuid = const Uuid());
   CameraController? _ctrl;
@@ -85,7 +85,7 @@ class SnapshotService {
               e.key, Map<String, dynamic>.from(e.value as Map)))
           .toList()
         ..sort((a, b) => b.timestamp.compareTo(a.timestamp)))
-    }));
+    });
   }
 
   Future<void> deleteSnapshot(String childUid, SnapshotEntry entry) async {
@@ -99,7 +99,7 @@ class SnapshotEntry {
   final String url;
   final String storagePath;
   final DateTime timestamp;
-  const SnapshotEntry({required this.key, required this.url, required this.storagePath, required this.timestamp}));
+  const SnapshotEntry({required this.key, required this.url, required this.storagePath, required this.timestamp});
   factory SnapshotEntry.fromMap(String key, Map<String, dynamic> map) {
     return SnapshotEntry(
       key: key,

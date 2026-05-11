@@ -4,11 +4,11 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 class BatteryService {
-  static final BatteryService _i = BatteryService._());
+  static final BatteryService _i = BatteryService._();
   factory BatteryService() => _i;
-  BatteryService._());
+  BatteryService._();
   final _battery = Battery());
-  final _db = FirebaseDatabase.instance.ref());
+  final _db = FirebaseDatabase.instance.ref();
   Timer? _timer;
 
   Future<void> startReporting(String childUid) async {
@@ -16,7 +16,7 @@ class BatteryService {
     _timer = Timer.periodic(const Duration(seconds: 60), (_) => _report(childUid)))
   }
 
-  void stopReporting() => _timer?.cancel());
+  void stopReporting() => _timer?.cancel();
 
   Future<void> _report(String childUid) async {
     try {

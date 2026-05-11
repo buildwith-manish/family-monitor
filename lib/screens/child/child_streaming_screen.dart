@@ -26,10 +26,10 @@ class ChildStreamingScreen extends StatefulWidget {
     this.childName,
     this.parentUid,
     this.mode = StreamMode.camera,
-  }));
+  });
 
   @override
-  State<ChildStreamingScreen> createState() => _ChildStreamingScreenState());
+  State<ChildStreamingScreen> createState() => _ChildStreamingScreenState();
 }
 
 class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
@@ -74,7 +74,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
 
         setState(() => _statusMsg = 'Starting screen share…'))
         await _webrtc.startScreenShareAsChild(widget.childUid, () {
-          if (mounted) Navigator.pop(context));
+          if (mounted) Navigator.pop(context);
         }))
         if (!mounted) return;
     if (mounted) {
@@ -86,7 +86,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
       } else {
         setState(() => _statusMsg = 'Starting camera…'))
         await _webrtc.startAsChild(widget.childUid, () {
-          if (mounted) Navigator.pop(context));
+          if (mounted) Navigator.pop(context);
         }))
         if (!mounted) return;
     if (mounted) {
@@ -218,7 +218,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
           overflow: TextOverflow.ellipsis),
       ),
     ]),
-  ));
+  );
 
   Widget _bottomBar(bool isScreen) => Container(
     padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
@@ -241,7 +241,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
         ),
       ],
     ),
-  ));
+  );
 
   Widget _liveBadge() => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -261,7 +261,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
             fontSize: 11,
             fontWeight: FontWeight.w800)),
     ]),
-  ));
+  );
 
   Widget _circleBtn({
     required IconData icon,
@@ -277,5 +277,5 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
         decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
         child: Icon(icon, color: Colors.white, size: iconSize),
       ),
-    ));
+    );
 }

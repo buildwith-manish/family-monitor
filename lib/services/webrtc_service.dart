@@ -253,7 +253,7 @@ class WebRTCService {
     _candidateSub?.cancel();
     _statusSub?.cancel();
     _commandSub?.cancel();
-    _localStream?.getTracks().forEach((t) => t.stop());
+    _localStream?.getTracks().forEach((t) => t.stop();
     await _localStream?.dispose();
     await _peerConnection?.close();
     _localStream = null;

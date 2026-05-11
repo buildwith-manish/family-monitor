@@ -16,10 +16,10 @@ class ChildLocationScreen extends StatefulWidget {
     super.key,
     required this.childUid,
     required this.childName,
-  }));
+  });
 
   @override
-  State<ChildLocationScreen> createState() => _ChildLocationScreenState());
+  State<ChildLocationScreen> createState() => _ChildLocationScreenState();
 }
 
 class _ChildLocationScreenState extends State<ChildLocationScreen> {
@@ -46,11 +46,11 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
       setState(() {
         _location = loc;
         _loading = false;
-      }));
+      });
       if (loc != null && _followChild && _mapReady) {
         _mapCtrl.move(LatLng(loc.lat, loc.lng), _mapCtrl.camera.zoom))
       }
-    }));
+    });
   }
 
   @override
@@ -414,7 +414,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
 // ── Child pin marker ──────────────────────────────────────────────────────────
 class _ChildMarker extends StatelessWidget {
   final String name;
-  const _ChildMarker({required this.name}));
+  const _ChildMarker({required this.name});
 
   @override
   Widget build(BuildContext context) {
@@ -500,7 +500,7 @@ class _StatChip extends StatelessWidget {
     required this.label,
     required this.value,
     required this.iconColor,
-  }));
+  });
 
   @override
   Widget build(BuildContext context) {
