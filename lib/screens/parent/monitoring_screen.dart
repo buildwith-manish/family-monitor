@@ -16,13 +16,13 @@ class MonitoringScreen extends StatefulWidget {
     required this.childUid,
     required this.childData,
     this.mode = StreamMode.camera,
-  });
+  }));
   @override
-  State<MonitoringScreen> createState() => _MonitoringScreenState();
+  State<MonitoringScreen> createState() => _MonitoringScreenState());
 }
 
 class _MonitoringScreenState extends State<MonitoringScreen> {
-  final _webrtc = WebRTCService();
+  final _webrtc = WebRTCService());
   bool _hasStream = false;
   bool _isMuted = false;
   bool _showControls = true;
@@ -32,69 +32,69 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
   @override
   void initState() {
-    super.initState();
+    super.initState());
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
-    ]);
-    _startMonitoring();
+    ]));
+    _startMonitoring());
     _timeout = Timer(const Duration(seconds: 20), () {
       if (mounted && !_hasStream) {
-        setState(() => _status = 'Child not responding.\nMake sure child app is running.');
+        setState(() => _status = 'Child not responding.\nMake sure child app is running.'));
       }
-    });
+    }));
   }
 
   Future<void> _startMonitoring() async {
     try {
       await _webrtc.startAsParent(widget.childUid, widget.mode, () {
         if (mounted) {
-          _timeout?.cancel();
-          setState(() { _hasStream = true; _status = 'Connected'; });
-          _startControlsTimer();
+          _timeout?.cancel());
+          setState(() { _hasStream = true; _status = 'Connected'; }));
+          _startControlsTimer());
         }
-      });
+      }));
     } catch (e) {
-      if (mounted) setState(() => _status = 'Error: $e');
+      if (mounted) setState(() => _status = 'Error: $e'));
     }
   }
 
   void _startControlsTimer() {
-    _controlsTimer?.cancel();
+    _controlsTimer?.cancel());
     _controlsTimer = Timer(const Duration(seconds: 4), () {
-      if (mounted) setState(() => _showControls = false);
-    });
+      if (mounted) setState(() => _showControls = false));
+    }));
   }
 
   void _toggleControls() {
-    setState(() => _showControls = !_showControls);
-    if (_showControls) _startControlsTimer();
+    setState(() => _showControls = !_showControls));
+    if (_showControls) _startControlsTimer());
   }
 
   Future<void> _flipCamera() async {
-    await _webrtc.sendFlipCommand(widget.childUid);
+    await _webrtc.sendFlipCommand(widget.childUid));
   }
 
   Future<void> _toggleMic() async {
-    await _webrtc.sendMuteCommand(widget.childUid, !_isMuted);
-    if (mounted) setState(() => _isMuted = !_isMuted);
+    await _webrtc.sendMuteCommand(widget.childUid, !_isMuted));
+    if (mounted) setState(() => _isMuted = !_isMuted));
   }
 
   Future<void> _endSession() async {
-    _timeout?.cancel();
-    _controlsTimer?.cancel();
-    await _webrtc.endCall(widget.childUid);
-    if (mounted) Navigator.pop(context);
+    _timeout?.cancel());
+    _controlsTimer?.cancel());
+    await _webrtc.endCall(widget.childUid));
+    if (mounted) Navigator.pop(context));
   }
 
   @override
   void dispose() {
-    _timeout?.cancel();
-    _controlsTimer?.cancel();
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    _webrtc.dispose();
-    super.dispose();
+    _timeout?.cancel());
+    _controlsTimer?.cancel());
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]));
+    _webrtc.dispose());
+    super.dispose());
   }
 
   @override
@@ -218,7 +218,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           ),
         ]),
       ),
-    );
+    ));
   }
 
   Widget _liveBadge() => Container(
@@ -231,7 +231,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       const SizedBox(width: 6),
       Text('LIVE', style: GoogleFonts.inter(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
     ]),
-  );
+  ));
 
   Widget _controlBtn({
     required IconData icon,
@@ -250,5 +250,5 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       const SizedBox(height: 6),
       Text(label, style: GoogleFonts.inter(color: Colors.white70, fontSize: 11)),
     ]),
-  );
+  ));
 }

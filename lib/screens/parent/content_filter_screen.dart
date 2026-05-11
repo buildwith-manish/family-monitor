@@ -12,19 +12,19 @@ class ContentFilterScreen extends StatefulWidget {
     super.key,
     required this.childUid,
     required this.childName,
-  });
+  }));
 
   @override
-  State<ContentFilterScreen> createState() => _ContentFilterScreenState();
+  State<ContentFilterScreen> createState() => _ContentFilterScreenState());
 }
 
 class _ContentFilterScreenState extends State<ContentFilterScreen>
     with SingleTickerProviderStateMixin {
-  final _svc = ContentFilterService();
+  final _svc = ContentFilterService());
   List<BlockedDomain> _blocked = [];
   Set<String> _blockedCategories = {};
   late TabController _tabs;
-  final _domainCtrl = TextEditingController();
+  final _domainCtrl = TextEditingController());
 
   static const _categoryIcons = {
     'Adult Content': (Icons.no_adult_content, Color(0xFFEA4335)),
@@ -36,35 +36,35 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
 
   @override
   void initState() {
-    super.initState();
-    _tabs = TabController(length: 2, vsync: this);
+    super.initState());
+    _tabs = TabController(length: 2, vsync: this));
     _svc.watchBlockedDomains(widget.childUid).listen((data) {
-      if (mounted) setState(() => _blocked = data);
-    });
+      if (mounted) setState(() => _blocked = data));
+    }));
     _svc.watchBlockedCategories(widget.childUid).listen((data) {
-      if (mounted) setState(() => _blockedCategories = data);
-    });
+      if (mounted) setState(() => _blockedCategories = data));
+    }));
   }
 
   @override
   void dispose() {
-    _tabs.dispose();
-    _domainCtrl.dispose();
-    super.dispose();
+    _tabs.dispose());
+    _domainCtrl.dispose());
+    super.dispose());
   }
 
   Future<void> _addDomain() async {
-    final domain = _domainCtrl.text.trim();
+    final domain = _domainCtrl.text.trim());
     if (domain.isEmpty) return;
-    await _svc.blockDomain(widget.childUid, domain);
-    _domainCtrl.clear();
+    await _svc.blockDomain(widget.childUid, domain));
+    _domainCtrl.clear());
   }
 
   Future<void> _toggleCategory(String category) async {
     if (_blockedCategories.contains(category)) {
-      await _svc.unblockCategory(widget.childUid, category);
+      await _svc.unblockCategory(widget.childUid, category));
     } else {
-      await _svc.blockCategory(widget.childUid, category);
+      await _svc.blockCategory(widget.childUid, category));
     }
   }
 
@@ -99,7 +99,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
           _buildDomains(),
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildCategories() {
@@ -132,7 +132,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
 
         ...ContentFilterService.categoryDomains.keys.toList().asMap().entries.map((e) {
           final category = e.value;
-          final blocked = _blockedCategories.contains(category);
+          final blocked = _blockedCategories.contains(category));
           final iconData = _categoryIcons[category];
 
           return Container(
@@ -142,14 +142,14 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                   color: blocked
-                      ? const Color(0xFFEA4335).withOpacity(0.3)
+                      ? const Color(0xFFEA4335).withValues(alpha: 0.3)
                       : Colors.grey.shade200),
             ),
             child: ListTile(
               leading: Container(
                 width: 40, height: 40,
                 decoration: BoxDecoration(
-                  color: (iconData?.$2 ?? Colors.grey).withOpacity(0.12),
+                  color: (iconData?.$2 ?? Colors.grey).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(iconData?.$1 ?? Icons.block,
@@ -168,10 +168,10 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                 activeThumbColor: const Color(0xFFEA4335),
               ),
             ),
-          ).animate(delay: Duration(milliseconds: e.key * 60)).fadeIn();
+          ).animate(delay: Duration(milliseconds: e.key * 60)).fadeIn());
         }),
       ],
-    );
+    ));
   }
 
   Widget _buildDomains() {
@@ -256,11 +256,11 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                               _svc.unblockDomain(widget.childUid, d.domain),
                         ),
                       ),
-                    ).animate(delay: Duration(milliseconds: i * 30)).fadeIn();
+                    ).animate(delay: Duration(milliseconds: i * 30)).fadeIn());
                   },
                 ),
         ),
       ],
-    );
+    ));
   }
 }

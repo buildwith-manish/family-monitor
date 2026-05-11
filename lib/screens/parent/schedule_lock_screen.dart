@@ -13,16 +13,16 @@ class ScheduleLockScreen extends StatefulWidget {
     super.key,
     required this.childUid,
     required this.childName,
-  });
+  }));
 
   @override
-  State<ScheduleLockScreen> createState() => _ScheduleLockScreenState();
+  State<ScheduleLockScreen> createState() => _ScheduleLockScreenState());
 }
 
 class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
-  final _svc = RemoteLockService();
+  final _svc = RemoteLockService());
   var _lockState = false;
-  LockSchedule _schedule = LockSchedule.defaultBedtime();
+  LockSchedule _schedule = LockSchedule.defaultBedtime());
   bool _saving = false;
 
   static const _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -32,42 +32,42 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
 
   @override
   void initState() {
-    super.initState();
+    super.initState());
     _svc.watchLockState(widget.childUid).listen((state) {
       if (mounted) {
         setState(() {
           _lockState = state.locked;
           if (state.schedule != null) _schedule = state.schedule!;
-        });
+        }));
       }
-    });
+    }));
   }
 
   Future<void> _toggleLock() async {
     if (_lockState) {
-      await _svc.unlockDevice(widget.childUid);
+      await _svc.unlockDevice(widget.childUid));
     } else {
-      await _svc.lockDevice(widget.childUid);
+      await _svc.lockDevice(widget.childUid));
     }
   }
 
   Future<void> _saveSchedule() async {
-    setState(() => _saving = true);
-    await _svc.saveSchedule(widget.childUid, _schedule);
+    setState(() => _saving = true));
+    await _svc.saveSchedule(widget.childUid, _schedule));
     if (mounted) {
-      setState(() => _saving = false);
+      setState(() => _saving = false));
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Bedtime schedule saved')),
-      );
+      ));
     }
   }
 
   Future<void> _pickTime(bool isStart) async {
     final initial = isStart
         ? TimeOfDay(hour: _schedule.startHour, minute: _schedule.startMinute)
-        : TimeOfDay(hour: _schedule.endHour, minute: _schedule.endMinute);
+        : TimeOfDay(hour: _schedule.endHour, minute: _schedule.endMinute));
 
-    final picked = await showTimePicker(context: context, initialTime: initial);
+    final picked = await showTimePicker(context: context, initialTime: initial));
     if (picked == null) return;
 
     setState(() {
@@ -78,7 +78,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
           endHour: _schedule.endHour,
           endMinute: _schedule.endMinute,
           activeDays: _schedule.activeDays,
-        );
+        ));
       } else {
         _schedule = LockSchedule(
           startHour: _schedule.startHour,
@@ -86,13 +86,13 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
           endHour: picked.hour,
           endMinute: picked.minute,
           activeDays: _schedule.activeDays,
-        );
+        ));
       }
-    });
+    }));
   }
 
   void _toggleDay(int index) {
-    final days = List<bool>.from(_schedule.activeDays);
+    final days = List<bool>.from(_schedule.activeDays));
     days[index] = !days[index];
     setState(() {
       _schedule = LockSchedule(
@@ -101,8 +101,8 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
         endHour: _schedule.endHour,
         endMinute: _schedule.endMinute,
         activeDays: days,
-      );
-    });
+      ));
+    }));
   }
 
   @override
@@ -216,7 +216,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
                           ),
                         ),
                       ),
-                    );
+                    ));
                   }),
                 ),
               ],
@@ -244,7 +244,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFFFFF8E1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFFFD600).withOpacity(0.4)),
+              border: Border.all(color: const Color(0xFFFFD600).withValues(alpha: 0.4)),
             ),
             child: Row(
               children: [
@@ -263,7 +263,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
           ).animate(delay: 350.ms).fadeIn(),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -271,7 +271,7 @@ class _LockCard extends StatelessWidget {
   final bool locked;
   final VoidCallback onToggle;
 
-  const _LockCard({required this.locked, required this.onToggle});
+  const _LockCard({required this.locked, required this.onToggle}));
 
   @override
   Widget build(BuildContext context) {
@@ -283,7 +283,7 @@ class _LockCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: locked
-              ? const Color(0xFFEA4335).withOpacity(0.4)
+              ? const Color(0xFFEA4335).withValues(alpha: 0.4)
               : Colors.grey.shade200,
           width: 1.5,
         ),
@@ -294,8 +294,8 @@ class _LockCard extends StatelessWidget {
             width: 52, height: 52,
             decoration: BoxDecoration(
               color: locked
-                  ? const Color(0xFFEA4335).withOpacity(0.12)
-                  : const Color(0xFF34A853).withOpacity(0.12),
+                  ? const Color(0xFFEA4335).withValues(alpha: 0.12)
+                  : const Color(0xFF34A853).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
@@ -338,7 +338,7 @@ class _LockCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -348,7 +348,7 @@ class _TimePicker extends StatelessWidget {
   final VoidCallback onTap;
 
   const _TimePicker(
-      {required this.label, required this.time, required this.onTap});
+      {required this.label, required this.time, required this.onTap}));
 
   @override
   Widget build(BuildContext context) {
@@ -376,6 +376,6 @@ class _TimePicker extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }

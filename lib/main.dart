@@ -12,12 +12,12 @@ import 'screens/child/child_setup_wizard_screen.dart';
 import 'screens/child/child_home_screen.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsFlutterBinding.ensureInitialized());
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
-  ]);
+  ]));
 
   await Firebase.initializeApp(
     options: const FirebaseOptions(
@@ -29,13 +29,13 @@ void main() async {
       messagingSenderId: "758644747673",
       appId: "1:758644747673:android:69ef23a2fa4b508122f708",
     ),
-  );
+  ));
 
-  runApp(const FamilyMonitorApp());
+  runApp(const FamilyMonitorApp()));
 }
 
 class FamilyMonitorApp extends StatelessWidget {
-  const FamilyMonitorApp({super.key});
+  const FamilyMonitorApp({super.key}));
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +53,7 @@ class FamilyMonitorApp extends StatelessWidget {
         '/child/setup': (context) => const ChildSetupWizardScreen(),
         '/child/home': (context) => const ChildHomeScreen(),
       },
-    );
+    ));
   }
 
   ThemeData _buildTheme() {
@@ -63,7 +63,7 @@ class FamilyMonitorApp extends StatelessWidget {
         seedColor: const Color(0xFF1A73E8),
         brightness: Brightness.light,
       ),
-    );
+    ));
 
     return base.copyWith(
       textTheme: GoogleFonts.interTextTheme(base.textTheme),
@@ -147,6 +147,6 @@ class FamilyMonitorApp extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
         ),
       ),
-    );
+    ));
   }
 }

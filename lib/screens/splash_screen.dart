@@ -5,41 +5,41 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  const SplashScreen({super.key}));
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  State<SplashScreen> createState() => _SplashScreenState());
 }
 
 class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
-    super.initState();
-    _navigate();
+    super.initState());
+    _navigate());
   }
 
   Future<void> _navigate() async {
-    await Future.delayed(const Duration(milliseconds: 2200));
+    await Future.delayed(const Duration(milliseconds: 2200)));
 
     if (!mounted) return;
 
-    final authService = AuthService();
+    final authService = AuthService());
 
     if (!authService.isLoggedIn) {
-      Navigator.pushReplacementNamed(context, '/role-select');
+      Navigator.pushReplacementNamed(context, '/role-select'));
       return;
     }
 
-    final role = await authService.getSavedRole();
+    final role = await authService.getSavedRole());
     switch (role) {
       case UserRole.parent:
-        Navigator.pushReplacementNamed(context, '/parent/dashboard');
+        Navigator.pushReplacementNamed(context, '/parent/dashboard'));
         break;
       case UserRole.child:
-        Navigator.pushReplacementNamed(context, '/child/home');
+        Navigator.pushReplacementNamed(context, '/child/home'));
         break;
       case UserRole.unknown:
-        Navigator.pushReplacementNamed(context, '/role-select');
+        Navigator.pushReplacementNamed(context, '/role-select'));
         break;
     }
   }
@@ -60,7 +60,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: Colors.black.withValues(alpha: 0.2),
                     blurRadius: 30,
                     offset: const Offset(0, 10),
                   ),
@@ -98,7 +98,7 @@ class _SplashScreenState extends State<SplashScreen> {
               'Transparent family safety',
               style: GoogleFonts.inter(
                 fontSize: 15,
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
                 fontWeight: FontWeight.w400,
               ),
             )
@@ -112,12 +112,12 @@ class _SplashScreenState extends State<SplashScreen> {
               height: 36,
               child: CircularProgressIndicator(
                 strokeWidth: 3,
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
               ),
             ).animate(delay: 900.ms).fadeIn(),
           ],
         ),
       ),
-    );
+    ));
   }
 }

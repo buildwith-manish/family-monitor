@@ -13,52 +13,52 @@ class ScreenTimeScreen extends StatefulWidget {
     super.key,
     required this.childUid,
     required this.childName,
-  });
+  }));
 
   @override
-  State<ScreenTimeScreen> createState() => _ScreenTimeScreenState();
+  State<ScreenTimeScreen> createState() => _ScreenTimeScreenState());
 }
 
 class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
-  final _svc = ScreenTimeService();
+  final _svc = ScreenTimeService());
   List<AppUsageEntry> _usage = [];
   Map<String, int> _limits = {};
   bool _loading = true;
   String? _settingLimitFor;
-  final _limitCtrl = TextEditingController();
+  final _limitCtrl = TextEditingController());
 
   @override
   void initState() {
-    super.initState();
-    _loadData();
+    super.initState());
+    _loadData());
     _svc.watchChildUsage(widget.childUid).listen((data) {
-      if (mounted) setState(() { _usage = data; _loading = false; });
-    });
+      if (mounted) setState(() { _usage = data; _loading = false; }));
+    }));
     _svc.watchLimits(widget.childUid).listen((data) {
-      if (mounted) setState(() => _limits = data);
-    });
+      if (mounted) setState(() => _limits = data));
+    }));
   }
 
   @override
   void dispose() {
-    _limitCtrl.dispose();
-    super.dispose();
+    _limitCtrl.dispose());
+    super.dispose());
   }
 
   Future<void> _loadData() async {
-    _limits = await _svc.getLimits(widget.childUid);
-    if (mounted) setState(() => _loading = false);
+    _limits = await _svc.getLimits(widget.childUid));
+    if (mounted) setState(() => _loading = false));
   }
 
-  int get _totalMinutes => _usage.fold(0, (s, e) => s + e.minutes);
+  int get _totalMinutes => _usage.fold(0, (s, e) => s + e.minutes));
 
   Future<void> _setLimit(String packageName) async {
-    final mins = int.tryParse(_limitCtrl.text.trim());
+    final mins = int.tryParse(_limitCtrl.text.trim()));
     if (mins == null || mins <= 0) return;
-    await _svc.setDailyLimit(widget.childUid, packageName, mins);
+    await _svc.setDailyLimit(widget.childUid, packageName, mins));
     if (mounted) {
-      setState(() => _settingLimitFor = null);
-      _limitCtrl.clear();
+      setState(() => _settingLimitFor = null));
+      _limitCtrl.clear());
     }
   }
 
@@ -89,7 +89,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
           : _usage.isEmpty
               ? _buildEmpty()
               : _buildContent(),
-    );
+    ));
   }
 
   Widget _buildEmpty() {
@@ -122,11 +122,11 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildContent() {
-    final top = _usage.take(5).toList();
+    final top = _usage.take(5).toList());
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -168,9 +168,9 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (v, _) {
-                        final idx = v.toInt();
+                        final idx = v.toInt());
                         if (idx < 0 || idx >= top.length) {
-                          return const SizedBox.shrink();
+                          return const SizedBox.shrink());
                         }
                         final name = top[idx].appName;
                         final label = name.length > 7
@@ -181,7 +181,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                           child: Text(label,
                               style: GoogleFonts.inter(fontSize: 9,
                                   color: const Color(0xFF5F6368))),
-                        );
+                        ));
                       },
                     ),
                   ),
@@ -236,11 +236,11 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
               onSaveLimit: () => _setLimit(e.value.packageName),
               onCancel: () => setState(() {
                 _settingLimitFor = null;
-                _limitCtrl.clear();
+                _limitCtrl.clear());
               }),
             )),
       ],
-    );
+    ));
   }
 
   Color _barColor(int i) {
@@ -265,7 +265,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
               child: const Text('Got it')),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -273,7 +273,7 @@ class _SummaryCard extends StatelessWidget {
   final int totalMinutes;
   final int entryCount;
 
-  const _SummaryCard({required this.totalMinutes, required this.entryCount});
+  const _SummaryCard({required this.totalMinutes, required this.entryCount}));
 
   @override
   Widget build(BuildContext context) {
@@ -315,7 +315,7 @@ class _SummaryCard extends StatelessWidget {
           const Icon(Icons.phone_android, color: Colors.white38, size: 48),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -338,7 +338,7 @@ class _AppUsageRow extends StatelessWidget {
     required this.onSetLimit,
     required this.onSaveLimit,
     required this.onCancel,
-  });
+  }));
 
   @override
   Widget build(BuildContext context) {
@@ -352,7 +352,7 @@ class _AppUsageRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
             color: overLimit
-                ? const Color(0xFFEA4335).withOpacity(0.4)
+                ? const Color(0xFFEA4335).withValues(alpha: 0.4)
                 : Colors.grey.shade200),
       ),
       child: Column(
@@ -439,6 +439,6 @@ class _AppUsageRow extends StatelessWidget {
             ),
         ],
       ),
-    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 300.ms);
+    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 300.ms));
   }
 }

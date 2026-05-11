@@ -26,14 +26,14 @@ class ChildStreamingScreen extends StatefulWidget {
     this.childName,
     this.parentUid,
     this.mode = StreamMode.camera,
-  });
+  }));
 
   @override
-  State<ChildStreamingScreen> createState() => _ChildStreamingScreenState();
+  State<ChildStreamingScreen> createState() => _ChildStreamingScreenState());
 }
 
 class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
-  final _webrtc    = WebRTCService();
+  final _webrtc    = WebRTCService());
   bool  _isConnecting = true;
   final bool  _isFrontCamera = true;
   bool  _retrying = false;
@@ -41,56 +41,56 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
 
   @override
   void initState() {
-    super.initState();
+    super.initState());
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
-    ]);
-    _startStreaming();
+    ]));
+    _startStreaming());
   }
 
   Future<void> _startStreaming() async {
     if (!mounted) return;
-    setState(() { _isConnecting = true; _retrying = false; });
+    setState(() { _isConnecting = true; _retrying = false; }));
 
     try {
       if (widget.mode == StreamMode.screen) {
-        setState(() => _statusMsg = 'Requesting screen permission…');
+        setState(() => _statusMsg = 'Requesting screen permission…'));
 
         // Always request consent before starting: the token from a previous
         // session may have been revoked.
-        final granted = await ScreenCaptureChannel.requestScreenCapture();
+        final granted = await ScreenCaptureChannel.requestScreenCapture());
         if (!granted) {
           if (mounted) {
             setState(() {
               _isConnecting = false;
               _statusMsg = 'Screen sharing denied. Open Settings to allow.';
-            });
+            }));
           }
           return;
         }
 
-        setState(() => _statusMsg = 'Starting screen share…');
+        setState(() => _statusMsg = 'Starting screen share…'));
         await _webrtc.startScreenShareAsChild(widget.childUid, () {
-          if (mounted) Navigator.pop(context);
-        });
+          if (mounted) Navigator.pop(context));
+        }));
         if (mounted) {
           setState(() {
             _isConnecting = false;
             _statusMsg = 'Sharing screen with parent';
-          });
+          }));
         }
       } else {
-        setState(() => _statusMsg = 'Starting camera…');
+        setState(() => _statusMsg = 'Starting camera…'));
         await _webrtc.startAsChild(widget.childUid, () {
-          if (mounted) Navigator.pop(context);
-        });
+          if (mounted) Navigator.pop(context));
+        }));
         if (mounted) {
           setState(() {
             _isConnecting = false;
             _statusMsg = 'Camera streaming to parent';
-          });
+          }));
         }
       }
     } catch (e) {
@@ -99,28 +99,28 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
           _isConnecting = false;
           _retrying     = true;
           _statusMsg    = 'Connection error — retrying in 5 s…';
-        });
+        }));
         // Auto-reconnect on transient network errors
         Future.delayed(const Duration(seconds: 5), () {
-          if (mounted && _retrying) _startStreaming();
-        });
+          if (mounted && _retrying) _startStreaming());
+        }));
       }
     }
   }
 
   Future<void> _stop() async {
-    await _webrtc.endCall(widget.childUid);
+    await _webrtc.endCall(widget.childUid));
     if (widget.mode == StreamMode.screen) {
-      await ScreenCaptureChannel.stopScreenCaptureService();
+      await ScreenCaptureChannel.stopScreenCaptureService());
     }
-    if (mounted) Navigator.pop(context);
+    if (mounted) Navigator.pop(context));
   }
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    _webrtc.dispose();
-    super.dispose();
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]));
+    _webrtc.dispose());
+    super.dispose());
   }
 
   // ── UI ────────────────────────────────────────────────────────────────────────
@@ -193,7 +193,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
           ]),
         ),
       ]),
-    );
+    ));
   }
 
   Widget _topBar() => Container(
@@ -214,7 +214,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
           overflow: TextOverflow.ellipsis),
       ),
     ]),
-  );
+  ));
 
   Widget _bottomBar(bool isScreen) => Container(
     padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
@@ -237,7 +237,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
         ),
       ],
     ),
-  );
+  ));
 
   Widget _liveBadge() => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -257,7 +257,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
             fontSize: 11,
             fontWeight: FontWeight.w800)),
     ]),
-  );
+  ));
 
   Widget _circleBtn({
     required IconData icon,
@@ -273,5 +273,5 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
         decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
         child: Icon(icon, color: Colors.white, size: iconSize),
       ),
-    );
+    ));
 }

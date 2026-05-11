@@ -4,17 +4,17 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 class ParentQrScannerScreen extends StatefulWidget {
-  const ParentQrScannerScreen({super.key});
+  const ParentQrScannerScreen({super.key}));
 
   @override
-  State<ParentQrScannerScreen> createState() => _ParentQrScannerScreenState();
+  State<ParentQrScannerScreen> createState() => _ParentQrScannerScreenState());
 }
 
 class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
   final MobileScannerController _ctrl = MobileScannerController(
     facing: CameraFacing.back,
     torchEnabled: false,
-  );
+  ));
 
   bool _scanned = false;
   bool _torchOn = false;
@@ -24,16 +24,16 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
     final barcode = capture.barcodes.firstOrNull;
     final raw = barcode?.rawValue;
     if (raw != null && raw.isNotEmpty) {
-      setState(() => _scanned = true);
-      _ctrl.stop();
-      Navigator.of(context).pop(raw);
+      setState(() => _scanned = true));
+      _ctrl.stop());
+      Navigator.of(context).pop(raw));
     }
   }
 
   @override
   void dispose() {
-    _ctrl.dispose();
-    super.dispose();
+    _ctrl.dispose());
+    super.dispose());
   }
 
   @override
@@ -86,8 +86,8 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
                           size: 24,
                         ),
                         onPressed: () {
-                          _ctrl.toggleTorch();
-                          setState(() => _torchOn = !_torchOn);
+                          _ctrl.toggleTorch());
+                          setState(() => _torchOn = !_torchOn));
                         },
                       ),
                     ],
@@ -111,10 +111,10 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 14),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.6),
+                        color: Colors.black.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                            color: Colors.white.withOpacity(0.15)),
+                            color: Colors.white.withValues(alpha: 0.15)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -127,7 +127,7 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
                               'Ask your child to open Family Monitor and tap "Show QR Code"',
                               style: GoogleFonts.inter(
                                 fontSize: 13,
-                                color: Colors.white.withOpacity(0.85),
+                                color: Colors.white.withValues(alpha: 0.85),
                                 height: 1.4,
                               ),
                               textAlign: TextAlign.center,
@@ -143,7 +143,7 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
           ).animate().fadeIn(delay: 300.ms),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -182,29 +182,29 @@ class _ScanOverlay extends StatelessWidget {
             'Align the child\'s QR code within the frame',
             style: GoogleFonts.inter(
               fontSize: 13,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
           ),
         ),
       ],
-    );
+    ));
   }
 }
 
 class _OverlayPainter extends CustomPainter {
   final Rect scanRect;
-  const _OverlayPainter({required this.scanRect});
+  const _OverlayPainter({required this.scanRect}));
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.black.withOpacity(0.6);
-    final full = Rect.fromLTWH(0, 0, size.width, size.height);
+    final paint = Paint()..color = Colors.black.withValues(alpha: 0.6));
+    final full = Rect.fromLTWH(0, 0, size.width, size.height));
     final path = Path()
       ..addRect(full)
       ..addRRect(RRect.fromRectAndRadius(scanRect, const Radius.circular(16)))
       ..fillType = PathFillType.evenOdd;
-    canvas.drawPath(path, paint);
+    canvas.drawPath(path, paint));
   }
 
   @override
@@ -213,13 +213,13 @@ class _OverlayPainter extends CustomPainter {
 
 class _ScanCorners extends StatelessWidget {
   final double size;
-  const _ScanCorners({required this.size});
+  const _ScanCorners({required this.size}));
 
   @override
   Widget build(BuildContext context) {
     const cornerLen = 28.0;
     const strokeW = 3.5;
-    const color = Color(0xFF1A73E8);
+    const color = Color(0xFF1A73E8));
 
     Widget corner({
       bool flipX = false,
@@ -235,7 +235,7 @@ class _ScanCorners extends StatelessWidget {
             painter: _CornerPainter(color: color, strokeWidth: strokeW),
           ),
         ),
-      );
+      ));
     }
 
     return SizedBox(
@@ -250,14 +250,14 @@ class _ScanCorners extends StatelessWidget {
               bottom: 0, right: 0, child: corner(flipX: true, flipY: true)),
         ],
       ),
-    );
+    ));
   }
 }
 
 class _CornerPainter extends CustomPainter {
   final Color color;
   final double strokeWidth;
-  const _CornerPainter({required this.color, required this.strokeWidth});
+  const _CornerPainter({required this.color, required this.strokeWidth}));
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -266,10 +266,10 @@ class _CornerPainter extends CustomPainter {
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
-    const r = Radius.circular(4);
+    const r = Radius.circular(4));
     canvas.drawLine(
-        Offset(0, size.height), const Offset(0, 0), paint);
-    canvas.drawLine(const Offset(0, 0), Offset(size.width, 0), paint);
+        Offset(0, size.height), const Offset(0, 0), paint));
+    canvas.drawLine(const Offset(0, 0), Offset(size.width, 0), paint));
   }
 
   @override

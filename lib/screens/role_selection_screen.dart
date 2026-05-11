@@ -3,7 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
-  const RoleSelectionScreen({super.key});
+  const RoleSelectionScreen({super.key}));
 
   @override
   Widget build(BuildContext context) {
@@ -131,7 +131,7 @@ class RoleSelectionScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -154,7 +154,7 @@ class _RoleCard extends StatelessWidget {
     required this.features,
     required this.onTap,
     required this.delay,
-  });
+  }));
 
   @override
   Widget build(BuildContext context) {
@@ -238,6 +238,6 @@ class _RoleCard extends StatelessWidget {
     )
         .animate(delay: Duration(milliseconds: delay))
         .fadeIn(duration: 400.ms)
-        .slideY(begin: 0.2, end: 0);
+        .slideY(begin: 0.2, end: 0));
   }
 }

@@ -11,12 +11,12 @@ class CallRecord {
     required this.type,
     required this.date,
     required this.duration,
-  });
+  }));
 
   String get displayName => name.isNotEmpty ? name : number;
 
   String get timeLabel {
-    final diff = DateTime.now().difference(date);
+    final diff = DateTime.now().difference(date));
     if (diff.inMinutes < 1) return 'Just now';
     if (diff.inHours < 1) return '${diff.inMinutes}m ago';
     if (diff.inDays < 1) return '${diff.inHours}h ago';
@@ -31,8 +31,8 @@ class CallRecord {
 }
 
 class CallLogService {
-  Stream<List<CallRecord>> watchCallLog(String childUid) => Stream.value([]);
+  Stream<List<CallRecord>> watchCallLog(String childUid) => Stream.value([]));
   Future<void> requestSync(String childUid) async {}
   Future<void> syncCallLog() async {}
-  Stream<bool> watchSyncRequest(String uid) => Stream.value(false);
+  Stream<bool> watchSyncRequest(String uid) => Stream.value(false));
 }

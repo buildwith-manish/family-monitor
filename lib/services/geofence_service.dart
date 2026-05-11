@@ -5,26 +5,26 @@ import 'package:uuid/uuid.dart';
 /// Stores geofence zones in Firebase and evaluates entry/exit events.
 /// Child location service calls [checkZones] on every position update.
 class GeofenceService {
-  static final GeofenceService _i = GeofenceService._();
+  static final GeofenceService _i = GeofenceService._());
   factory GeofenceService() => _i;
-  GeofenceService._();
+  GeofenceService._());
 
-  final _db = FirebaseDatabase.instance.ref();
-  final _uuid = const Uuid();
+  final _db = FirebaseDatabase.instance.ref());
+  final _uuid = const Uuid());
 
   // Track previous zone states to detect entry/exit
   final Map<String, bool> _insideZone = {};
 
   // ── Create / update zone (parent) ─────────────────────────────────────────
   Future<String> saveZone(String childUid, GeofenceZone zone) async {
-    final id = zone.id.isNotEmpty ? zone.id : _uuid.v4();
-    await _db.child('geofences/$childUid/$id').set(zone.copyWith(id: id).toMap());
+    final id = zone.id.isNotEmpty ? zone.id : _uuid.v4());
+    await _db.child('geofences/$childUid/$id').set(zone.copyWith(id: id).toMap()));
     return id;
   }
 
   // ── Delete zone (parent) ───────────────────────────────────────────────────
   Future<void> deleteZone(String childUid, String zoneId) async {
-    await _db.child('geofences/$childUid/$zoneId').remove();
+    await _db.child('geofences/$childUid/$zoneId').remove());
   }
 
   // ── Watch zones (parent + child) ───────────────────────────────────────────
@@ -32,29 +32,29 @@ class GeofenceService {
     return _db.child('geofences/$childUid').onValue.map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return <GeofenceZone>[];
-      final map = Map<String, dynamic>.from(raw as Map);
+      final map = Map<String, dynamic>.from(raw as Map));
       return map.entries
           .map((e) =>
               GeofenceZone.fromMap(e.key, Map<String, dynamic>.from(e.value as Map)))
-          .toList();
-    });
+          .toList());
+    }));
   }
 
   Future<List<GeofenceZone>> getZones(String childUid) async {
-    final snap = await _db.child('geofences/$childUid').get();
+    final snap = await _db.child('geofences/$childUid').get());
     if (snap.value == null) return [];
-    final map = Map<String, dynamic>.from(snap.value as Map);
+    final map = Map<String, dynamic>.from(snap.value as Map));
     return map.entries
         .map((e) =>
             GeofenceZone.fromMap(e.key, Map<String, dynamic>.from(e.value as Map)))
-        .toList();
+        .toList());
   }
 
   // ── Check if position is inside any zone (child side) ─────────────────────
   Future<void> checkZones(
       String childUid, double lat, double lng, List<String> parentUids) async {
-    final zones = await getZones(childUid);
-    final snap = await _db.child('users/$childUid').get();
+    final zones = await getZones(childUid));
+    final snap = await _db.child('users/$childUid').get());
     final childName = snap.child('childName').value as String? ?? 'Child';
 
     for (final zone in zones) {
@@ -71,7 +71,7 @@ class GeofenceService {
           lat: lat,
           lng: lng,
           parentUids: parentUids,
-        );
+        ));
       }
     }
   }
@@ -102,7 +102,7 @@ class GeofenceService {
     for (final parentUid in parentUids) {
       updates['alerts/$parentUid/geofence/$timestamp'] = payload;
     }
-    await _db.update(updates);
+    await _db.update(updates));
   }
 
   // ── Watch geofence alerts (parent) ─────────────────────────────────────────
@@ -115,31 +115,31 @@ class GeofenceService {
         .map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return <GeofenceAlert>[];
-      final map = Map<String, dynamic>.from(raw as Map);
+      final map = Map<String, dynamic>.from(raw as Map));
       return map.entries
           .map((e) => GeofenceAlert.fromMap(
               e.key, Map<String, dynamic>.from(e.value as Map)))
           .toList()
-        ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
-    });
+        ..sort((a, b) => b.timestamp.compareTo(a.timestamp)));
+    }));
   }
 
   Future<void> acknowledgeGeofenceAlert(
       String parentUid, String alertKey) async {
     await _db
         .child('alerts/$parentUid/geofence/$alertKey/acknowledged')
-        .set(true);
+        .set(true));
   }
 
   // ── Haversine distance in meters ───────────────────────────────────────────
   static double _distanceMeters(
       double lat1, double lng1, double lat2, double lng2) {
     const r = 6371000.0;
-    final dLat = _toRad(lat2 - lat1);
-    final dLng = _toRad(lng2 - lng1);
+    final dLat = _toRad(lat2 - lat1));
+    final dLng = _toRad(lng2 - lng1));
     final a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(_toRad(lat1)) * cos(_toRad(lat2)) * sin(dLng / 2) * sin(dLng / 2);
-    return r * 2 * atan2(sqrt(a), sqrt(1 - a));
+        cos(_toRad(lat1)) * cos(_toRad(lat2)) * sin(dLng / 2) * sin(dLng / 2));
+    return r * 2 * atan2(sqrt(a), sqrt(1 - a)));
   }
 
   static double _toRad(double deg) => deg * pi / 180;
@@ -162,7 +162,7 @@ class GeofenceZone {
     required this.lng,
     required this.radius,
     this.color = 'EA4335',
-  });
+  }));
 
   factory GeofenceZone.fromMap(String id, Map<String, dynamic> map) {
     return GeofenceZone(
@@ -172,7 +172,7 @@ class GeofenceZone {
       lng: (map['lng'] as num).toDouble(),
       radius: (map['radius'] as num).toDouble(),
       color: map['color'] as String? ?? 'EA4335',
-    );
+    ));
   }
 
   Map<String, dynamic> toMap() => {
@@ -198,7 +198,7 @@ class GeofenceZone {
       lng: lng ?? this.lng,
       radius: radius ?? this.radius,
       color: color ?? this.color,
-    );
+    ));
   }
 }
 
@@ -221,7 +221,7 @@ class GeofenceAlert {
     required this.lng,
     required this.timestamp,
     required this.acknowledged,
-  });
+  }));
 
   factory GeofenceAlert.fromMap(String key, Map<String, dynamic> map) {
     return GeofenceAlert(
@@ -234,11 +234,11 @@ class GeofenceAlert {
       timestamp: DateTime.fromMillisecondsSinceEpoch(
           (map['timestamp'] as num?)?.toInt() ?? 0),
       acknowledged: map['acknowledged'] == true,
-    );
+    ));
   }
 
   String get timeAgo {
-    final diff = DateTime.now().difference(timestamp);
+    final diff = DateTime.now().difference(timestamp));
     if (diff.inSeconds < 60) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';

@@ -12,14 +12,14 @@ class ContactsScreen extends StatefulWidget {
     super.key,
     required this.childUid,
     required this.childName,
-  });
+  }));
 
   @override
-  State<ContactsScreen> createState() => _ContactsScreenState();
+  State<ContactsScreen> createState() => _ContactsScreenState());
 }
 
 class _ContactsScreenState extends State<ContactsScreen> {
-  final _svc = ContactsService();
+  final _svc = ContactsService());
   List<ContactEntry> _contacts = [];
   Map<String, ContactStatus> _statuses = {};
   bool _requesting = false;
@@ -27,39 +27,39 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   @override
   void initState() {
-    super.initState();
+    super.initState());
     _svc.watchAllContacts(widget.childUid).listen((data) {
-      if (mounted) setState(() => _contacts = data);
-    });
+      if (mounted) setState(() => _contacts = data));
+    }));
     _svc.watchStatuses(widget.childUid).listen((data) {
-      if (mounted) setState(() => _statuses = data);
-    });
+      if (mounted) setState(() => _statuses = data));
+    }));
   }
 
   Future<void> _requestSync() async {
-    setState(() => _requesting = true);
-    await _svc.requestSync(widget.childUid);
+    setState(() => _requesting = true));
+    await _svc.requestSync(widget.childUid));
     if (mounted) {
-      setState(() => _requesting = false);
+      setState(() => _requesting = false));
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Sync requested — contacts will update shortly')),
-      );
+      ));
     }
   }
 
   Future<void> _setStatus(String id, ContactStatus status) async {
-    await _svc.setContactStatus(widget.childUid, id, status);
+    await _svc.setContactStatus(widget.childUid, id, status));
   }
 
   List<ContactEntry> get _filtered {
     if (_query.isEmpty) return _contacts;
-    final q = _query.toLowerCase();
+    final q = _query.toLowerCase());
     return _contacts
         .where((c) =>
             c.displayName.toLowerCase().contains(q) ||
             c.phones.any((p) => p.contains(q)))
-        .toList();
+        .toList());
   }
 
   @override
@@ -115,7 +115,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildEmpty() {
@@ -142,7 +142,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildList() {
@@ -160,9 +160,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
           onApprove: () => _setStatus(contact.id, ContactStatus.approved),
           onBlock: () => _setStatus(contact.id, ContactStatus.blocked),
           onReset: () => _setStatus(contact.id, ContactStatus.pending),
-        );
+        ));
       },
-    );
+    ));
   }
 }
 
@@ -170,7 +170,7 @@ class _StatsBar extends StatelessWidget {
   final List<ContactEntry> contacts;
   final Map<String, ContactStatus> statuses;
 
-  const _StatsBar({required this.contacts, required this.statuses});
+  const _StatsBar({required this.contacts, required this.statuses}));
 
   @override
   Widget build(BuildContext context) {
@@ -192,7 +192,7 @@ class _StatsBar extends StatelessWidget {
           _Stat(value: pending, label: 'Pending', color: const Color(0xFF9AA0A6)),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -200,7 +200,7 @@ class _Stat extends StatelessWidget {
   final int value;
   final String label;
   final Color color;
-  const _Stat({required this.value, required this.label, required this.color});
+  const _Stat({required this.value, required this.label, required this.color}));
 
   @override
   Widget build(BuildContext context) {
@@ -212,7 +212,7 @@ class _Stat extends StatelessWidget {
         Text(label,
             style: GoogleFonts.inter(fontSize: 11, color: Colors.grey)),
       ],
-    );
+    ));
   }
 }
 
@@ -231,7 +231,7 @@ class _ContactRow extends StatelessWidget {
     required this.onApprove,
     required this.onBlock,
     required this.onReset,
-  });
+  }));
 
   @override
   Widget build(BuildContext context) {
@@ -333,13 +333,13 @@ class _ContactRow extends StatelessWidget {
                         title: Text('Reset to pending'))),
             ],
             onSelected: (v) {
-              if (v == 'approve') onApprove();
-              if (v == 'block') onBlock();
-              if (v == 'reset') onReset();
+              if (v == 'approve') onApprove());
+              if (v == 'block') onBlock());
+              if (v == 'reset') onReset());
             },
           ),
         ],
       ),
-    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 250.ms);
+    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 250.ms));
   }
 }

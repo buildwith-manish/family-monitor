@@ -15,23 +15,23 @@ class GeofenceScreen extends StatefulWidget {
     super.key,
     required this.childUid,
     required this.childName,
-  });
+  }));
 
   @override
-  State<GeofenceScreen> createState() => _GeofenceScreenState();
+  State<GeofenceScreen> createState() => _GeofenceScreenState());
 }
 
 class _GeofenceScreenState extends State<GeofenceScreen> {
-  final _geofenceSvc = GeofenceService();
-  final _locationSvc = LocationService();
-  final _mapCtrl = MapController();
+  final _geofenceSvc = GeofenceService());
+  final _locationSvc = LocationService());
+  final _mapCtrl = MapController());
 
   List<GeofenceZone> _zones = [];
   LocationSnapshot? _childLoc;
   bool _addingZone = false;
   LatLng? _pendingCenter;
   double _pendingRadius = 200;
-  final _nameCtrl = TextEditingController();
+  final _nameCtrl = TextEditingController());
 
   static const _zoneColors = {
     'EA4335': Color(0xFFEA4335),
@@ -44,23 +44,23 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
 
   @override
   void initState() {
-    super.initState();
+    super.initState());
     _geofenceSvc.watchZones(widget.childUid).listen((zones) {
-      if (mounted) setState(() => _zones = zones);
-    });
+      if (mounted) setState(() => _zones = zones));
+    }));
     _locationSvc.watchChildLocation(widget.childUid).listen((loc) {
-      if (mounted) setState(() => _childLoc = loc);
-    });
+      if (mounted) setState(() => _childLoc = loc));
+    }));
   }
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    super.dispose();
+    _nameCtrl.dispose());
+    super.dispose());
   }
 
   Future<void> _saveZone() async {
-    final name = _nameCtrl.text.trim();
+    final name = _nameCtrl.text.trim());
     if (name.isEmpty || _pendingCenter == null) return;
     await _geofenceSvc.saveZone(
       widget.childUid,
@@ -72,19 +72,19 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
         radius: _pendingRadius,
         color: _selectedColor,
       ),
-    );
+    ));
     setState(() {
       _addingZone = false;
       _pendingCenter = null;
-      _nameCtrl.clear();
-    });
+      _nameCtrl.clear());
+    }));
   }
 
   @override
   Widget build(BuildContext context) {
     final initialCenter = _childLoc != null
         ? LatLng(_childLoc!.lat, _childLoc!.lng)
-        : const LatLng(51.5, -0.1);
+        : const LatLng(51.5, -0.1));
 
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A2E),
@@ -136,7 +136,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
                       radius: zone.radius,
                       useRadiusInMeter: true,
                       color: (_zoneColors[zone.color] ?? Colors.red)
-                          .withOpacity(0.15),
+                          .withValues(alpha: 0.15),
                       borderColor: _zoneColors[zone.color] ?? Colors.red,
                       borderStrokeWidth: 2,
                     ),
@@ -147,7 +147,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
                       radius: _pendingRadius,
                       useRadiusInMeter: true,
                       color: (_zoneColors[_selectedColor] ?? Colors.red)
-                          .withOpacity(0.2),
+                          .withValues(alpha: 0.2),
                       borderColor: _zoneColors[_selectedColor] ?? Colors.red,
                       borderStrokeWidth: 2,
                     ),
@@ -279,7 +279,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
                                   ),
                                 ),
                               ),
-                            );
+                            ));
                           }).toList(),
                         ),
                         const SizedBox(height: 16),
@@ -316,7 +316,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
             ),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -326,7 +326,7 @@ class _ZoneChip extends StatelessWidget {
   final VoidCallback onDelete;
 
   const _ZoneChip(
-      {required this.zone, required this.color, required this.onDelete});
+      {required this.zone, required this.color, required this.onDelete}));
 
   @override
   Widget build(BuildContext context) {
@@ -359,6 +359,6 @@ class _ZoneChip extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }

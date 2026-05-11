@@ -6,9 +6,9 @@ import '../../services/sms_service.dart';
 
 class SmsScreen extends StatefulWidget {
   final String childUid, childName;
-  const SmsScreen({super.key, required this.childUid, required this.childName});
+  const SmsScreen({super.key, required this.childUid, required this.childName}));
   @override
-  State<SmsScreen> createState() => _SmsScreenState();
+  State<SmsScreen> createState() => _SmsScreenState());
 }
 
 class _SmsScreenState extends State<SmsScreen> {
@@ -18,10 +18,10 @@ class _SmsScreenState extends State<SmsScreen> {
 
   @override
   void initState() {
-    super.initState();
+    super.initState());
     _sub = SmsService.watchMessages(widget.childUid).listen((m) {
-      if (mounted) setState(() { _msgs = m; _loading = false; });
-    });
+      if (mounted) setState(() { _msgs = m; _loading = false; }));
+    }));
   }
 
   @override
@@ -39,10 +39,10 @@ class _SmsScreenState extends State<SmsScreen> {
         actions: [IconButton(
           icon: const Icon(Icons.sync),
           onPressed: () async {
-            await SmsService.requestSync(widget.childUid);
+            await SmsService.requestSync(widget.childUid));
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Sync requested — child app will upload shortly')));
+              const SnackBar(content: Text('Sync requested — child app will upload shortly'))));
             }
           },
         )],
@@ -82,8 +82,8 @@ class _SmsScreenState extends State<SmsScreen> {
                     trailing: Text(m.timeLabel,
                       style: GoogleFonts.inter(fontSize: 11, color: Colors.grey)),
                   ),
-                ).animate(delay: Duration(milliseconds: i * 20)).fadeIn(duration: 200.ms);
+                ).animate(delay: Duration(milliseconds: i * 20)).fadeIn(duration: 200.ms));
               }),
-    );
+    ));
   }
 }

@@ -5,10 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../services/auth_service.dart';
 
 class ParentAuthScreen extends StatefulWidget {
-  const ParentAuthScreen({super.key});
+  const ParentAuthScreen({super.key}));
 
   @override
-  State<ParentAuthScreen> createState() => _ParentAuthScreenState();
+  State<ParentAuthScreen> createState() => _ParentAuthScreenState());
 }
 
 class _ParentAuthScreenState extends State<ParentAuthScreen> {
@@ -17,19 +17,19 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
   bool _obscurePassword = true;
   String? _error;
 
-  final _nameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController());
+  final _emailCtrl = TextEditingController());
+  final _passCtrl = TextEditingController());
+  final _formKey = GlobalKey<FormState>());
 
-  final _auth = AuthService();
+  final _auth = AuthService());
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    _emailCtrl.dispose();
-    _passCtrl.dispose();
-    super.dispose();
+    _nameCtrl.dispose());
+    _emailCtrl.dispose());
+    _passCtrl.dispose());
+    super.dispose());
   }
 
   Future<void> _submit() async {
@@ -37,29 +37,29 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
     setState(() {
       _loading = true;
       _error = null;
-    });
+    }));
 
     Map<String, dynamic> result;
     if (_isLogin) {
       result = await _auth.loginParent(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
-      );
+      ));
     } else {
       result = await _auth.registerParent(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
         displayName: _nameCtrl.text.trim(),
-      );
+      ));
     }
 
     if (!mounted) return;
-    setState(() => _loading = false);
+    setState(() => _loading = false));
 
     if (result['success'] == true) {
-      Navigator.pushReplacementNamed(context, '/parent/dashboard');
+      Navigator.pushReplacementNamed(context, '/parent/dashboard'));
     } else {
-      setState(() => _error = result['error']);
+      setState(() => _error = result['error']));
     }
   }
 
@@ -252,6 +252,6 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 }

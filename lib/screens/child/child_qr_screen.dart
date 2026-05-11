@@ -12,7 +12,7 @@ class ChildQrScreen extends StatelessWidget {
     super.key,
     required this.uid,
     required this.childName,
-  });
+  }));
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +65,7 @@ class ChildQrScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
+                      color: Colors.black.withValues(alpha: 0.08),
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),
@@ -138,13 +138,13 @@ class ChildQrScreen extends StatelessWidget {
                 height: 52,
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(text: uid));
+                    Clipboard.setData(ClipboardData(text: uid)));
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Device ID copied to clipboard'),
                         duration: Duration(seconds: 2),
                       ),
-                    );
+                    ));
                   },
                   icon: const Icon(Icons.copy, size: 18),
                   label: const Text('Copy Device ID'),
@@ -166,6 +166,6 @@ class ChildQrScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 }

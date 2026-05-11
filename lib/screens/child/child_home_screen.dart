@@ -24,24 +24,24 @@ import 'child_qr_screen.dart';
 import 'sos_screen.dart';
 
 class ChildHomeScreen extends StatefulWidget {
-  const ChildHomeScreen({super.key});
+  const ChildHomeScreen({super.key}));
 
   @override
-  State<ChildHomeScreen> createState() => _ChildHomeScreenState();
+  State<ChildHomeScreen> createState() => _ChildHomeScreenState());
 }
 
 class _ChildHomeScreenState extends State<ChildHomeScreen>
     with WidgetsBindingObserver {
-  final _auth = AuthService();
-  final _foreground = MonitoringForegroundService();
-  final _locationSvc = LocationService();
-  final _lockSvc = RemoteLockService();
-  final _callLogSvc = CallLogService();
-  final _contactsSvc = ContactsService();
-  final _snapshotSvc = SnapshotService();
-  final _screenTimeSvc = ScreenTimeService();
-  final _batterySvc = BatteryService();
-  final _smsSvc = SmsService();
+  final _auth = AuthService());
+  final _foreground = MonitoringForegroundService());
+  final _locationSvc = LocationService());
+  final _lockSvc = RemoteLockService());
+  final _callLogSvc = CallLogService());
+  final _contactsSvc = ContactsService());
+  final _snapshotSvc = SnapshotService());
+  final _screenTimeSvc = ScreenTimeService());
+  final _batterySvc = BatteryService());
+  final _smsSvc = SmsService());
   StreamSubscription? _smsSub;
   StreamSubscription? _callSub;
 
@@ -59,10 +59,10 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
   @override
   void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    super.initState());
+    WidgetsBinding.instance.addObserver(this));
     // initForegroundTask already called in main() — skip here to avoid double-init
-    _safeInit();
+    _safeInit());
   }
 
   Future<void> _safeInit() async {
@@ -74,7 +74,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     try { await BackgroundMonitoringService.startService(); } catch (_) {}
     try { await BackgroundMonitoringService.startService(); } catch (_) {}
     // Delay command listener to avoid WebRTC surface conflict on startup
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 3)));
     try { _listenForCommandsSafe(); } catch (_) {}
   }
 
@@ -86,9 +86,9 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         Permission.location,
       ];
       if (await Permission.notification.status != PermissionStatus.granted) {
-        perms.add(Permission.notification);
+        perms.add(Permission.notification));
       }
-      await perms.request();
+      await perms.request());
       // locationAlways MUST be requested separately AFTER location is granted
       // Requesting it together with other perms crashes on Android 12+
       // locationAlways not requested — crashes on Android 12+
@@ -99,41 +99,41 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
   @override
   void dispose() {
-    _setOnline(false);
-    _locationSvc.stopTracking();
-    _lockSub?.cancel();
-    _snapshotSub?.cancel();
-    _callLogSub?.cancel();
-    _contactsSub?.cancel();
-    _smsSub?.cancel();
-    _batterySvc.stopReporting();
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
+    _setOnline(false));
+    _locationSvc.stopTracking());
+    _lockSub?.cancel());
+    _snapshotSub?.cancel());
+    _callLogSub?.cancel());
+    _contactsSub?.cancel());
+    _smsSub?.cancel());
+    _batterySvc.stopReporting());
+    WidgetsBinding.instance.removeObserver(this));
+    super.dispose());
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _setOnline(true);
+      _setOnline(true));
       _screenTimeSvc.uploadUsage(); // sync screen time when app opens
     }
   }
 
   Future<void> _setOnline(bool online) async {
-    await _auth.setChildOnlineStatus(online);
+    await _auth.setChildOnlineStatus(online));
   }
 
   Future<void> _startExtraServices() async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
-    _batterySvc.startReporting(uid);
+    _batterySvc.startReporting(uid));
     try {
       _smsSub = _smsSvc.watchSyncRequest(uid).listen((req) {
         if (req) {
           try { _smsSvc.syncSms(uid); } catch (_) {}
           try { FirebaseDatabase.instance.ref('commands/$uid/syncSms/requested').set(false); } catch (_) {}
         }
-      });
+      }));
     } catch (_) {}
     try { _screenTimeSvc.uploadUsage(); } catch (_) {}
   }
@@ -141,10 +141,10 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   Future<void> _loadData() async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
-    final snap = await FirebaseDatabase.instance.ref('users/$uid').get();
+    final snap = await FirebaseDatabase.instance.ref('users/$uid').get());
     if (snap.value != null && mounted) {
-      final data = Map<String, dynamic>.from(snap.value as Map);
-      setState(() => _childName = data['childName']);
+      final data = Map<String, dynamic>.from(snap.value as Map));
+      setState(() => _childName = data['childName']));
     }
   }
 
@@ -159,11 +159,11 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
       final raw = event.snapshot.value;
       if (raw is Map) {
         setState(() =>
-            _pendingRequests = Map<String, dynamic>.from(raw));
+            _pendingRequests = Map<String, dynamic>.from(raw)));
       } else {
-        setState(() => _pendingRequests = {});
+        setState(() => _pendingRequests = {}));
       }
-    });
+    }));
 
     FirebaseDatabase.instance
         .ref('users/$uid/approvedParents')
@@ -173,11 +173,11 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
       final raw = event.snapshot.value;
       if (raw is Map) {
         setState(() =>
-            _approvedParents = Map<String, dynamic>.from(raw));
+            _approvedParents = Map<String, dynamic>.from(raw)));
       } else {
-        setState(() => _approvedParents = {});
+        setState(() => _approvedParents = {}));
       }
-    });
+    }));
   }
 
   void _listenForCommandsSafe() {
@@ -188,34 +188,34 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
       if (!mounted) return;
       final shouldLock = state.locked ||
           (state.schedule != null &&
-              RemoteLockService.shouldBeLocked(state.schedule!));
-      setState(() => _locked = shouldLock);
-    });
+              RemoteLockService.shouldBeLocked(state.schedule!)));
+      setState(() => _locked = shouldLock));
+    }));
 
     // Snapshot request
     _snapshotSub = _snapshotSvc.watchSnapshotRequest(uid).listen((requested) {
-      if (requested) _snapshotSvc.captureAndUpload(uid);
-    });
+      if (requested) _snapshotSvc.captureAndUpload(uid));
+    }));
 
     // Call log sync
     _callLogSub = _callLogSvc.watchSyncRequest(uid).listen((requested) {
       if (requested) {
-        _callLogSvc.syncCallLog();
+        _callLogSvc.syncCallLog());
         FirebaseDatabase.instance
             .ref('commands/$uid/syncCallLog/requested')
-            .set(false);
+            .set(false));
       }
-    });
+    }));
 
     // Contacts sync
     _contactsSub = _contactsSvc.watchSyncRequest(uid).listen((requested) {
       if (requested) {
-        _contactsSvc.syncContacts();
+        _contactsSvc.syncContacts());
         FirebaseDatabase.instance
             .ref('commands/$uid/syncContacts/requested')
-            .set(false);
+            .set(false));
       }
-    });
+    }));
   
     // Incoming call from parent — read mode (camera / screen) from Firebase
     _callSub = FirebaseDatabase.instance
@@ -226,15 +226,15 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         if (!mounted) return;
         final data = event.snapshot.value;
         if (data == null || data is! Map) return;
-        final map = Map<String, dynamic>.from(data);
+        final map = Map<String, dynamic>.from(data));
         final status = map['status'] as String?;
         if (status == 'calling') {
           final modeStr = map['mode'] as String? ?? 'camera';
           final mode = modeStr == 'screen' ? StreamMode.screen : StreamMode.camera;
-          _autoStartStreaming(uid, mode);
+          _autoStartStreaming(uid, mode));
         }
       } catch (_) {}
-    });
+    }));
   }
 
 
@@ -242,9 +242,9 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   void _autoStartStreaming(String uid, StreamMode mode) {
     // Silent — no UI on child device, streams directly to parent
     if (mode == StreamMode.screen) {
-      SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {});
+      SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {}));
     } else {
-      SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {});
+      SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {}));
     }
   }
 
@@ -254,13 +254,13 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     final childName = _childName ?? 'Child';
     await FirebaseDatabase.instance
         .ref('users/$uid/pendingParentRequests/$parentUid/status')
-        .set('approved');
+        .set('approved'));
     await FirebaseDatabase.instance
         .ref('users/$uid/approvedParents/$parentUid')
-        .set(true);
+        .set(true));
     await FirebaseDatabase.instance
         .ref('users/$parentUid/children/$uid')
-        .update({'childName': childName, 'uid': uid});
+        .update({'childName': childName, 'uid': uid}));
   }
 
   Future<void> _declineParent(String parentUid) async {
@@ -268,7 +268,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     if (uid == null) return;
     await FirebaseDatabase.instance
         .ref('users/$uid/pendingParentRequests/$parentUid')
-        .remove();
+        .remove());
   }
 
   void _startMonitoring(String parentUid) {
@@ -282,7 +282,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
           parentUid: parentUid,
         ),
       ),
-    );
+    ));
   }
 
   @override
@@ -309,9 +309,9 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
               PopupMenuButton<String>(
                 onSelected: (v) async {
                   if (v == 'signout') {
-                    await _auth.signOut();
+                    await _auth.signOut());
                     if (mounted) {
-                      Navigator.pushReplacementNamed(context, '/');
+                      Navigator.pushReplacementNamed(context, '/'));
                     }
                   }
                 },
@@ -348,22 +348,22 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
                 isSharing: _locationSharing,
                 onToggle: (enabled) async {
                   if (enabled) {
-                    final granted = await _locationSvc.requestPermission();
+                    final granted = await _locationSvc.requestPermission());
                     if (!granted) {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                               content: Text(
                                   'Location permission denied. Enable it in Settings.')),
-                        );
+                        ));
                       }
                       return;
                     }
-                    await _locationSvc.startTracking();
-                    if (mounted) setState(() => _locationSharing = true);
+                    await _locationSvc.startTracking());
+                    if (mounted) setState(() => _locationSharing = true));
                   } else {
-                    await _locationSvc.stopTracking();
-                    if (mounted) setState(() => _locationSharing = false);
+                    await _locationSvc.stopTracking());
+                    if (mounted) setState(() => _locationSharing = false));
                   }
                 },
               ).animate(delay: 50.ms).fadeIn(duration: 400.ms),
@@ -380,14 +380,14 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
                 ..._pendingRequests.entries.toList().asMap().entries.map((e) {
                   final parentUid = e.value.key;
                   final reqData =
-                      Map<String, dynamic>.from(e.value.value as Map);
+                      Map<String, dynamic>.from(e.value.value as Map));
                   return _PendingRequestCard(
                     parentUid: parentUid,
                     requestData: reqData,
                     delay: e.key * 100,
                     onApprove: () => _approveParent(parentUid),
                     onDecline: () => _declineParent(parentUid),
-                  );
+                  ));
                 }),
                 const SizedBox(height: 16),
               ],
@@ -408,7 +408,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
                     parentUid: e.value,
                     delay: e.key * 100,
                     onStartMonitoring: () => _startMonitoring(e.value),
-                  );
+                  ));
                 }),
 
               const SizedBox(height: 24),
@@ -432,7 +432,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         // Remote lock overlay
         if (_locked) _LockOverlay(),
       ],
-    );
+    ));
   }
 }
 
@@ -441,7 +441,7 @@ class _LockOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFF1A1A2E).withOpacity(0.97),
+      color: const Color(0xFF1A1A2E).withValues(alpha: 0.97),
       child: SafeArea(
         child: Center(
           child: Column(
@@ -450,7 +450,7 @@ class _LockOverlay extends StatelessWidget {
               Container(
                 width: 90, height: 90,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.white.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.lock, color: Colors.white, size: 44),
@@ -487,14 +487,14 @@ class _LockOverlay extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 
 // ── Device ID card ────────────────────────────────────────────────────────────
 class _DeviceIdCard extends StatelessWidget {
   final String uid;
-  const _DeviceIdCard({required this.uid});
+  const _DeviceIdCard({required this.uid}));
 
   @override
   Widget build(BuildContext context) {
@@ -518,7 +518,7 @@ class _DeviceIdCard extends StatelessWidget {
               Text('Your Device ID',
                   style: GoogleFonts.inter(
                       fontSize: 13,
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontWeight: FontWeight.w500)),
             ],
           ),
@@ -533,27 +533,27 @@ class _DeviceIdCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text('Share this ID with your parent so they can connect',
               style: GoogleFonts.inter(
-                  fontSize: 12, color: Colors.white.withOpacity(0.7))),
+                  fontSize: 12, color: Colors.white.withValues(alpha: 0.7))),
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
                 child: GestureDetector(
                   onTap: () {
-                    Clipboard.setData(ClipboardData(text: uid));
+                    Clipboard.setData(ClipboardData(text: uid)));
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                           content: Text('Device ID copied!'),
                           duration: Duration(seconds: 2)),
-                    );
+                    ));
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 9),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
+                      color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                          color: Colors.white.withOpacity(0.3), width: 1),
+                          color: Colors.white.withValues(alpha: 0.3), width: 1),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -582,7 +582,7 @@ class _DeviceIdCard extends StatelessWidget {
                           childName: 'My Device',
                         ),
                       ),
-                    );
+                    ));
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 9),
@@ -610,7 +610,7 @@ class _DeviceIdCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -622,7 +622,7 @@ class _LocationToggleCard extends StatelessWidget {
   const _LocationToggleCard({
     required this.isSharing,
     required this.onToggle,
-  });
+  }));
 
   @override
   Widget build(BuildContext context) {
@@ -633,13 +633,13 @@ class _LocationToggleCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isSharing
-              ? const Color(0xFF34A853).withOpacity(0.4)
+              ? const Color(0xFF34A853).withValues(alpha: 0.4)
               : Colors.grey.shade200,
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2)),
         ],
@@ -650,7 +650,7 @@ class _LocationToggleCard extends StatelessWidget {
             width: 40, height: 40,
             decoration: BoxDecoration(
               color: isSharing
-                  ? const Color(0xFF34A853).withOpacity(0.12)
+                  ? const Color(0xFF34A853).withValues(alpha: 0.12)
                   : Colors.grey.shade100,
               borderRadius: BorderRadius.circular(10),
             ),
@@ -689,7 +689,7 @@ class _LocationToggleCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -698,7 +698,7 @@ class _LocationToggleCard extends StatelessWidget {
 class _SectionHeader extends StatelessWidget {
   final String title;
   final String subtitle;
-  const _SectionHeader({required this.title, required this.subtitle});
+  const _SectionHeader({required this.title, required this.subtitle}));
 
   @override
   Widget build(BuildContext context) {
@@ -713,7 +713,7 @@ class _SectionHeader extends StatelessWidget {
             style: GoogleFonts.inter(
                 fontSize: 12, color: const Color(0xFF5F6368))),
       ],
-    );
+    ));
   }
 }
 
@@ -730,7 +730,7 @@ class _PendingRequestCard extends StatelessWidget {
     required this.delay,
     required this.onApprove,
     required this.onDecline,
-  });
+  }));
 
   @override
   Widget build(BuildContext context) {
@@ -743,7 +743,7 @@ class _PendingRequestCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFFFF8E1),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFFD600).withOpacity(0.5)),
+        border: Border.all(color: const Color(0xFFFFD600).withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -795,7 +795,7 @@ class _PendingRequestCard extends StatelessWidget {
       ),
     )
         .animate(delay: Duration(milliseconds: delay))
-        .fadeIn(duration: 400.ms);
+        .fadeIn(duration: 400.ms));
   }
 }
 
@@ -808,7 +808,7 @@ class _ApprovedParentCard extends StatelessWidget {
     required this.parentUid,
     required this.delay,
     required this.onStartMonitoring,
-  });
+  }));
 
   @override
   Widget build(BuildContext context) {
@@ -852,7 +852,7 @@ class _ApprovedParentCard extends StatelessWidget {
     )
         .animate(delay: Duration(milliseconds: delay))
         .fadeIn(duration: 400.ms)
-        .slideY(begin: 0.1, end: 0);
+        .slideY(begin: 0.1, end: 0));
   }
 }
 
@@ -881,7 +881,7 @@ class _EmptyApprovedCard extends StatelessWidget {
               textAlign: TextAlign.center),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -917,6 +917,6 @@ class _MonitoringInfoCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }

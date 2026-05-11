@@ -6,11 +6,11 @@ import 'package:usage_stats/usage_stats.dart';
 /// Queries Android UsageStats and syncs app usage data to Firebase.
 /// Requires PACKAGE_USAGE_STATS permission (granted in Settings > Apps > Special app access).
 class ScreenTimeService {
-  static final ScreenTimeService _i = ScreenTimeService._();
+  static final ScreenTimeService _i = ScreenTimeService._());
   factory ScreenTimeService() => _i;
-  ScreenTimeService._();
+  ScreenTimeService._());
 
-  final _db = FirebaseDatabase.instance.ref();
+  final _db = FirebaseDatabase.instance.ref());
 
   // ── Permission ─────────────────────────────────────────────────────────────
   Future<bool> hasPermission() async {
@@ -19,17 +19,17 @@ class ScreenTimeService {
 
   /// Opens the Android Settings screen where the user grants Usage Access.
   Future<void> requestPermission() async {
-    await UsageStats.grantUsagePermission();
+    await UsageStats.grantUsagePermission());
   }
 
   // ── Query today's usage (child side) ──────────────────────────────────────
   Future<List<AppUsageEntry>> getTodayUsage() async {
-    final now = DateTime.now();
+    final now = DateTime.now());
     final midnight =
-        DateTime(now.year, now.month, now.day, 0, 0, 0);
+        DateTime(now.year, now.month, now.day, 0, 0, 0));
 
     try {
-      final stats = await UsageStats.queryUsageStats(midnight, now);
+      final stats = await UsageStats.queryUsageStats(midnight, now));
       final entries = stats
           .where((s) =>
               s.totalTimeInForeground != null &&
@@ -41,9 +41,9 @@ class ScreenTimeService {
                 minutes:
                     (int.parse(s.totalTimeInForeground!) / 60000).round(),
               ))
-          .toList();
+          .toList());
 
-      entries.sort((a, b) => b.minutes.compareTo(a.minutes));
+      entries.sort((a, b) => b.minutes.compareTo(a.minutes)));
       return entries;
     } catch (_) {
       return [];
@@ -55,12 +55,12 @@ class ScreenTimeService {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    final entries = await getTodayUsage();
+    final entries = await getTodayUsage());
     final data = {
       for (final e in entries) e.packageName: e.minutes,
       '_updatedAt': DateTime.now().millisecondsSinceEpoch,
     };
-    await _db.child('screen_time/$uid/today').set(data);
+    await _db.child('screen_time/$uid/today').set(data));
   }
 
   // ── Read a child's usage (parent side) ─────────────────────────────────────
@@ -68,7 +68,7 @@ class ScreenTimeService {
     return _db.child('screen_time/$childUid/today').onValue.map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return <AppUsageEntry>[];
-      final map = Map<String, dynamic>.from(raw as Map);
+      final map = Map<String, dynamic>.from(raw as Map));
       final entries = map.entries
           .where((e) => e.key != '_updatedAt' && e.value is int)
           .map((e) => AppUsageEntry(
@@ -76,10 +76,10 @@ class ScreenTimeService {
                 appName: _friendlyName(e.key),
                 minutes: e.value as int,
               ))
-          .toList();
-      entries.sort((a, b) => b.minutes.compareTo(a.minutes));
+          .toList());
+      entries.sort((a, b) => b.minutes.compareTo(a.minutes)));
       return entries;
-    });
+    }));
   }
 
   // ── Daily limits (parent sets, child enforces) ─────────────────────────────
@@ -87,22 +87,22 @@ class ScreenTimeService {
       String childUid, String packageName, int limitMinutes) async {
     await _db
         .child('screen_time_limits/$childUid/$packageName')
-        .set(limitMinutes);
+        .set(limitMinutes));
   }
 
   Future<Map<String, int>> getLimits(String childUid) async {
-    final snap = await _db.child('screen_time_limits/$childUid').get();
+    final snap = await _db.child('screen_time_limits/$childUid').get());
     if (snap.value == null) return {};
     return Map<String, int>.from(
-        (snap.value as Map).map((k, v) => MapEntry(k.toString(), v as int)));
+        (snap.value as Map).map((k, v) => MapEntry(k.toString(), v as int))));
   }
 
   Stream<Map<String, int>> watchLimits(String childUid) {
     return _db.child('screen_time_limits/$childUid').onValue.map((event) {
       if (event.snapshot.value == null) return <String, int>{};
       return Map<String, int>.from((event.snapshot.value as Map)
-          .map((k, v) => MapEntry(k.toString(), v as int)));
-    });
+          .map((k, v) => MapEntry(k.toString(), v as int))));
+    }));
   }
 
   // ── Package → friendly name ────────────────────────────────────────────────
@@ -126,7 +126,7 @@ class ScreenTimeService {
       'com.reddit.frontpage': 'Reddit',
     };
     if (names.containsKey(pkg)) return names[pkg]!;
-    final parts = pkg.split('.');
+    final parts = pkg.split('.'));
     if (parts.length >= 2) {
       return parts.last
           .replaceAll('_', ' ')
@@ -134,7 +134,7 @@ class ScreenTimeService {
           .map((w) => w.isNotEmpty
               ? '${w[0].toUpperCase()}${w.substring(1)}'
               : '')
-          .join(' ');
+          .join(' '));
     }
     return pkg;
   }
@@ -149,7 +149,7 @@ class AppUsageEntry {
     required this.packageName,
     required this.appName,
     required this.minutes,
-  });
+  }));
 
   String get formattedTime {
     if (minutes < 60) return '${minutes}m';

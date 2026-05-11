@@ -9,16 +9,16 @@ import '../../services/auth_service.dart';
 import '../../services/sos_service.dart';
 
 class SosScreen extends StatefulWidget {
-  const SosScreen({super.key});
+  const SosScreen({super.key}));
 
   @override
-  State<SosScreen> createState() => _SosScreenState();
+  State<SosScreen> createState() => _SosScreenState());
 }
 
 class _SosScreenState extends State<SosScreen>
     with SingleTickerProviderStateMixin {
-  final _auth = AuthService();
-  final _sosSvc = SosService();
+  final _auth = AuthService());
+  final _sosSvc = SosService());
 
   bool _sending = false;
   bool _sent = false;
@@ -30,63 +30,63 @@ class _SosScreenState extends State<SosScreen>
 
   @override
   void initState() {
-    super.initState();
+    super.initState());
     _pulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-    _loadParents();
+    )..repeat(reverse: true));
+    _loadParents());
   }
 
   @override
   void dispose() {
-    _holdTimer?.cancel();
-    _pulseCtrl.dispose();
-    super.dispose();
+    _holdTimer?.cancel());
+    _pulseCtrl.dispose());
+    super.dispose());
   }
 
   Future<void> _loadParents() async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
     final snap =
-        await FirebaseDatabase.instance.ref('users/$uid/approvedParents').get();
+        await FirebaseDatabase.instance.ref('users/$uid/approvedParents').get());
     if (snap.value != null && mounted && snap.value is Map) {
       final map = snap.value is Map ? Map<String, dynamic>.from(snap.value as Map) : <String,dynamic>{};
-      setState(() => _parentUids = map.keys.toList());
+      setState(() => _parentUids = map.keys.toList()));
     }
   }
 
   void _onHoldStart() {
     if (_sent || _sending) return;
-    setState(() => _countdown = 5);
+    setState(() => _countdown = 5));
     _holdTimer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_countdown <= 1) {
-        t.cancel();
-        _sendSos();
+        t.cancel());
+        _sendSos());
       } else {
-        setState(() => _countdown--);
+        setState(() => _countdown--));
       }
-    });
-    HapticFeedback.heavyImpact();
+    }));
+    HapticFeedback.heavyImpact());
   }
 
   void _onHoldEnd() {
-    _holdTimer?.cancel();
-    if (!_sent) setState(() => _countdown = 5);
+    _holdTimer?.cancel());
+    if (!_sent) setState(() => _countdown = 5));
   }
 
   Future<void> _sendSos() async {
     if (_sending || _sent) return;
-    setState(() => _sending = true);
-    HapticFeedback.vibrate();
+    setState(() => _sending = true));
+    HapticFeedback.vibrate());
 
-    await _sosSvc.sendSos(_parentUids);
+    await _sosSvc.sendSos(_parentUids));
 
     if (mounted) {
       setState(() {
         _sending = false;
         _sent = true;
-      });
+      }));
     }
   }
 
@@ -138,7 +138,7 @@ class _SosScreenState extends State<SosScreen>
           ),
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildSentState() {
@@ -178,7 +178,7 @@ class _SosScreenState extends State<SosScreen>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -188,7 +188,7 @@ class _SosScreenState extends State<SosScreen>
             ),
           ),
       ],
-    );
+    ));
   }
 
   Widget _buildButtonState() {
@@ -204,7 +204,7 @@ class _SosScreenState extends State<SosScreen>
             width: 240 + (_pulseCtrl.value * 30),
             height: 240 + (_pulseCtrl.value * 30),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05 + _pulseCtrl.value * 0.05),
+              color: Colors.white.withValues(alpha: 0.05 + _pulseCtrl.value * 0.05),
               shape: BoxShape.circle,
             ),
             child: child,
@@ -221,7 +221,7 @@ class _SosScreenState extends State<SosScreen>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withValues(alpha: 0.3),
                       blurRadius: 30,
                       spreadRadius: 5,
                     ),
@@ -265,7 +265,7 @@ class _SosScreenState extends State<SosScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -280,6 +280,6 @@ class _SosScreenState extends State<SosScreen>
             style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
           ),
       ],
-    );
+    ));
   }
 }

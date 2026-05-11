@@ -7,11 +7,11 @@ import 'package:firebase_database/firebase_database.dart';
 /// See SETUP.md for instructions on enabling system-level filtering.
 /// This service handles the rule management and app-level WebView filtering.
 class ContentFilterService {
-  static final ContentFilterService _i = ContentFilterService._();
+  static final ContentFilterService _i = ContentFilterService._());
   factory ContentFilterService() => _i;
-  ContentFilterService._();
+  ContentFilterService._());
 
-  final _db = FirebaseDatabase.instance.ref();
+  final _db = FirebaseDatabase.instance.ref());
 
   // ── Preset category blocklists ─────────────────────────────────────────────
   static const Map<String, List<String>> categoryDomains = {
@@ -38,17 +38,17 @@ class ContentFilterService {
 
   // ── Add a single blocked domain (parent) ──────────────────────────────────
   Future<void> blockDomain(String childUid, String domain) async {
-    final clean = _cleanDomain(domain);
+    final clean = _cleanDomain(domain));
     await _db
         .child('content_filter/$childUid/blocked/${_keyOf(clean)}')
-        .set({'domain': clean, 'addedAt': DateTime.now().millisecondsSinceEpoch});
+        .set({'domain': clean, 'addedAt': DateTime.now().millisecondsSinceEpoch}));
   }
 
   // ── Remove a blocked domain (parent) ──────────────────────────────────────
   Future<void> unblockDomain(String childUid, String domain) async {
     await _db
         .child('content_filter/$childUid/blocked/${_keyOf(domain)}')
-        .remove();
+        .remove());
   }
 
   // ── Block an entire preset category (parent) ──────────────────────────────
@@ -63,7 +63,7 @@ class ContentFilterService {
       };
     }
     updates['content_filter/$childUid/blockedCategories/$category'] = true;
-    await _db.update(updates);
+    await _db.update(updates));
   }
 
   Future<void> unblockCategory(String childUid, String category) async {
@@ -73,7 +73,7 @@ class ContentFilterService {
       updates['content_filter/$childUid/blocked/${_keyOf(d)}'] = null;
     }
     updates['content_filter/$childUid/blockedCategories/$category'] = null;
-    await _db.update(updates);
+    await _db.update(updates));
   }
 
   // ── Watch blocked domains (parent + child) ────────────────────────────────
@@ -81,13 +81,13 @@ class ContentFilterService {
     return _db.child('content_filter/$childUid/blocked').onValue.map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return <BlockedDomain>[];
-      final map = Map<String, dynamic>.from(raw as Map);
+      final map = Map<String, dynamic>.from(raw as Map));
       return map.entries
           .map((e) => BlockedDomain.fromMap(
               e.key, Map<String, dynamic>.from(e.value as Map)))
           .toList()
-        ..sort((a, b) => a.domain.compareTo(b.domain));
-    });
+        ..sort((a, b) => a.domain.compareTo(b.domain)));
+    }));
   }
 
   // ── Watch blocked categories ───────────────────────────────────────────────
@@ -98,12 +98,12 @@ class ContentFilterService {
         .map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return <String>{};
-      final map = Map<String, dynamic>.from(raw as Map);
+      final map = Map<String, dynamic>.from(raw as Map));
       return map.entries
           .where((e) => e.value == true)
           .map((e) => e.key)
-          .toSet();
-    });
+          .toSet());
+    }));
   }
 
   // ── Check if a URL is blocked (child WebView guard) ───────────────────────
@@ -111,13 +111,13 @@ class ContentFilterService {
     final domain = Uri.tryParse(url)?.host ?? '';
     if (domain.isEmpty) return false;
 
-    final snap = await _db.child('content_filter/$childUid/blocked').get();
+    final snap = await _db.child('content_filter/$childUid/blocked').get());
     if (snap.value == null) return false;
-    final map = Map<String, dynamic>.from(snap.value as Map);
+    final map = Map<String, dynamic>.from(snap.value as Map));
     return map.values.any((v) {
       final d = (v as Map?)?['domain'] as String? ?? '';
-      return domain.endsWith(d) || d.endsWith(domain);
-    });
+      return domain.endsWith(d) || d.endsWith(domain));
+    }));
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -128,11 +128,11 @@ class ContentFilterService {
         .replaceAll('https://', '')
         .replaceAll('www.', '')
         .split('/')[0]
-        .trim();
+        .trim());
   }
 
   static String _keyOf(String domain) =>
-      domain.replaceAll('.', '_').replaceAll('-', '__');
+      domain.replaceAll('.', '_').replaceAll('-', '__'));
 }
 
 class BlockedDomain {
@@ -146,7 +146,7 @@ class BlockedDomain {
     required this.domain,
     this.category,
     required this.addedAt,
-  });
+  }));
 
   factory BlockedDomain.fromMap(String key, Map<String, dynamic> map) {
     return BlockedDomain(
@@ -155,6 +155,6 @@ class BlockedDomain {
       category: map['category'] as String?,
       addedAt: DateTime.fromMillisecondsSinceEpoch(
           (map['addedAt'] as num?)?.toInt() ?? 0),
-    );
+    ));
   }
 }

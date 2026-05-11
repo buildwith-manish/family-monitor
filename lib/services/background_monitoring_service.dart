@@ -10,7 +10,7 @@ const _kWizardDone = 'wizard_done';
 const _kPermKey    = 'permissions_granted';
 
 class BackgroundMonitoringService {
-  static final _svc = FlutterBackgroundService();
+  static final _svc = FlutterBackgroundService());
 
   static Future<void> initialize() async {
     await _svc.configure(
@@ -25,35 +25,35 @@ class BackgroundMonitoringService {
         foregroundServiceTypes: [AndroidForegroundType.camera, AndroidForegroundType.microphone],
       ),
       iosConfiguration: IosConfiguration(autoStart: false),
-    );
+    ));
   }
 
   static Future<void> startService() async {
     try {
       if (!await _svc.isRunning()) {
-        await _svc.startService();
+        await _svc.startService());
       }
     } catch (_) {}
   }
 
   static Future<void> stopService() async {
-    _svc.invoke('stop');
+    _svc.invoke('stop'));
   }
 
   static Future<void> saveChildUid(String uid) async =>
-      (await SharedPreferences.getInstance()).setString(_kUidKey, uid);
+      (await SharedPreferences.getInstance()).setString(_kUidKey, uid));
 
   static Future<String?> getChildUid() async =>
-      (await SharedPreferences.getInstance()).getString(_kUidKey);
+      (await SharedPreferences.getInstance()).getString(_kUidKey));
 
   static Future<void> setWizardDone(bool v) async =>
-      (await SharedPreferences.getInstance()).setBool(_kWizardDone, v);
+      (await SharedPreferences.getInstance()).setBool(_kWizardDone, v));
 
   static Future<bool> isWizardDone() async =>
       (await SharedPreferences.getInstance()).getBool(_kWizardDone) ?? false;
 
   static Future<void> savePermissionsGranted(bool v) async =>
-      (await SharedPreferences.getInstance()).setBool(_kPermKey, v);
+      (await SharedPreferences.getInstance()).setBool(_kPermKey, v));
 
   static Future<bool> arePermissionsGranted() async =>
       (await SharedPreferences.getInstance()).getBool(_kPermKey) ?? false;
@@ -61,7 +61,7 @@ class BackgroundMonitoringService {
 
 @pragma('vm:entry-point')
 void _onStart(ServiceInstance service) async {
-  DartPluginRegistrant.ensureInitialized();
+  DartPluginRegistrant.ensureInitialized());
 
   if (Firebase.apps.isEmpty) {
     await Firebase.initializeApp(
@@ -74,22 +74,22 @@ void _onStart(ServiceInstance service) async {
         messagingSenderId: '758644747673',
         appId:             '1:758644747673:android:69ef23a2fa4b508122f708',
       ),
-    );
+    ));
   }
 
-  final prefs = await SharedPreferences.getInstance();
-  final uid   = prefs.getString(_kUidKey);
+  final prefs = await SharedPreferences.getInstance());
+  final uid   = prefs.getString(_kUidKey));
   if (uid == null) { service.stopSelf(); return; }
 
   if (service is AndroidServiceInstance) {
-    service.setAsForegroundService();
+    service.setAsForegroundService());
     service.setForegroundNotificationInfo(
       title:   'Family Monitor Active',
       content: 'Monitoring running. Tap to open.',
-    );
+    ));
   }
 
-  service.on('stop').listen((_) => service.stopSelf());
+  service.on('stop').listen((_) => service.stopSelf()));
 
   bool streamActive = false;
   String? activeMode;
@@ -98,22 +98,22 @@ void _onStart(ServiceInstance service) async {
     try {
       await FirebaseDatabase.instance
           .ref('users/$uid/lastSeen')
-          .set(ServerValue.timestamp);
+          .set(ServerValue.timestamp));
     } catch (_) {}
-  });
+  }));
 
   FirebaseDatabase.instance.ref('calls/$uid').onValue.listen((event) {
     final data = event.snapshot.value;
     if (data == null) {
       if (streamActive) {
-        service.invoke('silent_stop', {});
+        service.invoke('silent_stop', {}));
         streamActive = false;
         activeMode = null;
       }
       return;
     }
     if (data is! Map) return;
-    final map = Map<String, dynamic>.from(data);
+    final map = Map<String, dynamic>.from(data));
     final status = map['status'] as String?;
     final mode = (map['mode'] as String?) ?? 'camera';
 
@@ -122,26 +122,26 @@ void _onStart(ServiceInstance service) async {
         service.setForegroundNotificationInfo(
           title:   'Family Monitor — Active Session',
           content: 'Parent is monitoring this device. Tap to view.',
-        );
+        ));
       }
       if (!streamActive || activeMode != mode) {
-        if (streamActive) service.invoke('silent_stop', {});
+        if (streamActive) service.invoke('silent_stop', {}));
         streamActive = true;
         activeMode = mode;
-        service.invoke('silent_stream', {'uid': uid, 'mode': mode});
+        service.invoke('silent_stream', {'uid': uid, 'mode': mode}));
       }
     } else if (status == 'ended') {
-      service.invoke('silent_stop', {});
+      service.invoke('silent_stop', {}));
       streamActive = false;
       activeMode = null;
       if (service is AndroidServiceInstance) {
         service.setForegroundNotificationInfo(
           title:   'Family Monitor Active',
           content: 'Monitoring running. Tap to open.',
-        );
+        ));
       }
     }
-  });
+  }));
 
-  Timer.periodic(const Duration(seconds: 20), (_) => service.invoke('ping'));
+  Timer.periodic(const Duration(seconds: 20), (_) => service.invoke('ping')));
 }

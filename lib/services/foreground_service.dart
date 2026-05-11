@@ -2,9 +2,9 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 class MonitoringForegroundService {
   static final MonitoringForegroundService _instance =
-      MonitoringForegroundService._internal();
+      MonitoringForegroundService._internal());
   factory MonitoringForegroundService() => _instance;
-  MonitoringForegroundService._internal();
+  MonitoringForegroundService._internal());
 
   static void initForegroundTask() {
     FlutterForegroundTask.init(
@@ -25,7 +25,7 @@ class MonitoringForegroundService {
         autoRunOnBoot: true,
         allowWifiLock: true,
       ),
-    );
+    ));
   }
 
   String _buildTitle({required String childName, required String parentName}) {
@@ -38,9 +38,9 @@ class MonitoringForegroundService {
     required bool screenActive,
   }) {
     final List<String> active = [];
-    if (cameraActive) active.add('Camera');
-    if (audioActive)  active.add('Audio');
-    if (screenActive) active.add('Screen');
+    if (cameraActive) active.add('Camera'));
+    if (audioActive)  active.add('Audio'));
+    if (screenActive) active.add('Screen'));
     if (active.isEmpty) return 'Monitoring paused — no streams active';
     return 'Sharing: ${active.join(', ')} • Tap to open app';
   }
@@ -59,7 +59,7 @@ class MonitoringForegroundService {
         cameraActive: cameraActive,
         audioActive: audioActive,
         screenActive: screenActive,
-      );
+      ));
       return;
     }
     await FlutterForegroundTask.startService(
@@ -69,7 +69,7 @@ class MonitoringForegroundService {
           audioActive: audioActive,
           screenActive: screenActive),
       callback: _startCallback,
-    );
+    ));
   }
 
   Future<void> updateNotification({
@@ -85,12 +85,12 @@ class MonitoringForegroundService {
           cameraActive: cameraActive,
           audioActive: audioActive,
           screenActive: screenActive),
-    );
+    ));
   }
 
   Future<void> stopService() async {
     if (await FlutterForegroundTask.isRunningService) {
-      await FlutterForegroundTask.stopService();
+      await FlutterForegroundTask.stopService());
     }
   }
 
@@ -99,7 +99,7 @@ class MonitoringForegroundService {
 
 @pragma('vm:entry-point')
 void _startCallback() {
-  FlutterForegroundTask.setTaskHandler(_MonitoringTaskHandler());
+  FlutterForegroundTask.setTaskHandler(_MonitoringTaskHandler()));
 }
 
 class _MonitoringTaskHandler extends TaskHandler {
@@ -114,6 +114,6 @@ class _MonitoringTaskHandler extends TaskHandler {
 
   @override
   void onNotificationPressed() {
-    FlutterForegroundTask.launchApp('/child/home');
+    FlutterForegroundTask.launchApp('/child/home'));
   }
 }

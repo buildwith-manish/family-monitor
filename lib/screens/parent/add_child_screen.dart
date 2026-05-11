@@ -7,35 +7,35 @@ import '../../services/auth_service.dart';
 import 'parent_qr_scanner_screen.dart';
 
 class AddChildScreen extends StatefulWidget {
-  const AddChildScreen({super.key});
+  const AddChildScreen({super.key}));
 
   @override
-  State<AddChildScreen> createState() => _AddChildScreenState();
+  State<AddChildScreen> createState() => _AddChildScreenState());
 }
 
 class _AddChildScreenState extends State<AddChildScreen> {
-  final _uidCtrl = TextEditingController();
+  final _uidCtrl = TextEditingController());
   bool _loading = false;
   String? _error;
   String? _successMessage;
 
-  final _auth = AuthService();
+  final _auth = AuthService());
 
   @override
   void dispose() {
-    _uidCtrl.dispose();
-    super.dispose();
+    _uidCtrl.dispose());
+    super.dispose());
   }
 
   Future<void> _sendRequest() async {
-    final uid = _uidCtrl.text.trim();
+    final uid = _uidCtrl.text.trim());
     if (uid.isEmpty) {
-      setState(() => _error = 'Please enter the child device ID');
+      setState(() => _error = 'Please enter the child device ID'));
       return;
     }
 
     if (uid == _auth.currentUser!.uid) {
-      setState(() => _error = 'You cannot add your own account');
+      setState(() => _error = 'You cannot add your own account'));
       return;
     }
 
@@ -43,22 +43,22 @@ class _AddChildScreenState extends State<AddChildScreen> {
       _loading = true;
       _error = null;
       _successMessage = null;
-    });
+    }));
 
-    final result = await _auth.sendParentRequest(uid);
+    final result = await _auth.sendParentRequest(uid));
 
     if (!mounted) return;
-    setState(() => _loading = false);
+    setState(() => _loading = false));
 
     if (result['success'] == true) {
       setState(() {
         _successMessage =
             'Request sent! Ask your child to open Family Monitor and approve your request.';
-        _uidCtrl.clear();
-      });
+        _uidCtrl.clear());
+      }));
     } else {
       setState(() => _error = result['error'] ??
-          'Could not send request. Check the device ID and try again.');
+          'Could not send request. Check the device ID and try again.'));
     }
   }
 
@@ -185,7 +185,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                     icon: const Icon(Icons.content_paste),
                     tooltip: 'Paste',
                     onPressed: () async {
-                      final data = await Clipboard.getData('text/plain');
+                      final data = await Clipboard.getData('text/plain'));
                       if (data?.text != null) {
                         _uidCtrl.text = data!.text!;
                       }
@@ -208,13 +208,13 @@ class _AddChildScreenState extends State<AddChildScreen> {
                       MaterialPageRoute(
                         builder: (_) => const ParentQrScannerScreen(),
                       ),
-                    );
+                    ));
                     if (scanned != null && scanned.isNotEmpty) {
                       setState(() {
                         _uidCtrl.text = scanned;
                         _error = null;
                         _successMessage = null;
-                      });
+                      }));
                     }
                   },
                   icon: const Icon(Icons.qr_code_scanner, size: 18),
@@ -296,10 +296,10 @@ class _AddChildScreenState extends State<AddChildScreen> {
                       icon: const Icon(Icons.copy, size: 18),
                       tooltip: 'Copy ID',
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: myUid));
+                        Clipboard.setData(ClipboardData(text: myUid)));
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('ID copied to clipboard')),
-                        );
+                        ));
                       },
                     ),
                   ],
@@ -309,14 +309,14 @@ class _AddChildScreenState extends State<AddChildScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 
 class _Step extends StatelessWidget {
   final String number;
   final String text;
-  const _Step({required this.number, required this.text});
+  const _Step({required this.number, required this.text}));
 
   @override
   Widget build(BuildContext context) {
@@ -355,6 +355,6 @@ class _Step extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }
