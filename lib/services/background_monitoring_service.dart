@@ -30,10 +30,14 @@ class BackgroundMonitoringService {
   }
 
   static Future<void> startService() async {
-    if (!await _svc.isRunning()) {
-      await _svc.startService();
-      await Future.delayed(const Duration(seconds: 2));
-    }
+    try {
+      // Wait longer before starting - avoids camera surface conflict
+      // with main app on launch (BLASTBufferQueue crash on OnePlus/Realme)
+      await Future.delayed(const Duration(seconds: 5));
+      if (!await _svc.isRunning()) {
+        await _svc.startService();
+      }
+    } catch (_) {}
   }
 
   static Future<void> stopService() async {
@@ -91,14 +95,6 @@ void _onStart(ServiceInstance service) async {
   }
 
   service.on('stop').listen((_) => service.stopSelf());
-
-  Timer.periodic(const Duration(seconds: 30), (_) {
-    FirebaseDatabase.instance.ref('users/$uid/lastSeen').set(ServerValue.timestamp);
-  });
-
-  Timer.periodic(const Duration(seconds: 30), (_) {
-    FirebaseDatabase.instance.ref('users/$uid/lastSeen').set(ServerValue.timestamp);
-  });
 
   // Keep lastSeen alive every 30 s so parent sees child as online
   Timer.periodic(const Duration(seconds: 30), (_) async {

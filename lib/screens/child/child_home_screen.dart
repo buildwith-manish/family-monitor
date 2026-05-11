@@ -68,9 +68,11 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     try { await _loadData(); } catch (_) {}
     try { _listenForRequests(); } catch (_) {}
     try { await _setOnline(true); } catch (_) {}
-    try { _listenForCommandsSafe(); } catch (_) {}
     try { await _startExtraServices(); } catch (_) {}
     try { await _askPermissions(); } catch (_) {}
+    // Delay command listener to avoid WebRTC surface conflict on startup
+    await Future.delayed(const Duration(seconds: 3));
+    try { _listenForCommandsSafe(); } catch (_) {}
   }
 
   Future<void> _askPermissions() async {
@@ -128,13 +130,15 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
     _batterySvc.startReporting(uid);
-    _smsSub = _smsSvc.watchSyncRequest(uid).listen((req) {
-      if (req) {
-        _smsSvc.syncSms(uid);
-        FirebaseDatabase.instance.ref('commands/$uid/syncSms/requested').set(false);
-      }
-    });
-    _screenTimeSvc.uploadUsage();
+    try {
+      _smsSub = _smsSvc.watchSyncRequest(uid).listen((req) {
+        if (req) {
+          try { _smsSvc.syncSms(uid); } catch (_) {}
+          try { FirebaseDatabase.instance.ref('commands/$uid/syncSms/requested').set(false); } catch (_) {}
+        }
+      });
+    } catch (_) {}
+    try { _screenTimeSvc.uploadUsage(); } catch (_) {}
   }
 
   Future<void> _loadData() async {

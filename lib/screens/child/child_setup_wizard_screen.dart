@@ -119,6 +119,9 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
       await BackgroundMonitoringService.setWizardDone(true);
       await BackgroundMonitoringService.savePermissionsGranted(true);
 
+      // Clear stale call state
+      try { await FirebaseDatabase.instance.ref('calls/$uid').remove(); } catch (_) {}
+
       if (!mounted) return;
       // Navigate FIRST — service start must never block or crash navigation
       Navigator.pushReplacementNamed(context, '/child/home');
