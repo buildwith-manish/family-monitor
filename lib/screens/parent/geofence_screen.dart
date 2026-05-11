@@ -28,9 +28,9 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
 
   List<GeofenceZone> _zones = [];
   LocationSnapshot? _childLoc;
-  bool _addingZone = false;
+  final bool _addingZone = false;
   LatLng? _pendingCenter;
-  double _pendingRadius = 200;
+  final double _pendingRadius = 200;
   final _nameCtrl = TextEditingController());
 
   static const _zoneColors = {
@@ -40,14 +40,14 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
     'FA7B17': Color(0xFFFA7B17),
     '9334E6': Color(0xFF9334E6),
   };
-  String _selectedColor = 'EA4335';
+  final String _selectedColor = 'EA4335';
 
   @override
   void initState() {
-    super.initState());
+    super.initState())
     _geofenceSvc.watchZones(widget.childUid).listen((zones) {
-      if (mounted) setState(() => _zones = zones));
-    }));
+      if (mounted) setState(() => _zones = zones))
+    }))
     _locationSvc.watchChildLocation(widget.childUid).listen((loc) {
       if (mounted) setState(() => _childLoc = loc));
     }));
@@ -55,12 +55,12 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
 
   @override
   void dispose() {
-    _nameCtrl.dispose());
-    super.dispose());
+    _nameCtrl.dispose())
+    super.dispose())
   }
 
   Future<void> _saveZone() async {
-    final name = _nameCtrl.text.trim());
+    final name = _nameCtrl.text.trim())
     if (name.isEmpty || _pendingCenter == null) return;
     await _geofenceSvc.saveZone(
       widget.childUid,
@@ -72,19 +72,19 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
         radius: _pendingRadius,
         color: _selectedColor,
       ),
-    ));
+    ))
     setState(() {
       _addingZone = false;
       _pendingCenter = null;
-      _nameCtrl.clear());
-    }));
+      _nameCtrl.clear())
+    }))
   }
 
   @override
   Widget build(BuildContext context) {
     final initialCenter = _childLoc != null
         ? LatLng(_childLoc!.lat, _childLoc!.lng)
-        : const LatLng(51.5, -0.1));
+        : const LatLng(51.5, -0.1))
 
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A2E),
@@ -279,16 +279,16 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
                                   ),
                                 ),
                               ),
-                            ));
+                            ))
                           }).toList(),
                         ),
                         const SizedBox(height: 16),
-                        Row(
+                        const Row(
                           children: [
                             Expanded(
                               child: ElevatedButton(
                                 onPressed: _saveZone,
-                                child: const Text('Save Zone'),
+                                child: Text('Save Zone'),
                               ),
                             ),
                           ],
@@ -316,7 +316,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
             ),
         ],
       ),
-    ));
+    ))
   }
 }
 
@@ -359,6 +359,6 @@ class _ZoneChip extends StatelessWidget {
           ),
         ],
       ),
-    ));
+    ))
   }
 }

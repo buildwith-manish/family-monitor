@@ -25,15 +25,15 @@ class _ChildAuthScreenState extends State<ChildAuthScreen> {
   Future<void> _checkAlreadyLoggedIn() async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
-    final wizardDone = await BackgroundMonitoringService.isWizardDone());
+    final wizardDone = await BackgroundMonitoringService.isWizardDone())
     if (wizardDone) {
       Navigator.pushReplacement(context,
-        MaterialPageRoute(builder: (_) => const ChildHomeScreen())));
+        MaterialPageRoute(builder: (_) => const ChildHomeScreen())))
     }
   }
 
   Future<void> _submit() async {
-    setState(() { _loading = true; _error = null; }));
+    setState(() { _loading = true; _error = null; }))
     try {
       Map<String, dynamic> result;
 
@@ -41,37 +41,37 @@ class _ChildAuthScreenState extends State<ChildAuthScreen> {
         result = await _auth.signInChild(
           _emailCtrl.text.trim(),
           _passCtrl.text.trim(),
-        ));
+        ))
       } else {
         result = await _auth.signUpChild(
           _emailCtrl.text.trim(),
           _passCtrl.text.trim(),
           _nameCtrl.text.trim(),
-        ));
+        ))
       }
 
       // Check if auth actually succeeded
       if (result['success'] != true) {
-        setState(() => _error = result['error']?.toString() ?? 'Sign in failed. Please try again.'));
+        setState(() => _error = result['error']?.toString() ?? 'Sign in failed. Please try again.'))
         return;
       }
 
       final uid = _auth.currentUser?.uid;
       if (uid == null) {
-        setState(() => _error = 'Authentication failed. Please try again.'));
+        setState(() => _error = 'Authentication failed. Please try again.'))
         return;
       }
 
-      await BackgroundMonitoringService.saveChildUid(uid));
+      await BackgroundMonitoringService.saveChildUid(uid))
 
       // Save FCM token safely (Android 13+ only for notifications)
       try {
         final token = await FirebaseMessaging.instance.getToken()
-            .timeout(const Duration(seconds: 5)));
+            .timeout(const Duration(seconds: 5)))
         if (token != null) {
-          await FirebaseDatabase.instance.ref('users/$uid/fcmToken').set(token));
+          await FirebaseDatabase.instance.ref('users/$uid/fcmToken').set(token))
           FirebaseMessaging.instance.onTokenRefresh.listen((t) =>
-            FirebaseDatabase.instance.ref('users/$uid/fcmToken').set(t)));
+            FirebaseDatabase.instance.ref('users/$uid/fcmToken').set(t)))
         }
       } catch (_) {
         // FCM token failure should not block login
@@ -79,22 +79,22 @@ class _ChildAuthScreenState extends State<ChildAuthScreen> {
 
 if (!mounted) return;
 
-      final wizardDone = await BackgroundMonitoringService.isWizardDone());
+      final wizardDone = await BackgroundMonitoringService.isWizardDone())
 
       if (!mounted) return;
 
       if (!wizardDone) {
         Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (_) => ChildSetupWizardScreen(childUid: uid))));
+          MaterialPageRoute(builder: (_) => ChildSetupWizardScreen(childUid: uid))))
       } else {
         Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (_) => const ChildHomeScreen())));
+          MaterialPageRoute(builder: (_) => const ChildHomeScreen())))
       }
 
     } catch (e) {
-      setState(() => _error = e.toString().replaceAll('Exception: ', '')));
+      setState(() => _error = e.toString().replaceAll('Exception: ', '')))
     } finally {
-      if (mounted) setState(() => _loading = false));
+      if (mounted) setState(() => _loading = false))
     }
   }
 
@@ -152,6 +152,6 @@ if (!mounted) return;
               style: GoogleFonts.inter(color: const Color(0xFF34A853), fontWeight: FontWeight.w600)))),
         ]),
       )),
-    ));
+    ))
   }
 }

@@ -19,11 +19,11 @@ class SosService {
     // Try to get current location
     LocationSnapshot? loc;
     try {
-      loc = await _locationSvc.getChildLocation(uid));
+      loc = await _locationSvc.getChildLocation(uid))
     } catch (_) {}
 
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final snap = await _db.child('users/$uid').get());
+    final snap = await _db.child('users/$uid').get())
     final childName = snap.child('childName').value as String? ?? 'Child';
 
     final payload = {
@@ -40,7 +40,7 @@ class SosService {
     for (final parentUid in parentUids) {
       updates['alerts/$parentUid/sos/$timestamp'] = payload;
     }
-    await _db.update(updates));
+    await _db.update(updates))
   }
 
   // ── Listen for SOS alerts (parent side) ───────────────────────────────────
@@ -58,7 +58,7 @@ class SosService {
           .map((e) => SosAlert.fromMap(
               e.key, Map<String, dynamic>.from(e.value as Map)))
           .toList()
-        ..sort((a, b) => b.timestamp.compareTo(a.timestamp)));
+        ..sort((a, b) => b.timestamp.compareTo(a.timestamp)))
     }));
   }
 
@@ -66,13 +66,13 @@ class SosService {
   Future<void> acknowledgeAlert(String parentUid, String alertKey) async {
     await _db
         .child('alerts/$parentUid/sos/$alertKey/acknowledged')
-        .set(true));
+        .set(true))
   }
 
   // ── Count unacknowledged SOS alerts ───────────────────────────────────────
   Stream<int> watchUnacknowledgedCount(String parentUid) {
     return watchAlerts(parentUid)
-        .map((list) => list.where((a) => !a.acknowledged).length));
+        .map((list) => list.where((a) => !a.acknowledged).length))
   }
 }
 
@@ -105,13 +105,13 @@ class SosAlert {
       lat: (map['lat'] as num?)?.toDouble(),
       lng: (map['lng'] as num?)?.toDouble(),
       acknowledged: map['acknowledged'] == true,
-    ));
+    ))
   }
 
   bool get hasLocation => lat != null && lng != null;
 
   String get timeAgo {
-    final diff = DateTime.now().difference(timestamp));
+    final diff = DateTime.now().difference(timestamp))
     if (diff.inSeconds < 60) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';

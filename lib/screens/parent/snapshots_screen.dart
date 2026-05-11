@@ -21,27 +21,28 @@ class SnapshotsScreen extends StatefulWidget {
 class _SnapshotsScreenState extends State<SnapshotsScreen> {
   final _svc = SnapshotService());
   List<SnapshotEntry> _snapshots = [];
-  bool _requesting = false;
+  final bool _requesting = false;
 
   @override
   void initState() {
-    super.initState());
+    super.initState())
     _svc.watchSnapshots(widget.childUid).listen((snaps) {
       if (mounted) setState(() => _snapshots = snaps));
     }));
   }
 
   Future<void> _requestSnapshot() async {
-    setState(() => _requesting = true));
-    await _svc.requestSnapshot(widget.childUid));
+    setState(() => _requesting = true))
+    await _svc.requestSnapshot(widget.childUid))
+    if (!mounted) return;
     if (mounted) {
-      setState(() => _requesting = false));
+      setState(() => _requesting = false))
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Snapshot requested — photo will appear shortly'),
           duration: Duration(seconds: 3),
         ),
-      ));
+      ))
     }
   }
 
@@ -61,9 +62,9 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
                   style: TextStyle(color: Color(0xFFEA4335)))),
         ],
       ),
-    ));
+    ))
     if (confirmed == true) {
-      await _svc.deleteSnapshot(widget.childUid, entry));
+      await _svc.deleteSnapshot(widget.childUid, entry))
     }
   }
 
@@ -103,7 +104,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
         ],
       ),
       body: _snapshots.isEmpty ? _buildEmpty() : _buildGrid(),
-    ));
+    ))
   }
 
   Widget _buildEmpty() {
@@ -138,7 +139,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
           ],
         ),
       ),
-    ));
+    ))
   }
 
   Widget _buildGrid() {
@@ -158,9 +159,9 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
           delay: index * 60,
           onDelete: () => _deleteSnapshot(snap),
           onTap: () => _openFullscreen(snap),
-        ));
+        ))
       },
-    ));
+    ))
   }
 
   void _openFullscreen(SnapshotEntry entry) {
@@ -169,7 +170,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
       MaterialPageRoute(
         builder: (_) => _FullscreenPhoto(entry: entry),
       ),
-    ));
+    ))
   }
 }
 
@@ -210,7 +211,7 @@ class _SnapshotTile extends StatelessWidget {
                     color: const Color(0xFFF1F3F4),
                     child: const Center(
                         child: CircularProgressIndicator(strokeWidth: 2)),
-                  ));
+                  ))
                 },
                 errorBuilder: (_, __, ___) => Container(
                   color: const Color(0xFFF1F3F4),
@@ -253,7 +254,7 @@ class _SnapshotTile extends StatelessWidget {
           ),
         ),
       ).animate(delay: Duration(milliseconds: delay)).fadeIn().scale(begin: const Offset(0.9, 0.9)),
-    ));
+    ))
   }
 }
 
@@ -276,6 +277,6 @@ class _FullscreenPhoto extends StatelessWidget {
           child: Image.network(entry.url),
         ),
       ),
-    ));
+    ))
   }
 }

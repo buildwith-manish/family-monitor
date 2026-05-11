@@ -12,8 +12,8 @@ class BatteryService {
   Timer? _timer;
 
   Future<void> startReporting(String childUid) async {
-    await _report(childUid));
-    _timer = Timer.periodic(const Duration(seconds: 60), (_) => _report(childUid)));
+    await _report(childUid))
+    _timer = Timer.periodic(const Duration(seconds: 60), (_) => _report(childUid)))
   }
 
   void stopReporting() => _timer?.cancel());
@@ -30,14 +30,14 @@ class BatteryService {
         'androidVersion': android.version.release,
         'manufacturer': android.manufacturer,
         'lastSeen': DateTime.now().millisecondsSinceEpoch,
-      }));
+      }))
     } catch (_) {}
   }
 
   static Stream<Map<String, dynamic>> watchDeviceInfo(String childUid) {
     return FirebaseDatabase.instance.ref('deviceInfo/$childUid').onValue.map((e) {
       if (e.snapshot.value == null) return <String, dynamic>{};
-      return Map<String, dynamic>.from(e.snapshot.value as Map));
-    }));
+      return Map<String, dynamic>.from(e.snapshot.value as Map))
+    }))
   }
 }

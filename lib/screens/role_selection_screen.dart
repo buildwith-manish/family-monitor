@@ -131,7 +131,7 @@ class RoleSelectionScreen extends StatelessWidget {
           ),
         ),
       ),
-    ));
+    ))
   }
 }
 
@@ -238,6 +238,6 @@ class _RoleCard extends StatelessWidget {
     )
         .animate(delay: Duration(milliseconds: delay))
         .fadeIn(duration: 400.ms)
-        .slideY(begin: 0.2, end: 0));
+        .slideY(begin: 0.2, end: 0))
   }
 }

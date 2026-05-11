@@ -34,25 +34,25 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   final _db = FirebaseDatabase.instance.ref());
 
   Map<String, dynamic> _children = {};
-  List<SosAlert> _sosAlerts = [];
+  final List<SosAlert> _sosAlerts = [];
   StreamSubscription? _sosSub;
   final Map<String, Map<String,dynamic>> _deviceInfo = {};
   final Map<String, StreamSubscription> _batterySubs = {};
 
   @override
   void initState() {
-    super.initState());
-    _listenForChildren());
-    _listenForSos());
+    super.initState())
+    _listenForChildren())
+    _listenForSos())
   }
 
   @override
   void dispose() {
-    _sosSub?.cancel());
+    _sosSub?.cancel())
     for (final s in _batterySubs.values) {
-      s.cancel());
+      s.cancel())
     }
-    super.dispose());
+    super.dispose())
   }
 
   void _listenForChildren() {
@@ -64,8 +64,8 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
       for (final uid in newChildren.keys) {
         if (_batterySubs.containsKey(uid)) continue;
         _batterySubs[uid] = BatteryService.watchDeviceInfo(uid).listen((info) {
-          if (mounted) setState(() => _deviceInfo[uid] = info));
-        }));
+          if (mounted) setState(() => _deviceInfo[uid] = info))
+        }))
       }
     }));
   }
@@ -76,21 +76,21 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     _sosSub = _sosSvc.watchAlerts(uid).listen((alerts) {
       if (!mounted) return;
       setState(() =>
-          _sosAlerts = alerts.where((a) => !a.acknowledged).toList()));
-    }));
+          _sosAlerts = alerts.where((a) => !a.acknowledged).toList()))
+    }))
   }
 
   Future<void> _acknowledgeAll() async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
     for (final alert in _sosAlerts) {
-      await _sosSvc.acknowledgeAlert(uid, alert.key));
+      await _sosSvc.acknowledgeAlert(uid, alert.key))
     }
   }
 
   Widget _batteryBadge(String childUid) {
     final info = _deviceInfo[childUid] ?? {};
-    if (info.isEmpty) return const SizedBox.shrink());
+    if (info.isEmpty) return const SizedBox.shrink())
     final level = (info['batteryLevel'] as num?)?.toInt() ?? 0;
     final charging = info['isCharging'] as bool? ?? false;
     final color = level <= 20 ? Colors.red : level <= 50 ? Colors.orange : Colors.green;
@@ -101,7 +101,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
       const SizedBox(width: 6),
       Text(info['deviceModel'] as String? ?? '',
         style: const TextStyle(fontSize: 11, color: Colors.grey)),
-    ]));
+    ]))
   }
 
   @override
@@ -130,17 +130,17 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
             },
             itemBuilder: (_) => [
               PopupMenuItem(
-                value: 'account',
-                child: ListTile(
+                value = 'account',
+                child = ListTile(
                   dense: true,
                   leading: const Icon(Icons.account_circle_outlined),
                   title: Text(user?.displayName ?? 'Parent'),
                   subtitle: Text(user?.email ?? ''),
                 ),
               ),
-              const PopupMenuItem(
-                value: 'signout',
-                child: ListTile(
+              PopupMenuItem(
+                value = 'signout',
+                child = ListTile(
                   dense: true,
                   leading: Icon(Icons.logout),
                   title: Text('Sign out'),
@@ -151,7 +151,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
         ],
       ),
       body: Column(
-        children: [
+        children = [
           // SOS alert banner
           if (_sosAlerts.isNotEmpty)
             _SosBanner(
@@ -199,7 +199,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
           ).animate(delay: 400.ms).fadeIn().slideY(begin: 0.2, end: 0),
         ],
       ),
-    ));
+    ))
   }
 
   Widget _buildChildrenList() {
@@ -230,13 +230,13 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
           ));
         }).values,
 
-        const SizedBox(height: 16),
+        SizedBox(height = 16),
         OutlinedButton.icon(
-          onPressed: () => Navigator.push(context,
+          onPressed = () => Navigator.push(context,
               MaterialPageRoute(builder: (_) => const AddChildScreen())),
-          icon: const Icon(Icons.add),
-          label: const Text('Add Another Device'),
-        ).animate(delay: 300.ms).fadeIn(),
+          icon = const Icon(Icons.add),
+          label = const Text('Add Another Device'),
+        ).animate(delay = 300.ms).fadeIn(),
       ],
     ));
   }
@@ -251,7 +251,7 @@ class _SosBanner extends StatelessWidget {
 
   Widget _batteryBadge(String childUid) {
     const info = <String,dynamic>{};
-    if (info.isEmpty) return const SizedBox.shrink());
+    if (info.isEmpty) return const SizedBox.shrink())
     final level = (info['batteryLevel'] as num?)?.toInt() ?? 0;
     final charging = info['isCharging'] as bool? ?? false;
     final color = level <= 20 ? Colors.red : level <= 50 ? Colors.orange : Colors.green;
@@ -262,7 +262,7 @@ class _SosBanner extends StatelessWidget {
       const SizedBox(width: 6),
       Text(info['deviceModel'] as String? ?? '',
         style: const TextStyle(fontSize: 11, color: Colors.grey)),
-    ]));
+    ]))
   }
 
   @override
@@ -312,7 +312,7 @@ class _SosBanner extends StatelessWidget {
           ),
         ],
       ),
-    ));
+    ))
   }
 }
 
@@ -336,11 +336,11 @@ class _ChildCard extends StatefulWidget {
 
 class _ChildCardState extends State<_ChildCard> {
   bool _isOnline = false;
-  bool _expanded = false;
+  final bool _expanded = false;
 
   @override
   void initState() {
-    super.initState());
+    super.initState())
     FirebaseDatabase.instance
         .ref('users/${widget.childUid}/isOnline')
         .onValue
@@ -350,12 +350,12 @@ class _ChildCardState extends State<_ChildCard> {
   }
 
   void _go(Widget screen) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => screen)));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen)))
   }
 
   Widget _batteryBadge(String childUid) {
     final info = widget.deviceInfo[childUid] ?? {};
-    if (info.isEmpty) return const SizedBox.shrink());
+    if (info.isEmpty) return const SizedBox.shrink())
     final level = (info['batteryLevel'] as num?)?.toInt() ?? 0;
     final charging = info['isCharging'] as bool? ?? false;
     final color = level <= 20 ? Colors.red : level <= 50 ? Colors.orange : Colors.green;
@@ -366,7 +366,7 @@ class _ChildCardState extends State<_ChildCard> {
       const SizedBox(width: 6),
       Text(info['deviceModel'] as String? ?? '',
         style: const TextStyle(fontSize: 11, color: Colors.grey)),
-    ]));
+    ]))
   }
 
   @override
@@ -517,7 +517,7 @@ class _ChildCardState extends State<_ChildCard> {
     )
         .animate(delay: Duration(milliseconds: widget.delay))
         .fadeIn(duration: 400.ms)
-        .slideY(begin: 0.1, end: 0));
+        .slideY(begin: 0.1, end: 0))
   }
 }
 
@@ -537,7 +537,7 @@ class _FeatureGrid extends StatelessWidget {
 
   Widget _batteryBadge(String childUid) {
     final info = deviceInfo[childUid] ?? {};
-    if (info.isEmpty) return const SizedBox.shrink());
+    if (info.isEmpty) return const SizedBox.shrink())
     final level = (info['batteryLevel'] as num?)?.toInt() ?? 0;
     final charging = info['isCharging'] as bool? ?? false;
     final color = level <= 20 ? Colors.red : level <= 50 ? Colors.orange : Colors.green;
@@ -548,7 +548,7 @@ class _FeatureGrid extends StatelessWidget {
       const SizedBox(width: 6),
       Text(info['deviceModel'] as String? ?? '',
         style: const TextStyle(fontSize: 11, color: Colors.grey)),
-    ]));
+    ]))
   }
 
   @override
@@ -611,10 +611,10 @@ class _FeatureGrid extends StatelessWidget {
               ],
             ),
           ).animate(delay: Duration(milliseconds: i * 30)).fadeIn().scale(
-              begin: const Offset(0.8, 0.8), end: const Offset(1, 1)));
+              begin: const Offset(0.8, 0.8), end: const Offset(1, 1)))
         },
       ),
-    ));
+    ))
   }
 }
 

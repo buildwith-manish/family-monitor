@@ -18,7 +18,7 @@ class _SmsScreenState extends State<SmsScreen> {
 
   @override
   void initState() {
-    super.initState());
+    super.initState())
     _sub = SmsService.watchMessages(widget.childUid).listen((m) {
       if (mounted) setState(() { _msgs = m; _loading = false; }));
     }));
@@ -40,7 +40,8 @@ class _SmsScreenState extends State<SmsScreen> {
           icon: const Icon(Icons.sync),
           onPressed: () async {
             await SmsService.requestSync(widget.childUid));
-            if (mounted) {
+            if (!mounted) return;
+    if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Sync requested — child app will upload shortly'))));
             }
@@ -48,9 +49,9 @@ class _SmsScreenState extends State<SmsScreen> {
         )],
       ),
       body: _loading
-        ? const Center(child: CircularProgressIndicator())
+        ? Center(child = const CircularProgressIndicator())
         : _msgs.isEmpty
-          ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ? Center(child = Column(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.message_outlined, size: 64, color: Colors.grey.shade300),
               const SizedBox(height: 12),
               Text('No messages yet', style: GoogleFonts.plusJakartaSans(
@@ -60,9 +61,9 @@ class _SmsScreenState extends State<SmsScreen> {
                 style: GoogleFonts.inter(fontSize: 13, color: Colors.grey)),
             ]))
           : ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: _msgs.length,
-              itemBuilder: (ctx, i) {
+              padding = const EdgeInsets.all(12),
+              itemCount = _msgs.length,
+              itemBuilder = (ctx, i) {
                 final m = _msgs[i];
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
@@ -82,7 +83,7 @@ class _SmsScreenState extends State<SmsScreen> {
                     trailing: Text(m.timeLabel,
                       style: GoogleFonts.inter(fontSize: 11, color: Colors.grey)),
                   ),
-                ).animate(delay: Duration(milliseconds: i * 20)).fadeIn(duration: 200.ms));
+                ).animate(delay: Duration(milliseconds: i * 20)).fadeIn(duration: 200.ms))
               }),
     ));
   }

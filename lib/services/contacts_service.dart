@@ -14,24 +14,24 @@ class ContactsService {
 
   // ── Permission ─────────────────────────────────────────────────────────────
   Future<bool> requestPermission() async {
-    return await FlutterContacts.requestPermission());
+    return await FlutterContacts.requestPermission())
   }
 
   Future<bool> get hasPermission async => Permission.contacts.isGranted;
 
   // ── Read device contacts (child) ───────────────────────────────────────────
   Future<List<ContactEntry>> getDeviceContacts() async {
-    final granted = await requestPermission());
+    final granted = await requestPermission())
     if (!granted) return [];
 
-    final contacts = await FlutterContacts.getContacts(withProperties: true));
+    final contacts = await FlutterContacts.getContacts(withProperties: true))
     return contacts
         .map((c) => ContactEntry(
               id: c.id,
               displayName: c.displayName,
               phones: c.phones.map((p) => p.number).toList(),
             ))
-        .toList());
+        .toList())
   }
 
   // ── Upload contact list to Firebase (child) ────────────────────────────────
@@ -39,7 +39,7 @@ class ContactsService {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    final contacts = await getDeviceContacts());
+    final contacts = await getDeviceContacts())
     final data = <String, dynamic>{};
     for (final c in contacts) {
       data[c.id] = {
@@ -50,7 +50,7 @@ class ContactsService {
     await _db.child('contacts/$uid/all').set({
       ...data,
       '_syncedAt': DateTime.now().millisecondsSinceEpoch,
-    }));
+    }))
   }
 
   // ── Watch contact list (parent side) ──────────────────────────────────────
@@ -66,13 +66,13 @@ class ContactsService {
             final rawPhones = data['phones'];
             List<String> phones = [];
             if (rawPhones is List) {
-              phones = rawPhones.map((p) => p.toString()).toList());
+              phones = rawPhones.map((p) => p.toString()).toList())
             }
             return ContactEntry(
               id: e.key,
               displayName: data['name'] as String? ?? 'Unknown',
               phones: phones,
-            ));
+            ))
           })
           .toList()
         ..sort((a, b) => a.displayName.compareTo(b.displayName)));
@@ -84,7 +84,7 @@ class ContactsService {
       String childUid, String contactId, ContactStatus status) async {
     await _db
         .child('contacts/$childUid/status/$contactId')
-        .set(status.name));
+        .set(status.name))
   }
 
   // ── Watch contact statuses (parent side) ──────────────────────────────────
@@ -99,7 +99,7 @@ class ContactsService {
               (e) => e.name == v.toString(),
               orElse: () => ContactStatus.pending,
             ),
-          )));
+          )))
     }));
   }
 
@@ -108,14 +108,14 @@ class ContactsService {
     await _db.child('commands/$childUid/syncContacts').set({
       'requested': true,
       'at': DateTime.now().millisecondsSinceEpoch,
-    }));
+    }))
   }
 
   Stream<bool> watchSyncRequest(String childUid) {
     return _db
         .child('commands/$childUid/syncContacts/requested')
         .onValue
-        .map((e) => e.snapshot.value == true));
+        .map((e) => e.snapshot.value == true))
   }
 }
 
@@ -133,10 +133,10 @@ class ContactEntry {
   }));
 
   String get initials {
-    final parts = displayName.trim().split(' '));
+    final parts = displayName.trim().split(' '))
     if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts[0][0].toUpperCase());
-    return '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase());
+    if (parts.length == 1) return parts[0][0].toUpperCase())
+    return '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase())
   }
 
   String get primaryPhone => phones.isNotEmpty ? phones.first : '';

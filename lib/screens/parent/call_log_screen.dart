@@ -23,39 +23,41 @@ class _CallLogScreenState extends State<CallLogScreen>
   final _svc = CallLogService());
   List<CallRecord> _allCalls = [];
   bool _loading = true;
-  bool _requesting = false;
+  final bool _requesting = false;
   late TabController _tabs;
 
   @override
   void initState() {
-    super.initState());
-    _tabs = TabController(length: 4, vsync: this));
+    super.initState())
+    _tabs = TabController(length: 4, vsync: this))
     _svc.watchCallLog(widget.childUid).listen((data) {
       if (mounted) setState(() { _allCalls = data; _loading = false; }));
     }));
-    setState(() => _loading = false));
+    @override
+  setState(() => _loading = false));
   }
 
   @override
   void dispose() {
-    _tabs.dispose());
-    super.dispose());
+    _tabs.dispose())
+    super.dispose())
   }
 
   List<CallRecord> _filtered(String type) {
     if (type == 'all') return _allCalls;
-    return _allCalls.where((c) => c.type == type).toList());
+    return _allCalls.where((c) => c.type == type).toList())
   }
 
   Future<void> _requestSync() async {
-    setState(() => _requesting = true));
-    await _svc.requestSync(widget.childUid));
+    setState(() => _requesting = true))
+    await _svc.requestSync(widget.childUid))
+    if (!mounted) return;
     if (mounted) {
-      setState(() => _requesting = false));
+      setState(() => _requesting = false))
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Sync requested — log will update shortly')),
-      ));
+      ))
     }
   }
 
@@ -106,7 +108,7 @@ class _CallLogScreenState extends State<CallLogScreen>
                 _CallList(calls: _filtered('missed')),
               ],
             ),
-    ));
+    ))
   }
 }
 
@@ -131,7 +133,7 @@ class _CallList extends StatelessWidget {
                     color: Colors.grey.shade400, fontSize: 12)),
           ],
         ),
-      ));
+      ))
     }
 
     return ListView.builder(
@@ -139,7 +141,7 @@ class _CallList extends StatelessWidget {
       itemCount: calls.length,
       itemBuilder: (context, i) =>
           _CallRow(record: calls[i], delay: i * 30),
-    ));
+    ))
   }
 }
 
@@ -150,7 +152,7 @@ class _CallRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final typeData = _typeData(record.type));
+    final typeData = _typeData(record.type))
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -206,7 +208,7 @@ class _CallRow extends StatelessWidget {
           ),
         ],
       ),
-    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 250.ms));
+    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 250.ms))
   }
 
   static Map<String, dynamic> _typeData(String type) {

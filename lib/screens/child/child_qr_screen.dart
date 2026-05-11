@@ -166,6 +166,6 @@ class ChildQrScreen extends StatelessWidget {
           ),
         ),
       ),
-    ));
+    ))
   }
 }

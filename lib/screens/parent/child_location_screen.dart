@@ -29,13 +29,13 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
   StreamSubscription<LocationSnapshot?>? _locationSub;
   LocationSnapshot? _location;
   bool _loading = true;
-  bool _mapReady = false;
-  bool _followChild = true;
+  final bool _mapReady = false;
+  final bool _followChild = true;
 
   @override
   void initState() {
-    super.initState());
-    _startListening());
+    super.initState())
+    _startListening())
   }
 
   void _startListening() {
@@ -48,21 +48,21 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
         _loading = false;
       }));
       if (loc != null && _followChild && _mapReady) {
-        _mapCtrl.move(LatLng(loc.lat, loc.lng), _mapCtrl.camera.zoom));
+        _mapCtrl.move(LatLng(loc.lat, loc.lng), _mapCtrl.camera.zoom))
       }
     }));
   }
 
   @override
   void dispose() {
-    _locationSub?.cancel());
-    super.dispose());
+    _locationSub?.cancel())
+    super.dispose())
   }
 
   void _centreOnChild() {
     if (_location == null) return;
-    _mapCtrl.move(LatLng(_location!.lat, _location!.lng), 16));
-    setState(() => _followChild = true));
+    _mapCtrl.move(LatLng(_location!.lat, _location!.lng), 16))
+    setState(() => _followChild = true))
   }
 
   @override
@@ -84,7 +84,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
                 initialZoom: 16,
                 onMapReady: () => setState(() => _mapReady = true),
                 onPositionChanged: (_, hasGesture) {
-                  if (hasGesture) setState(() => _followChild = false));
+                  if (hasGesture) setState(() => _followChild = false))
                 },
               ),
               children: [
@@ -204,8 +204,8 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
                       ),
                       // Centre button
                       if (hasLocation && !_followChild)
-                        IconButton(
-                          icon: const Icon(Icons.my_location,
+                        const IconButton(
+                          icon: Icon(Icons.my_location,
                               color: Color(0xFF1A73E8), size: 20),
                           tooltip: 'Centre on child',
                           onPressed: _centreOnChild,
@@ -362,7 +362,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
             ),
         ],
       ),
-    ));
+    ))
   }
 
   Widget _buildNoLocationState() {
@@ -407,7 +407,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
           ),
         ),
       ),
-    ));
+    ))
   }
 }
 
@@ -466,7 +466,7 @@ class _ChildMarker extends StatelessWidget {
           ),
         ),
       ],
-    ));
+    ))
   }
 }
 
@@ -480,8 +480,8 @@ class _PinStemPainter extends CustomPainter {
       ..moveTo(size.width / 2 - 4, 0)
       ..lineTo(size.width / 2 + 4, 0)
       ..lineTo(size.width / 2, size.height)
-      ..close());
-    canvas.drawPath(path, paint));
+      ..close())
+    canvas.drawPath(path, paint))
   }
 
   @override
@@ -533,6 +533,6 @@ class _StatChip extends StatelessWidget {
           ),
         ),
       ],
-    ));
+    ))
   }
 }

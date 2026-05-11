@@ -26,10 +26,10 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
 
   @override
   void dispose() {
-    _nameCtrl.dispose());
-    _emailCtrl.dispose());
-    _passCtrl.dispose());
-    super.dispose());
+    _nameCtrl.dispose())
+    _emailCtrl.dispose())
+    _passCtrl.dispose())
+    super.dispose())
   }
 
   Future<void> _submit() async {
@@ -37,29 +37,29 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
     setState(() {
       _loading = true;
       _error = null;
-    }));
+    }))
 
     Map<String, dynamic> result;
     if (_isLogin) {
       result = await _auth.loginParent(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
-      ));
+      ))
     } else {
       result = await _auth.registerParent(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
         displayName: _nameCtrl.text.trim(),
-      ));
+      ))
     }
 
     if (!mounted) return;
-    setState(() => _loading = false));
+    setState(() => _loading = false))
 
     if (result['success'] == true) {
-      Navigator.pushReplacementNamed(context, '/parent/dashboard'));
+      Navigator.pushReplacementNamed(context, '/parent/dashboard'))
     } else {
-      setState(() => _error = result['error']));
+      setState(() => _error = result['error']))
     }
   }
 
@@ -252,6 +252,6 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
           ),
         ),
       ),
-    ));
+    ))
   }
 }

@@ -24,77 +24,78 @@ class MonitoringScreen extends StatefulWidget {
 class _MonitoringScreenState extends State<MonitoringScreen> {
   final _webrtc = WebRTCService());
   bool _hasStream = false;
-  bool _isMuted = false;
-  bool _showControls = true;
+  final bool _isMuted = false;
+  final bool _showControls = true;
   String _status = 'Connecting...';
   Timer? _timeout;
   Timer? _controlsTimer;
 
   @override
   void initState() {
-    super.initState());
+    super.initState())
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
-    ]));
-    _startMonitoring());
+    ]))
+    _startMonitoring())
     _timeout = Timer(const Duration(seconds: 20), () {
       if (mounted && !_hasStream) {
-        setState(() => _status = 'Child not responding.\nMake sure child app is running.'));
+        setState(() => _status = 'Child not responding.\nMake sure child app is running.'))
       }
-    }));
+    }))
   }
 
   Future<void> _startMonitoring() async {
     try {
       await _webrtc.startAsParent(widget.childUid, widget.mode, () {
-        if (mounted) {
+        if (!mounted) return;
+    if (mounted) {
           _timeout?.cancel());
-          setState(() { _hasStream = true; _status = 'Connected'; }));
-          _startControlsTimer());
+          setState(() { _hasStream = true; _status = 'Connected'; }))
+          _startControlsTimer())
         }
       }));
     } catch (e) {
-      if (mounted) setState(() => _status = 'Error: $e'));
+      if (mounted) setState(() => _status = 'Error: $e'))
     }
   }
 
   void _startControlsTimer() {
-    _controlsTimer?.cancel());
+    _controlsTimer?.cancel())
     _controlsTimer = Timer(const Duration(seconds: 4), () {
-      if (mounted) setState(() => _showControls = false));
-    }));
+      if (mounted) setState(() => _showControls = false))
+    }))
   }
 
   void _toggleControls() {
-    setState(() => _showControls = !_showControls));
-    if (_showControls) _startControlsTimer());
+    setState(() => _showControls = !_showControls))
+    if (_showControls) _startControlsTimer())
   }
 
   Future<void> _flipCamera() async {
-    await _webrtc.sendFlipCommand(widget.childUid));
+    await _webrtc.sendFlipCommand(widget.childUid))
   }
 
   Future<void> _toggleMic() async {
-    await _webrtc.sendMuteCommand(widget.childUid, !_isMuted));
-    if (mounted) setState(() => _isMuted = !_isMuted));
+    await _webrtc.sendMuteCommand(widget.childUid, !_isMuted))
+    if (mounted) setState(() => _isMuted = !_isMuted))
   }
 
   Future<void> _endSession() async {
-    _timeout?.cancel());
-    _controlsTimer?.cancel());
-    await _webrtc.endCall(widget.childUid));
-    if (mounted) Navigator.pop(context));
+    _timeout?.cancel())
+    _controlsTimer?.cancel())
+    await _webrtc.endCall(widget.childUid))
+    if (mounted) Navigator.pop(context))
   }
 
   @override
   void dispose() {
-    _timeout?.cancel());
-    _controlsTimer?.cancel());
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]));
-    _webrtc.dispose());
-    super.dispose());
+    _timeout?.cancel())
+    _controlsTimer?.cancel())
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]))
+    _webrtc.dispose())
+    super.dispose())
   }
 
   @override
@@ -151,8 +152,8 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                     ),
                   ),
                   child: Row(children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    const IconButton(
+                      icon: Icon(Icons.arrow_back, color: Colors.white),
                       onPressed: _endSession,
                     ),
                     const SizedBox(width: 4),
@@ -218,7 +219,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           ),
         ]),
       ),
-    ));
+    ))
   }
 
   Widget _liveBadge() => Container(

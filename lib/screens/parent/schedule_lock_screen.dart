@@ -32,42 +32,44 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
 
   @override
   void initState() {
-    super.initState());
+    super.initState())
     _svc.watchLockState(widget.childUid).listen((state) {
-      if (mounted) {
+      if (!mounted) return;
+    if (mounted) {
         setState(() {
           _lockState = state.locked;
           if (state.schedule != null) _schedule = state.schedule!;
-        }));
+        }))
       }
-    }));
+    }))
   }
 
   Future<void> _toggleLock() async {
     if (_lockState) {
-      await _svc.unlockDevice(widget.childUid));
+      await _svc.unlockDevice(widget.childUid))
     } else {
-      await _svc.lockDevice(widget.childUid));
+      await _svc.lockDevice(widget.childUid))
     }
   }
 
   Future<void> _saveSchedule() async {
-    setState(() => _saving = true));
-    await _svc.saveSchedule(widget.childUid, _schedule));
+    setState(() => _saving = true))
+    await _svc.saveSchedule(widget.childUid, _schedule))
+    if (!mounted) return;
     if (mounted) {
-      setState(() => _saving = false));
+      setState(() => _saving = false))
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Bedtime schedule saved')),
-      ));
+      ))
     }
   }
 
   Future<void> _pickTime(bool isStart) async {
     final initial = isStart
         ? TimeOfDay(hour: _schedule.startHour, minute: _schedule.startMinute)
-        : TimeOfDay(hour: _schedule.endHour, minute: _schedule.endMinute));
+        : TimeOfDay(hour: _schedule.endHour, minute: _schedule.endMinute))
 
-    final picked = await showTimePicker(context: context, initialTime: initial));
+    final picked = await showTimePicker(context: context, initialTime: initial))
     if (picked == null) return;
 
     setState(() {
@@ -86,13 +88,13 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
           endHour: picked.hour,
           endMinute: picked.minute,
           activeDays: _schedule.activeDays,
-        ));
+        ))
       }
     }));
   }
 
   void _toggleDay(int index) {
-    final days = List<bool>.from(_schedule.activeDays));
+    final days = List<bool>.from(_schedule.activeDays))
     days[index] = !days[index];
     setState(() {
       _schedule = LockSchedule(
@@ -101,8 +103,8 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
         endHour: _schedule.endHour,
         endMinute: _schedule.endMinute,
         activeDays: days,
-      ));
-    }));
+      ))
+    }))
   }
 
   @override
@@ -216,7 +218,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
                           ),
                         ),
                       ),
-                    ));
+                    ))
                   }),
                 ),
               ],
@@ -263,7 +265,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
           ).animate(delay: 350.ms).fadeIn(),
         ],
       ),
-    ));
+    ))
   }
 }
 
@@ -338,7 +340,7 @@ class _LockCard extends StatelessWidget {
           ),
         ],
       ),
-    ));
+    ))
   }
 }
 
@@ -376,6 +378,6 @@ class _TimePicker extends StatelessWidget {
           ],
         ),
       ),
-    ));
+    ))
   }
 }

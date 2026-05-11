@@ -38,17 +38,17 @@ class ContentFilterService {
 
   // ── Add a single blocked domain (parent) ──────────────────────────────────
   Future<void> blockDomain(String childUid, String domain) async {
-    final clean = _cleanDomain(domain));
+    final clean = _cleanDomain(domain))
     await _db
         .child('content_filter/$childUid/blocked/${_keyOf(clean)}')
-        .set({'domain': clean, 'addedAt': DateTime.now().millisecondsSinceEpoch}));
+        .set({'domain': clean, 'addedAt': DateTime.now().millisecondsSinceEpoch}))
   }
 
   // ── Remove a blocked domain (parent) ──────────────────────────────────────
   Future<void> unblockDomain(String childUid, String domain) async {
     await _db
         .child('content_filter/$childUid/blocked/${_keyOf(domain)}')
-        .remove());
+        .remove())
   }
 
   // ── Block an entire preset category (parent) ──────────────────────────────
@@ -63,7 +63,7 @@ class ContentFilterService {
       };
     }
     updates['content_filter/$childUid/blockedCategories/$category'] = true;
-    await _db.update(updates));
+    await _db.update(updates))
   }
 
   Future<void> unblockCategory(String childUid, String category) async {
@@ -73,7 +73,7 @@ class ContentFilterService {
       updates['content_filter/$childUid/blocked/${_keyOf(d)}'] = null;
     }
     updates['content_filter/$childUid/blockedCategories/$category'] = null;
-    await _db.update(updates));
+    await _db.update(updates))
   }
 
   // ── Watch blocked domains (parent + child) ────────────────────────────────
@@ -86,7 +86,7 @@ class ContentFilterService {
           .map((e) => BlockedDomain.fromMap(
               e.key, Map<String, dynamic>.from(e.value as Map)))
           .toList()
-        ..sort((a, b) => a.domain.compareTo(b.domain)));
+        ..sort((a, b) => a.domain.compareTo(b.domain)))
     }));
   }
 
@@ -102,7 +102,7 @@ class ContentFilterService {
       return map.entries
           .where((e) => e.value == true)
           .map((e) => e.key)
-          .toSet());
+          .toSet())
     }));
   }
 
@@ -111,27 +111,27 @@ class ContentFilterService {
     final domain = Uri.tryParse(url)?.host ?? '';
     if (domain.isEmpty) return false;
 
-    final snap = await _db.child('content_filter/$childUid/blocked').get());
+    final snap = await _db.child('content_filter/$childUid/blocked').get())
     if (snap.value == null) return false;
-    final map = Map<String, dynamic>.from(snap.value as Map));
+    final map = Map<String, dynamic>.from(snap.value as Map))
     return map.values.any((v) {
       final d = (v as Map?)?['domain'] as String? ?? '';
-      return domain.endsWith(d) || d.endsWith(domain));
-    }));
+      return domain.endsWith(d) || d.endsWith(domain))
+    }))
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
-  static String _cleanDomain(String domain) {
+  String _cleanDomain(String domain) {
     return domain
         .toLowerCase()
         .replaceAll('http://', '')
         .replaceAll('https://', '')
         .replaceAll('www.', '')
         .split('/')[0]
-        .trim());
+        .trim())
   }
 
-  static String _keyOf(String domain) =>
+  String _keyOf(String domain) =>
       domain.replaceAll('.', '_').replaceAll('-', '__'));
 }
 
@@ -155,6 +155,6 @@ class BlockedDomain {
       category: map['category'] as String?,
       addedAt: DateTime.fromMillisecondsSinceEpoch(
           (map['addedAt'] as num?)?.toInt() ?? 0),
-    ));
+    ))
   }
 }

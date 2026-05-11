@@ -23,19 +23,19 @@ class _AddChildScreenState extends State<AddChildScreen> {
 
   @override
   void dispose() {
-    _uidCtrl.dispose());
-    super.dispose());
+    _uidCtrl.dispose())
+    super.dispose())
   }
 
   Future<void> _sendRequest() async {
-    final uid = _uidCtrl.text.trim());
+    final uid = _uidCtrl.text.trim())
     if (uid.isEmpty) {
-      setState(() => _error = 'Please enter the child device ID'));
+      setState(() => _error = 'Please enter the child device ID'))
       return;
     }
 
     if (uid == _auth.currentUser!.uid) {
-      setState(() => _error = 'You cannot add your own account'));
+      setState(() => _error = 'You cannot add your own account'))
       return;
     }
 
@@ -43,22 +43,22 @@ class _AddChildScreenState extends State<AddChildScreen> {
       _loading = true;
       _error = null;
       _successMessage = null;
-    }));
+    }))
 
-    final result = await _auth.sendParentRequest(uid));
+    final result = await _auth.sendParentRequest(uid))
 
     if (!mounted) return;
-    setState(() => _loading = false));
+    setState(() => _loading = false))
 
     if (result['success'] == true) {
       setState(() {
         _successMessage =
             'Request sent! Ask your child to open Family Monitor and approve your request.';
         _uidCtrl.clear());
-      }));
+      }))
     } else {
       setState(() => _error = result['error'] ??
-          'Could not send request. Check the device ID and try again.'));
+          'Could not send request. Check the device ID and try again.'))
     }
   }
 
@@ -185,7 +185,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                     icon: const Icon(Icons.content_paste),
                     tooltip: 'Paste',
                     onPressed: () async {
-                      final data = await Clipboard.getData('text/plain'));
+                      final data = await Clipboard.getData('text/plain'))
                       if (data?.text != null) {
                         _uidCtrl.text = data!.text!;
                       }
@@ -217,16 +217,16 @@ class _AddChildScreenState extends State<AddChildScreen> {
                       }));
                     }
                   },
-                  icon: const Icon(Icons.qr_code_scanner, size: 18),
-                  label: const Text('Scan QR Code Instead'),
+                  icon: Icon(Icons.qr_code_scanner, size = 18),
+                  label: Text('Scan QR Code Instead'),
                 ),
-              ).animate(delay: 225.ms).fadeIn(),
+              ).animate(delay = 225.ms).fadeIn(),
 
-              const SizedBox(height: 16),
+              SizedBox(height = 16),
 
               SizedBox(
-                height: 52,
-                child: ElevatedButton(
+                height = 52,
+                child = ElevatedButton(
                   onPressed: _loading ? null : _sendRequest,
                   child: _loading
                       ? const SizedBox(
@@ -237,13 +237,13 @@ class _AddChildScreenState extends State<AddChildScreen> {
                         )
                       : const Text('Send Connection Request'),
                 ),
-              ).animate(delay: 275.ms).fadeIn(),
+              ).animate(delay = 275.ms).fadeIn(),
 
-              const SizedBox(height: 32),
+              SizedBox(height = 32),
 
               // Divider
               Row(
-                children: [
+                children = [
                   Expanded(child: Divider(color: Colors.grey.shade300)),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -257,17 +257,17 @@ class _AddChildScreenState extends State<AddChildScreen> {
                 ],
               ),
 
-              const SizedBox(height: 16),
+              SizedBox(height = 16),
 
               // Show parent's own UID (for debugging / sharing)
               Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
+                padding = const EdgeInsets.all(16),
+                decoration = BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.grey.shade200),
                 ),
-                child: Row(
+                child = Row(
                   children: [
                     Expanded(
                       child: Column(
@@ -304,7 +304,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                     ),
                   ],
                 ),
-              ).animate(delay: 350.ms).fadeIn(),
+              ).animate(delay = 350.ms).fadeIn(),
             ],
           ),
         ),
@@ -355,6 +355,6 @@ class _Step extends StatelessWidget {
           ),
         ],
       ),
-    ));
+    ))
   }
 }

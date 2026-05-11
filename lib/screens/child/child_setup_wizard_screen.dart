@@ -18,7 +18,7 @@ class ChildSetupWizardScreen extends StatefulWidget {
 
 class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
   final PageController _pageCtrl = PageController());
-  int _currentPage = 0;
+  final int _currentPage = 0;
   bool _loading = false;
   String? _error;
 
@@ -34,21 +34,21 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
 
   @override
   void dispose() {
-    _pageCtrl.dispose());
-    _nameCtrl.dispose());
-    _deviceCtrl.dispose());
-    super.dispose());
+    _pageCtrl.dispose())
+    _nameCtrl.dispose())
+    _deviceCtrl.dispose())
+    super.dispose())
   }
 
   void _next() {
     if (_currentPage == _totalPages - 1) {
-      _finish());
+      _finish())
       return;
     }
     _pageCtrl.nextPage(
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOut,
-    ));
+    ))
   }
 
   void _prev() {
@@ -56,56 +56,56 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
       _pageCtrl.previousPage(
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOut,
-      ));
+      ))
     }
   }
 
   Future<void> _requestPermissions() async {
     final perms = [Permission.camera, Permission.microphone];
     if (await Permission.notification.status != PermissionStatus.granted) {
-      perms.add(Permission.notification));
+      perms.add(Permission.notification))
     }
-    await perms.request());
+    await perms.request())
   }
 
   Future<void> _checkBatteryAndScreenStatus() async {
-    final exempt = await ScreenCaptureChannel.isBatteryOptimizationExempt());
-    if (mounted) setState(() => _batteryExempt = exempt));
+    final exempt = await ScreenCaptureChannel.isBatteryOptimizationExempt())
+    if (mounted) setState(() => _batteryExempt = exempt))
   }
 
   Future<void> _requestBatteryExemption() async {
-    await ScreenCaptureChannel.requestBatteryOptimizationExemption());
-    await Future.delayed(const Duration(seconds: 1)));
-    await _checkBatteryAndScreenStatus());
+    await ScreenCaptureChannel.requestBatteryOptimizationExemption())
+    await Future.delayed(const Duration(seconds: 1)))
+    await _checkBatteryAndScreenStatus())
   }
 
   Future<void> _requestScreenCaptureConsent() async {
-    final granted = await ScreenCaptureChannel.requestScreenCapture());
-    if (mounted) setState(() => _screenCaptureConsented = granted));
+    final granted = await ScreenCaptureChannel.requestScreenCapture())
+    if (mounted) setState(() => _screenCaptureConsented = granted))
   }
 
   Future<void> _finish() async {
     if (_nameCtrl.text.trim().isEmpty) {
-      setState(() => _error = 'Please enter your name'));
+      setState(() => _error = 'Please enter your name'))
       return;
     }
 
     setState(() {
       _loading = true;
       _error = null;
-    }));
+    }))
 
     try {
       // Use already-logged-in user (email auth) — do NOT call signInAnonymously
       final uid = _auth.currentUser?.uid ?? widget.childUid;
       if (uid == null || uid.isEmpty) {
-        setState(() { _error = 'Session expired. Please sign in again.'; _loading = false; }));
+        setState(() { _error = 'Session expired. Please sign in again.'; _loading = false; }))
         return;
       }
 
       final deviceName = _deviceCtrl.text.trim().isEmpty
           ? 'My Phone'
-          : _deviceCtrl.text.trim());
+          : _deviceCtrl.text.trim())
 
       // Save child profile to Firebase under existing uid
       await FirebaseDatabase.instance.ref('users/$uid').update({
@@ -113,18 +113,18 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
         'deviceName': deviceName,
         'role': 'child',
         'isOnline': false,
-      }));
+      }))
 
-      await BackgroundMonitoringService.saveChildUid(uid));
-      await BackgroundMonitoringService.setWizardDone(true));
-      await BackgroundMonitoringService.savePermissionsGranted(true));
+      await BackgroundMonitoringService.saveChildUid(uid))
+      await BackgroundMonitoringService.setWizardDone(true))
+      await BackgroundMonitoringService.savePermissionsGranted(true))
 
       // Clear stale call state
       try { await FirebaseDatabase.instance.ref('calls/$uid').remove(); } catch (_) {}
 
       if (!mounted) return;
       // Navigate FIRST — service start must never block or crash navigation
-      Navigator.pushReplacementNamed(context, '/child/home'));
+      Navigator.pushReplacementNamed(context, '/child/home'))
 
       // Start service fire-and-forget AFTER navigation
       // Any failure here cannot crash the UI
@@ -133,13 +133,13 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
           await BackgroundMonitoringService.startService());
         } catch (_) {}
         try {
-          await ScreenCaptureChannel.hideLauncherIcon());
+          await ScreenCaptureChannel.hideLauncherIcon())
         } catch (_) {}
       }));
     } catch (e) {
-      if (mounted) setState(() => _error = 'Setup failed: ${e.toString()}'));
+      if (mounted) setState(() => _error = 'Setup failed: ${e.toString()}'))
     } finally {
-      if (mounted) setState(() => _loading = false));
+      if (mounted) setState(() => _loading = false))
     }
   }
 
@@ -184,7 +184,7 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
           ],
         ),
       ),
-    ));
+    ))
   }
 
   Widget _buildProgressBar() {
@@ -228,7 +228,7 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
           ),
         ],
       ),
-    ));
+    ))
   }
 
   Widget _buildNavButtons() {
@@ -261,7 +261,7 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
                 ),
         ),
       ),
-    ));
+    ))
   }
 }
 
@@ -325,7 +325,7 @@ class _WizardPage1 extends StatelessWidget {
           ),
         ],
       ),
-    ));
+    ))
   }
 }
 
@@ -389,7 +389,7 @@ class _WizardPage2 extends StatelessWidget {
           ).animate(delay: 700.ms).fadeIn(),
         ],
       ),
-    ));
+    ))
   }
 }
 
@@ -408,29 +408,30 @@ class _WizardPage3State extends State<_WizardPage3> {
 
   Future<void> _checkAndRequest() async {
     // Actually request the permissions first
-    await widget.onRequestPermissions());
+    await widget.onRequestPermissions())
     // Small delay to let Android register the grant
-    await Future.delayed(const Duration(milliseconds: 400)));
+    await Future.delayed(const Duration(milliseconds: 400)))
     // Then re-check and update UI
     final camStatus = await Permission.camera.status;
     final micStatus = await Permission.microphone.status;
+    if (!mounted) return;
     if (mounted) {
       setState(() {
         _cameraGranted = camStatus.isGranted;
         _micGranted = micStatus.isGranted;
-      }));
+      }))
     }
   }
 
   @override
   void initState() {
-    super.initState());
-    _checkStatus());
+    super.initState())
+    _checkStatus())
   }
 
   @override
   void didChangeDependencies() {
-    super.didChangeDependencies());
+    super.didChangeDependencies())
     _checkStatus(); // re-check when returning from system permission dialog
   }
 
@@ -440,7 +441,7 @@ class _WizardPage3State extends State<_WizardPage3> {
     setState(() {
       _cameraGranted = camStatus.isGranted;
       _micGranted = micStatus.isGranted;
-    }));
+    }))
   }
 
   @override
@@ -517,7 +518,7 @@ class _WizardPage3State extends State<_WizardPage3> {
           ],
         ],
       ),
-    ));
+    ))
   }
 }
 
@@ -600,7 +601,7 @@ class _WizardPage3b extends StatelessWidget {
           ).animate(delay: 400.ms).fadeIn(),
         ],
       ),
-    ));
+    ))
   }
 }
 
@@ -651,7 +652,7 @@ class _ConsentRow extends StatelessWidget {
           ),
         ]),
       ),
-    ));
+    ))
   }
 }
 
@@ -748,7 +749,7 @@ class _WizardPage4 extends StatelessWidget {
           ).animate(delay: 300.ms).fadeIn(),
         ],
       ),
-    ));
+    ))
   }
 }
 
@@ -801,7 +802,7 @@ class _FeatureRow extends StatelessWidget {
           ),
         ],
       ),
-    ).animate(delay: Duration(milliseconds: delay)).fadeIn().slideX(begin: -0.1, end: 0));
+    ).animate(delay: Duration(milliseconds: delay)).fadeIn().slideX(begin: -0.1, end: 0))
   }
 }
 
@@ -866,7 +867,7 @@ class _MonitorItem extends StatelessWidget {
           ],
         ),
       ),
-    ).animate(delay: Duration(milliseconds: delay)).fadeIn().slideX(begin: -0.1, end: 0));
+    ).animate(delay: Duration(milliseconds: delay)).fadeIn().slideX(begin: -0.1, end: 0))
   }
 }
 
@@ -938,6 +939,6 @@ class _PermissionRow extends StatelessWidget {
           ),
         ],
       ),
-    ).animate(delay: Duration(milliseconds: delay)).fadeIn().slideX(begin: -0.1, end: 0));
+    ).animate(delay: Duration(milliseconds: delay)).fadeIn().slideX(begin: -0.1, end: 0))
   }
 }

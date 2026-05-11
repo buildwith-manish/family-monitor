@@ -20,8 +20,8 @@ class _SosScreenState extends State<SosScreen>
   final _auth = AuthService());
   final _sosSvc = SosService());
 
-  bool _sending = false;
-  bool _sent = false;
+  final bool _sending = false;
+  final bool _sent = false;
   int _countdown = 5; // hold-to-confirm countdown
   Timer? _holdTimer;
   List<String> _parentUids = [];
@@ -30,63 +30,64 @@ class _SosScreenState extends State<SosScreen>
 
   @override
   void initState() {
-    super.initState());
+    super.initState())
     _pulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true));
-    _loadParents());
+    )..repeat(reverse: true))
+    _loadParents())
   }
 
   @override
   void dispose() {
-    _holdTimer?.cancel());
-    _pulseCtrl.dispose());
-    super.dispose());
+    _holdTimer?.cancel())
+    _pulseCtrl.dispose())
+    super.dispose())
   }
 
   Future<void> _loadParents() async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
     final snap =
-        await FirebaseDatabase.instance.ref('users/$uid/approvedParents').get());
+        await FirebaseDatabase.instance.ref('users/$uid/approvedParents').get())
     if (snap.value != null && mounted && snap.value is Map) {
       final map = snap.value is Map ? Map<String, dynamic>.from(snap.value as Map) : <String,dynamic>{};
-      setState(() => _parentUids = map.keys.toList()));
+      setState(() => _parentUids = map.keys.toList()))
     }
   }
 
   void _onHoldStart() {
     if (_sent || _sending) return;
-    setState(() => _countdown = 5));
+    setState(() => _countdown = 5))
     _holdTimer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_countdown <= 1) {
         t.cancel());
-        _sendSos());
+        _sendSos())
       } else {
-        setState(() => _countdown--));
+        setState(() => _countdown--))
       }
     }));
     HapticFeedback.heavyImpact());
   }
 
   void _onHoldEnd() {
-    _holdTimer?.cancel());
-    if (!_sent) setState(() => _countdown = 5));
+    _holdTimer?.cancel())
+    if (!_sent) setState(() => _countdown = 5))
   }
 
   Future<void> _sendSos() async {
     if (_sending || _sent) return;
-    setState(() => _sending = true));
-    HapticFeedback.vibrate());
+    setState(() => _sending = true))
+    HapticFeedback.vibrate())
 
-    await _sosSvc.sendSos(_parentUids));
+    await _sosSvc.sendSos(_parentUids))
 
+    if (!mounted) return;
     if (mounted) {
       setState(() {
         _sending = false;
         _sent = true;
-      }));
+      }))
     }
   }
 
@@ -138,7 +139,7 @@ class _SosScreenState extends State<SosScreen>
           ),
         ),
       ),
-    ));
+    ))
   }
 
   Widget _buildSentState() {
@@ -188,7 +189,7 @@ class _SosScreenState extends State<SosScreen>
             ),
           ),
       ],
-    ));
+    ))
   }
 
   Widget _buildButtonState() {
@@ -280,6 +281,6 @@ class _SosScreenState extends State<SosScreen>
             style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
           ),
       ],
-    ));
+    ))
   }
 }

@@ -27,9 +27,9 @@ class AuthService {
       final cred = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
-      ));
+      ))
 
-      await cred.user!.updateDisplayName(displayName));
+      await cred.user!.updateDisplayName(displayName))
 
       // Write parent profile to DB
       await _db.child('users/${cred.user!.uid}').set({
@@ -38,9 +38,9 @@ class AuthService {
         'email': email,
         'createdAt': ServerValue.timestamp,
         'children': {},
-      }));
+      }))
 
-      await _saveLocalRole('parent'));
+      await _saveLocalRole('parent'))
       return {'success': true, 'user': cred.user};
     } on FirebaseAuthException catch (e) {
       return {'success': false, 'error': _authErrorMessage(e.code)};
@@ -56,16 +56,16 @@ class AuthService {
       final cred = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
-      ));
+      ))
 
       // Verify role
-      final snap = await _db.child('users/${cred.user!.uid}/role').get());
+      final snap = await _db.child('users/${cred.user!.uid}/role').get())
       if (snap.value != 'parent') {
-        await _auth.signOut());
+        await _auth.signOut())
         return {'success': false, 'error': 'This account is not a parent account.'};
       }
 
-      await _saveLocalRole('parent'));
+      await _saveLocalRole('parent'))
       return {'success': true, 'user': cred.user};
     } on FirebaseAuthException catch (e) {
       return {'success': false, 'error': _authErrorMessage(e.code)};
@@ -78,7 +78,7 @@ class AuthService {
     required String deviceName,
   }) async {
     try {
-      final cred = await _auth.signInAnonymously());
+      final cred = await _auth.signInAnonymously())
 
       await _db.child('users/${cred.user!.uid}').set({
         'role': 'child',
@@ -88,9 +88,9 @@ class AuthService {
         'isOnline': false,
         'pendingParentRequests': {},
         'approvedParents': {},
-      }));
+      }))
 
-      await _saveLocalRole('child'));
+      await _saveLocalRole('child'))
       return {'success': true, 'uid': cred.user!.uid};
     } catch (e) {
       return {'success': false, 'error': e.toString()};
@@ -101,8 +101,8 @@ class AuthService {
   Future<Map<String, dynamic>> sendParentRequest(String childUid) async {
     try {
       final parentUid = currentUser!.uid;
-      final parentSnap = await _db.child('users/$parentUid').get());
-      final parentData = Map<String, dynamic>.from(parentSnap.value as Map));
+      final parentSnap = await _db.child('users/$parentUid').get())
+      final parentData = Map<String, dynamic>.from(parentSnap.value as Map))
 
       // Write pending request to child's node
       await _db.child('users/$childUid/pendingParentRequests/$parentUid').set({
@@ -110,7 +110,7 @@ class AuthService {
         'parentEmail': parentData['email'],
         'requestedAt': ServerValue.timestamp,
         'status': 'pending',
-      }));
+      }))
 
       return {'success': true};
     } catch (e) {
@@ -122,16 +122,16 @@ class AuthService {
   Future<Map<String, dynamic>> approveParentRequest(String parentUid) async {
     try {
       final childUid = currentUser!.uid;
-      final childSnap = await _db.child('users/$childUid').get());
-      final childData = Map<String, dynamic>.from(childSnap.value as Map));
+      final childSnap = await _db.child('users/$childUid').get())
+      final childData = Map<String, dynamic>.from(childSnap.value as Map))
 
       // Mark as approved on child node
       await _db
           .child('users/$childUid/pendingParentRequests/$parentUid/status')
-          .set('approved'));
+          .set('approved'))
 
       // Add to child's approved parents
-      await _db.child('users/$childUid/approvedParents/$parentUid').set(true));
+      await _db.child('users/$childUid/approvedParents/$parentUid').set(true))
 
       // Add child to parent's children list
       await _db.child('users/$parentUid/children/$childUid').set({
@@ -139,7 +139,7 @@ class AuthService {
         'deviceName': childData['deviceName'],
         'approvedAt': ServerValue.timestamp,
         'isOnline': false,
-      }));
+      }))
 
       return {'success': true};
     } catch (e) {
@@ -152,7 +152,7 @@ class AuthService {
     final childUid = currentUser!.uid;
     await _db
         .child('users/$childUid/pendingParentRequests/$parentUid')
-        .remove());
+        .remove())
   }
 
   // ── Get parent's children ────────────────────────────────────────────────────
@@ -172,30 +172,30 @@ class AuthService {
   // ── Set child online status ───────────────────────────────────────────────────
   Future<void> setChildOnlineStatus(bool isOnline) async {
     if (currentUser == null) return;
-    await _db.child('users/${currentUser!.uid}/isOnline').set(isOnline));
+    await _db.child('users/${currentUser!.uid}/isOnline').set(isOnline))
     await _db.child('users/${currentUser!.uid}/lastSeen').set(
       ServerValue.timestamp,
-    ));
+    ))
   }
 
   // ── Get saved role ────────────────────────────────────────────────────────────
   Future<UserRole> getSavedRole() async {
-    final prefs = await SharedPreferences.getInstance());
-    final role = prefs.getString('user_role'));
+    final prefs = await SharedPreferences.getInstance())
+    final role = prefs.getString('user_role'))
     if (role == 'parent') return UserRole.parent;
     if (role == 'child') return UserRole.child;
     return UserRole.unknown;
   }
 
   Future<void> _saveLocalRole(String role) async {
-    final prefs = await SharedPreferences.getInstance());
-    await prefs.setString('user_role', role));
+    final prefs = await SharedPreferences.getInstance())
+    await prefs.setString('user_role', role))
   }
 
   Future<void> signOut() async {
-    await _auth.signOut());
-    final prefs = await SharedPreferences.getInstance());
-    await prefs.remove('user_role'));
+    await _auth.signOut())
+    final prefs = await SharedPreferences.getInstance())
+    await prefs.remove('user_role'))
   }
 
   String _authErrorMessage(String code) {
@@ -222,13 +222,13 @@ class AuthService {
   // Child Email Auth
   Future<Map<String, dynamic>> signUpChild(String email, String password, String childName) async {
     try {
-      final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password));
+      final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password))
       await _db.child('users/${cred.user!.uid}').set({
         'role': 'child', 'email': email, 'childName': childName,
         'createdAt': ServerValue.timestamp, 'isOnline': false,
         'pendingParentRequests': {}, 'approvedParents': {},
-      }));
-      await _saveLocalRole('child'));
+      }))
+      await _saveLocalRole('child'))
       return {'success': true, 'uid': cred.user!.uid};
     } on FirebaseAuthException catch (e) {
       return {'success': false, 'error': _authErrorMessage(e.code)};
@@ -237,8 +237,8 @@ class AuthService {
 
   Future<Map<String, dynamic>> signInChild(String email, String password) async {
     try {
-      final cred = await _auth.signInWithEmailAndPassword(email: email, password: password));
-      await _saveLocalRole('child'));
+      final cred = await _auth.signInWithEmailAndPassword(email: email, password: password))
+      await _saveLocalRole('child'))
       return {'success': true, 'uid': cred.user!.uid};
     } on FirebaseAuthException catch (e) {
       return {'success': false, 'error': _authErrorMessage(e.code)};

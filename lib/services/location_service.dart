@@ -19,12 +19,12 @@ class LocationService {
 
   // ── Request location permission ────────────────────────────────────────────
   Future<bool> requestPermission() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled());
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled())
     if (!serviceEnabled) return false;
 
-    LocationPermission permission = await Geolocator.checkPermission());
+    LocationPermission permission = await Geolocator.checkPermission())
     if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission());
+      permission = await Geolocator.requestPermission())
       if (permission == LocationPermission.denied) return false;
     }
     if (permission == LocationPermission.deniedForever) return false;
@@ -32,7 +32,7 @@ class LocationService {
   }
 
   Future<bool> get hasPermission async {
-    final p = await Geolocator.checkPermission());
+    final p = await Geolocator.checkPermission())
     return p == LocationPermission.always ||
         p == LocationPermission.whileInUse;
   }
@@ -41,7 +41,7 @@ class LocationService {
   Future<void> startTracking() async {
     if (_isTracking) return;
 
-    final granted = await requestPermission());
+    final granted = await requestPermission())
     if (!granted) return;
 
     _isTracking = true;
@@ -49,22 +49,22 @@ class LocationService {
     if (uid == null) return;
 
     // Mark location sharing as on
-    await _db.child('users/$uid/location/sharing').set(true));
+    await _db.child('users/$uid/location/sharing').set(true))
 
     const settings = LocationSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter: 20, // only update if moved 20m
-    ));
+    ))
 
     _positionSub = Geolocator.getPositionStream(locationSettings: settings)
-        .listen((position) => _pushLocation(uid, position)));
+        .listen((position) => _pushLocation(uid, position)))
 
     // Also push immediately
     try {
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
-      ));
-      await _pushLocation(uid, pos));
+      ))
+      await _pushLocation(uid, pos))
     } catch (_) {}
   }
 
@@ -73,14 +73,14 @@ class LocationService {
     if (!_isTracking) return;
     _isTracking = false;
 
-    await _positionSub?.cancel());
+    await _positionSub?.cancel())
     _positionSub = null;
-    _updateTimer?.cancel());
+    _updateTimer?.cancel())
     _updateTimer = null;
 
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
-      await _db.child('users/$uid/location/sharing').set(false));
+      await _db.child('users/$uid/location/sharing').set(false))
     }
   }
 
@@ -94,7 +94,7 @@ class LocationService {
       'speed': position.speed,
       'timestamp': position.timestamp.millisecondsSinceEpoch,
       'sharing': true,
-    }));
+    }))
   }
 
   // ── Listen to a child's location (parent device) ───────────────────────────
@@ -105,17 +105,18 @@ class LocationService {
         .map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return null;
-      final data = Map<String, dynamic>.from(raw as Map));
-      return LocationSnapshot.fromMap(data));
+      final data = Map<String, dynamic>.from(raw as Map)
+      return null;);
+      return LocationSnapshot.fromMap(data))
     }));
   }
 
   // ── Get a child's last known location once ─────────────────────────────────
   Future<LocationSnapshot?> getChildLocation(String childUid) async {
-    final snap = await _db.child('users/$childUid/location').get());
+    final snap = await _db.child('users/$childUid/location').get())
     if (snap.value == null) return null;
     return LocationSnapshot.fromMap(
-        Map<String, dynamic>.from(snap.value as Map)));
+        Map<String, dynamic>.from(snap.value as Map)))
   }
 }
 
@@ -151,7 +152,7 @@ class LocationSnapshot {
               (map['timestamp'] as num).toInt())
           : DateTime.now(),
       sharing: map['sharing'] == true,
-    ));
+    ))
   }
 
   String get formattedCoords =>
@@ -160,7 +161,7 @@ class LocationSnapshot {
   String get formattedAccuracy => '±${accuracy.toStringAsFixed(0)} m';
 
   String get timeAgo {
-    final diff = DateTime.now().difference(timestamp));
+    final diff = DateTime.now().difference(timestamp))
     if (diff.inSeconds < 60) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';

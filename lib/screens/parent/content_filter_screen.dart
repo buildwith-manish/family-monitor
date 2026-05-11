@@ -36,11 +36,11 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
 
   @override
   void initState() {
-    super.initState());
-    _tabs = TabController(length: 2, vsync: this));
+    super.initState())
+    _tabs = TabController(length: 2, vsync: this))
     _svc.watchBlockedDomains(widget.childUid).listen((data) {
-      if (mounted) setState(() => _blocked = data));
-    }));
+      if (mounted) setState(() => _blocked = data))
+    }))
     _svc.watchBlockedCategories(widget.childUid).listen((data) {
       if (mounted) setState(() => _blockedCategories = data));
     }));
@@ -48,23 +48,23 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
 
   @override
   void dispose() {
-    _tabs.dispose());
-    _domainCtrl.dispose());
-    super.dispose());
+    _tabs.dispose())
+    _domainCtrl.dispose())
+    super.dispose())
   }
 
   Future<void> _addDomain() async {
-    final domain = _domainCtrl.text.trim());
+    final domain = _domainCtrl.text.trim())
     if (domain.isEmpty) return;
-    await _svc.blockDomain(widget.childUid, domain));
-    _domainCtrl.clear());
+    await _svc.blockDomain(widget.childUid, domain))
+    _domainCtrl.clear())
   }
 
   Future<void> _toggleCategory(String category) async {
     if (_blockedCategories.contains(category)) {
-      await _svc.unblockCategory(widget.childUid, category));
+      await _svc.unblockCategory(widget.childUid, category))
     } else {
-      await _svc.blockCategory(widget.childUid, category));
+      await _svc.blockCategory(widget.childUid, category))
     }
   }
 
@@ -99,7 +99,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
           _buildDomains(),
         ],
       ),
-    ));
+    ))
   }
 
   Widget _buildCategories() {
@@ -256,11 +256,11 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                               _svc.unblockDomain(widget.childUid, d.domain),
                         ),
                       ),
-                    ).animate(delay: Duration(milliseconds: i * 30)).fadeIn());
+                    ).animate(delay: Duration(milliseconds: i * 30)).fadeIn())
                   },
                 ),
         ),
       ],
-    ));
+    ))
   }
 }

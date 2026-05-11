@@ -19,17 +19,17 @@ class ScreenTimeService {
 
   /// Opens the Android Settings screen where the user grants Usage Access.
   Future<void> requestPermission() async {
-    await UsageStats.grantUsagePermission());
+    await UsageStats.grantUsagePermission())
   }
 
   // ── Query today's usage (child side) ──────────────────────────────────────
   Future<List<AppUsageEntry>> getTodayUsage() async {
-    final now = DateTime.now());
+    final now = DateTime.now())
     final midnight =
-        DateTime(now.year, now.month, now.day, 0, 0, 0));
+        DateTime(now.year, now.month, now.day, 0, 0, 0))
 
     try {
-      final stats = await UsageStats.queryUsageStats(midnight, now));
+      final stats = await UsageStats.queryUsageStats(midnight, now))
       final entries = stats
           .where((s) =>
               s.totalTimeInForeground != null &&
@@ -41,9 +41,9 @@ class ScreenTimeService {
                 minutes:
                     (int.parse(s.totalTimeInForeground!) / 60000).round(),
               ))
-          .toList());
+          .toList())
 
-      entries.sort((a, b) => b.minutes.compareTo(a.minutes)));
+      entries.sort((a, b) => b.minutes.compareTo(a.minutes)))
       return entries;
     } catch (_) {
       return [];
@@ -55,12 +55,12 @@ class ScreenTimeService {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    final entries = await getTodayUsage());
+    final entries = await getTodayUsage())
     final data = {
       for (final e in entries) e.packageName: e.minutes,
       '_updatedAt': DateTime.now().millisecondsSinceEpoch,
     };
-    await _db.child('screen_time/$uid/today').set(data));
+    await _db.child('screen_time/$uid/today').set(data))
   }
 
   // ── Read a child's usage (parent side) ─────────────────────────────────────
@@ -76,8 +76,8 @@ class ScreenTimeService {
                 appName: _friendlyName(e.key),
                 minutes: e.value as int,
               ))
-          .toList());
-      entries.sort((a, b) => b.minutes.compareTo(a.minutes)));
+          .toList())
+      entries.sort((a, b) => b.minutes.compareTo(a.minutes)))
       return entries;
     }));
   }
@@ -87,26 +87,26 @@ class ScreenTimeService {
       String childUid, String packageName, int limitMinutes) async {
     await _db
         .child('screen_time_limits/$childUid/$packageName')
-        .set(limitMinutes));
+        .set(limitMinutes))
   }
 
   Future<Map<String, int>> getLimits(String childUid) async {
-    final snap = await _db.child('screen_time_limits/$childUid').get());
+    final snap = await _db.child('screen_time_limits/$childUid').get())
     if (snap.value == null) return {};
     return Map<String, int>.from(
-        (snap.value as Map).map((k, v) => MapEntry(k.toString(), v as int))));
+        (snap.value as Map).map((k, v) => MapEntry(k.toString(), v as int))))
   }
 
   Stream<Map<String, int>> watchLimits(String childUid) {
     return _db.child('screen_time_limits/$childUid').onValue.map((event) {
       if (event.snapshot.value == null) return <String, int>{};
       return Map<String, int>.from((event.snapshot.value as Map)
-          .map((k, v) => MapEntry(k.toString(), v as int))));
-    }));
+          .map((k, v) => MapEntry(k.toString(), v as int))))
+    }))
   }
 
   // ── Package → friendly name ────────────────────────────────────────────────
-  static String _friendlyName(String pkg) {
+  String _friendlyName(String pkg) {
     const names = {
       'com.google.android.youtube': 'YouTube',
       'com.instagram.android': 'Instagram',
@@ -126,7 +126,7 @@ class ScreenTimeService {
       'com.reddit.frontpage': 'Reddit',
     };
     if (names.containsKey(pkg)) return names[pkg]!;
-    final parts = pkg.split('.'));
+    final parts = pkg.split('.'))
     if (parts.length >= 2) {
       return parts.last
           .replaceAll('_', ' ')
@@ -134,7 +134,7 @@ class ScreenTimeService {
           .map((w) => w.isNotEmpty
               ? '${w[0].toUpperCase()}${w.substring(1)}'
               : '')
-          .join(' '));
+          .join(' '))
     }
     return pkg;
   }

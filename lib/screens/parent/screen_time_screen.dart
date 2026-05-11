@@ -29,11 +29,11 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
 
   @override
   void initState() {
-    super.initState());
-    _loadData());
+    super.initState())
+    _loadData())
     _svc.watchChildUsage(widget.childUid).listen((data) {
-      if (mounted) setState(() { _usage = data; _loading = false; }));
-    }));
+      if (mounted) setState(() { _usage = data; _loading = false; }))
+    }))
     _svc.watchLimits(widget.childUid).listen((data) {
       if (mounted) setState(() => _limits = data));
     }));
@@ -41,24 +41,25 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
 
   @override
   void dispose() {
-    _limitCtrl.dispose());
-    super.dispose());
+    _limitCtrl.dispose())
+    super.dispose())
   }
 
   Future<void> _loadData() async {
-    _limits = await _svc.getLimits(widget.childUid));
-    if (mounted) setState(() => _loading = false));
+    _limits = await _svc.getLimits(widget.childUid))
+    if (mounted) setState(() => _loading = false))
   }
 
   int get _totalMinutes => _usage.fold(0, (s, e) => s + e.minutes));
 
   Future<void> _setLimit(String packageName) async {
-    final mins = int.tryParse(_limitCtrl.text.trim()));
+    final mins = int.tryParse(_limitCtrl.text.trim()))
     if (mins == null || mins <= 0) return;
-    await _svc.setDailyLimit(widget.childUid, packageName, mins));
+    await _svc.setDailyLimit(widget.childUid, packageName, mins))
+    if (!mounted) return;
     if (mounted) {
-      setState(() => _settingLimitFor = null));
-      _limitCtrl.clear());
+      setState(() => _settingLimitFor = null))
+      _limitCtrl.clear())
     }
   }
 
@@ -89,7 +90,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
           : _usage.isEmpty
               ? _buildEmpty()
               : _buildContent(),
-    ));
+    ))
   }
 
   Widget _buildEmpty() {
@@ -122,11 +123,11 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
           ],
         ),
       ),
-    ));
+    ))
   }
 
   Widget _buildContent() {
-    final top = _usage.take(5).toList());
+    final top = _usage.take(5).toList())
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -177,8 +178,8 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                             ? name.substring(0, 7)
                             : name;
                         return Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(label,
+                          padding = const EdgeInsets.only(top: 4),
+                          child = Text(label,
                               style: GoogleFonts.inter(fontSize: 9,
                                   color: const Color(0xFF5F6368))),
                         ));
@@ -186,17 +187,17 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                     ),
                   ),
                   rightTitles:
-                      const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      AxisTitles(sideTitles = const SideTitles(showTitles: false)),
                   topTitles:
-                      const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      AxisTitles(sideTitles = const SideTitles(showTitles: false)),
                 ),
                 gridData: FlGridData(
-                  drawVerticalLine: false,
-                  horizontalInterval: 30,
-                  getDrawingHorizontalLine: (_) =>
+                  drawVerticalLine = false,
+                  horizontalInterval = 30,
+                  getDrawingHorizontalLine = (_) =>
                       FlLine(color: Colors.grey.shade100, strokeWidth: 1),
                 ),
-                borderData: FlBorderData(show: false),
+                borderData: FlBorderData(show = false),
                 barGroups: List.generate(
                   top.length,
                   (i) => BarChartGroupData(
@@ -214,17 +215,17 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                 ),
               ),
             ),
-          ).animate(delay: 100.ms).fadeIn(),
-          const SizedBox(height: 20),
+          ).animate(delay = 100.ms).fadeIn(),
+          SizedBox(height = 20),
         ],
 
         // All apps list
         Text('All Apps',
-            style: GoogleFonts.plusJakartaSans(
+            style = GoogleFonts.plusJakartaSans(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: const Color(0xFF5F6368))),
-        const SizedBox(height: 8),
+        SizedBox(height = 8),
         ..._usage.asMap().entries.map((e) => _AppUsageRow(
               entry: e.value,
               limit: _limits[e.value.packageName],
@@ -265,7 +266,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
               child: const Text('Got it')),
         ],
       ),
-    ));
+    ))
   }
 }
 
@@ -315,7 +316,7 @@ class _SummaryCard extends StatelessWidget {
           const Icon(Icons.phone_android, color: Colors.white38, size: 48),
         ],
       ),
-    ));
+    ))
   }
 }
 
@@ -439,6 +440,6 @@ class _AppUsageRow extends StatelessWidget {
             ),
         ],
       ),
-    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 300.ms));
+    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 300.ms))
   }
 }

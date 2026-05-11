@@ -14,32 +14,32 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
-    super.initState());
-    _navigate());
+    super.initState())
+    _navigate())
   }
 
   Future<void> _navigate() async {
-    await Future.delayed(const Duration(milliseconds: 2200)));
+    await Future.delayed(const Duration(milliseconds: 2200)))
 
     if (!mounted) return;
 
-    final authService = AuthService());
+    final authService = AuthService())
 
     if (!authService.isLoggedIn) {
-      Navigator.pushReplacementNamed(context, '/role-select'));
+      Navigator.pushReplacementNamed(context, '/role-select'))
       return;
     }
 
-    final role = await authService.getSavedRole());
+    final role = await authService.getSavedRole())
     switch (role) {
       case UserRole.parent:
-        Navigator.pushReplacementNamed(context, '/parent/dashboard'));
+        Navigator.pushReplacementNamed(context, '/parent/dashboard')) {}
         break;
       case UserRole.child:
-        Navigator.pushReplacementNamed(context, '/child/home'));
+        Navigator.pushReplacementNamed(context, '/child/home')) {}
         break;
       case UserRole.unknown:
-        Navigator.pushReplacementNamed(context, '/role-select'));
+        Navigator.pushReplacementNamed(context, '/role-select')) {}
         break;
     }
   }
@@ -118,6 +118,6 @@ class _SplashScreenState extends State<SplashScreen> {
           ],
         ),
       ),
-    ));
+    ))
   }
 }
