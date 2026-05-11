@@ -18,7 +18,7 @@ class BackgroundMonitoringService {
         onStart: _onStart,
         // autoStart: true — Android will restart this service if the OS kills it
         // (e.g. low memory). Without this the service dies permanently on swipe.
-        autoStart: true,
+        autoStart: false,
         isForegroundMode: true,
         notificationChannelId:           'family_monitor_bg',
         initialNotificationTitle:        'Family Monitor',
