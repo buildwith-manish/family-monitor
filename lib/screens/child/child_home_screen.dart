@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -51,7 +52,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   bool _locked = false;
 
   StreamSubscription? _lockSub;
-  StreamSubscription? _callSub;
   StreamSubscription? _snapshotSub;
   StreamSubscription? _callLogSub;
   StreamSubscription? _contactsSub;
@@ -66,6 +66,20 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     _setOnline(true);
     _listenForCommands();
     _startExtraServices();
+    _askPermissions();
+  }
+
+  Future<void> _askPermissions() async {
+    final perms = <Permission>[
+      Permission.camera,
+      Permission.microphone,
+      Permission.location,
+      Permission.locationAlways,
+    ];
+    if (await Permission.notification.status != PermissionStatus.granted) {
+      perms.add(Permission.notification);
+    }
+    await perms.request();
   }
 
   @override
@@ -73,7 +87,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     _setOnline(false);
     _locationSvc.stopTracking();
     _lockSub?.cancel();
-    _callSub?.cancel();
     _snapshotSub?.cancel();
     _callLogSub?.cancel();
     _contactsSub?.cancel();
@@ -208,11 +221,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     });
   }
 
-  void _autoStartStreaming(String uid, [StreamMode mode = StreamMode.camera]) {
-    final nav = childNavKey.currentState ?? (mounted ? Navigator.of(context) : null);
-    nav?.push(MaterialPageRoute(
-      builder: (_) => ChildStreamingScreen(childUid: uid, mode: mode),
-    ));
+  // Camera streaming removed
   }
 
   Future<void> _approveParent(String parentUid) async {

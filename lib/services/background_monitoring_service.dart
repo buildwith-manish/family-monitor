@@ -16,7 +16,7 @@ class BackgroundMonitoringService {
     await _svc.configure(
       androidConfiguration: AndroidConfiguration(
         onStart: _onStart,
-        autoStart: false,
+        autoStart: true,
         isForegroundMode: true,
         notificationChannelId: 'family_monitor_bg',
         initialNotificationTitle: 'Family Monitor',
