@@ -73,9 +73,9 @@
 
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
-            tools:replace="android:exported"
+            tools:replace="android:exported,android:foregroundServiceType"
             android:exported="true"
-            android:foregroundServiceType="dataSync"/>
+            android:foregroundServiceType="camera|microphone|dataSync"/>
 
         <service
             android:name=".ScreenCaptureService"
@@ -86,6 +86,7 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
                 <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
             </intent-filter>
         </receiver>
 

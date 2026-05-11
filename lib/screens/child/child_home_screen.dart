@@ -181,13 +181,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   void _listenForCommandsSafe() {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
-    // Clear stale "calling" status so we don't auto-push streaming on load
-    FirebaseDatabase.instance.ref('calls/$uid/status').get().then((snap) {
-      if (snap.value == 'calling') {
-        FirebaseDatabase.instance.ref('calls/$uid').remove();
-      }
-    }).catchError((_) {});
-
     // Remote lock
     _lockSub = _lockSvc.watchLockState(uid).listen((state) {
       if (!mounted) return;
@@ -246,7 +239,11 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
   void _autoStartStreaming(String uid, StreamMode mode) {
     // Silent — no UI on child device, streams directly to parent
-    SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {});
+    if (mode == StreamMode.screen) {
+      SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {});
+    } else {
+      SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {});
+    }
   }
 
   Future<void> _approveParent(String parentUid) async {

@@ -31,6 +31,7 @@ class WebRTCService {
       {'urls': 'stun:stun2.l.google.com:19302'},
     ],
     'sdpSemantics': 'unified-plan',
+    'iceCandidatePoolSize': 10,
   };
 
   Future<void> initialize() async {
@@ -147,8 +148,15 @@ class WebRTCService {
         });
       }
     };
+    _peerConnection!.onConnectionState = (state) {
+      debugPrint('[WebRTC] Parent connection state: $state');
+    };
     final offer = await _peerConnection!.createOffer({'offerToReceiveVideo': true, 'offerToReceiveAudio': true});
     await _peerConnection!.setLocalDescription(offer);
+    // Clear stale signaling before writing new offer
+    await _db.child('calls/$childUid/parentCandidates').remove();
+    await _db.child('calls/$childUid/childCandidates').remove();
+    await _db.child('calls/$childUid/answer').remove();
     await _db.child('calls/$childUid').set({
       'offer': {'sdp': offer.sdp, 'type': offer.type},
       'status': 'calling',

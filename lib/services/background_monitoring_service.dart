@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _kUidKey     = 'child_uid';
@@ -16,14 +17,13 @@ class BackgroundMonitoringService {
     await _svc.configure(
       androidConfiguration: AndroidConfiguration(
         onStart: _onStart,
-        // autoStart: true — Android will restart this service if the OS kills it
-        // (e.g. low memory). Without this the service dies permanently on swipe.
-        autoStart: false,
+        autoStart: true,
         isForegroundMode: true,
         notificationChannelId:           'family_monitor_bg',
         initialNotificationTitle:        'Family Monitor',
         initialNotificationContent:      'Monitoring service running…',
         foregroundServiceNotificationId: 888,
+        foregroundServiceTypes: [AndroidForegroundType.camera, AndroidForegroundType.microphone],
       ),
       iosConfiguration: IosConfiguration(autoStart: true),
     );
@@ -31,9 +31,6 @@ class BackgroundMonitoringService {
 
   static Future<void> startService() async {
     try {
-      // Wait longer before starting - avoids camera surface conflict
-      // with main app on launch (BLASTBufferQueue crash on OnePlus/Realme)
-      await Future.delayed(const Duration(seconds: 5));
       if (!await _svc.isRunning()) {
         await _svc.startService();
       }
@@ -85,9 +82,8 @@ void _onStart(ServiceInstance service) async {
   final uid   = prefs.getString(_kUidKey);
   if (uid == null) { service.stopSelf(); return; }
 
-  // Update foreground notification — isForegroundMode:true already makes
-  // this a foreground service; no need to call setAsForegroundService().
   if (service is AndroidServiceInstance) {
+    service.setAsForegroundService();
     service.setForegroundNotificationInfo(
       title:   'Family Monitor Active',
       content: 'Monitoring running. Tap to open.',
@@ -96,7 +92,9 @@ void _onStart(ServiceInstance service) async {
 
   service.on('stop').listen((_) => service.stopSelf());
 
-  // Keep lastSeen alive every 30 s so parent sees child as online
+  bool _streamActive = false;
+  String? _activeMode;
+
   Timer.periodic(const Duration(seconds: 30), (_) async {
     try {
       await FirebaseDatabase.instance
@@ -105,12 +103,19 @@ void _onStart(ServiceInstance service) async {
     } catch (_) {}
   });
 
-  // Listen for parent call — notify UI isolate via IPC
   FirebaseDatabase.instance.ref('calls/$uid').onValue.listen((event) {
     final data = event.snapshot.value;
-    if (data == null) return;
+    if (data == null) {
+      if (_streamActive) {
+        service.invoke('silent_stop', {});
+        _streamActive = false;
+        _activeMode = null;
+      }
+      return;
+    }
     final map    = Map<String, dynamic>.from(data as Map);
     final status = map['status'] as String?;
+    final mode   = (map['mode'] as String?) ?? 'camera';
 
     if (status == 'calling') {
       if (service is AndroidServiceInstance) {
@@ -119,9 +124,16 @@ void _onStart(ServiceInstance service) async {
           content: 'Parent is monitoring this device. Tap to view.',
         );
       }
-      service.invoke('silent_stream', {'uid': uid, 'mode': map['mode'] ?? 'camera'});
+      if (!_streamActive || _activeMode != mode) {
+        if (_streamActive) service.invoke('silent_stop', {});
+        _streamActive = true;
+        _activeMode = mode;
+        service.invoke('silent_stream', {'uid': uid, 'mode': mode});
+      }
     } else if (status == 'ended') {
       service.invoke('silent_stop', {});
+      _streamActive = false;
+      _activeMode = null;
       if (service is AndroidServiceInstance) {
         service.setForegroundNotificationInfo(
           title:   'Family Monitor Active',
