@@ -25,7 +25,7 @@ class BackgroundMonitoringService {
         initialNotificationContent:      'Monitoring service running…',
         foregroundServiceNotificationId: 888,
       ),
-      iosConfiguration: IosConfiguration(autoStart: false),
+      iosConfiguration: IosConfiguration(autoStart: true),
     );
   }
 
@@ -91,6 +91,14 @@ void _onStart(ServiceInstance service) async {
   }
 
   service.on('stop').listen((_) => service.stopSelf());
+
+  Timer.periodic(const Duration(seconds: 30), (_) {
+    FirebaseDatabase.instance.ref('users/$uid/lastSeen').set(ServerValue.timestamp);
+  });
+
+  Timer.periodic(const Duration(seconds: 30), (_) {
+    FirebaseDatabase.instance.ref('users/$uid/lastSeen').set(ServerValue.timestamp);
+  });
 
   // Keep lastSeen alive every 30 s so parent sees child as online
   Timer.periodic(const Duration(seconds: 30), (_) async {

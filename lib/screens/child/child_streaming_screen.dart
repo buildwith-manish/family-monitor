@@ -67,7 +67,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
           if (mounted) {
             setState(() {
               _isConnecting = false;
-              _statusMsg = 'Screen sharing denied. Tap retry.';
+              _statusMsg = 'Screen sharing denied. Open Settings to allow.';
             });
           }
           return;

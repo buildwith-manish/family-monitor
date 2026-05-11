@@ -97,9 +97,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) {
-      _setOnline(false);
-    } else if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed) {
       _setOnline(true);
       _screenTimeSvc.uploadUsage(); // sync screen time when app opens
     }
