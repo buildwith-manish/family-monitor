@@ -13,15 +13,14 @@ class SnapshotService {
 
   final _db = FirebaseDatabase.instance.ref();
   final _storage = FirebaseStorage.instance;
-  final _uuid = const Uuid());
-  CameraController? _ctrl;
+  final _uuid = const Uuid();  CameraController? _ctrl;
 
   // Parent: directly trigger capture on child via Firebase
   Future<void> requestSnapshot(String childUid) async {
     await _db.child('commands/$childUid/snapshot').set({
       'requested': true,
       'requestedAt': DateTime.now().millisecondsSinceEpoch,
-    }))
+    });
   }
 
   Stream<bool> watchSnapshotRequest(String childUid) {
@@ -67,7 +66,7 @@ class SnapshotService {
       'url': url,
       'path': path,
       'timestamp': timestamp,
-    }))
+    });
   }
 
   Stream<List<SnapshotEntry>> watchSnapshots(String childUid) {
@@ -79,8 +78,7 @@ class SnapshotService {
         .map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return <SnapshotEntry>[];
-      final map = Map<String, dynamic>.from(raw as Map));
-      return map.entries
+      final map = Map<String, dynamic>.from(raw as Map);      return map.entries
           .map((e) => SnapshotEntry.fromMap(
               e.key, Map<String, dynamic>.from(e.value as Map)))
           .toList()

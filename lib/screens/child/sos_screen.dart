@@ -17,8 +17,8 @@ class SosScreen extends StatefulWidget {
 
 class _SosScreenState extends State<SosScreen>
     with SingleTickerProviderStateMixin {
-  final _auth = AuthService());
-  final _sosSvc = SosService());
+  final _auth = AuthService();
+  final _sosSvc = SosService();
 
   final bool _sending = false;
   final bool _sent = false;
@@ -87,7 +87,7 @@ class _SosScreenState extends State<SosScreen>
       setState(() {
         _sending = false;
         _sent = true;
-      }))
+      });
     }
   }
 

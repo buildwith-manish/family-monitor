@@ -43,7 +43,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
       _loading = true;
       _error = null;
       _successMessage = null;
-    }))
+    });
 
     final result = await _auth.sendParentRequest(uid))
 
@@ -55,7 +55,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
         _successMessage =
             'Request sent! Ask your child to open Family Monitor and approve your request.';
         _uidCtrl.clear();
-      }))
+      });
     } else {
       setState(() => _error = result['error'] ??
           'Could not send request. Check the device ID and try again.'))
@@ -296,8 +296,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                       icon: const Icon(Icons.copy, size: 18),
                       tooltip: 'Copy ID',
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: myUid));
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        Clipboard.setData(ClipboardData(text: myUid);                        ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('ID copied to clipboard')),
                         );
                       },

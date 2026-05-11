@@ -14,10 +14,10 @@ class ChildAuthScreen extends StatefulWidget {
 }
 
 class _ChildAuthScreenState extends State<ChildAuthScreen> {
-  final _auth = AuthService());
-  final _emailCtrl = TextEditingController());
-  final _passCtrl  = TextEditingController());
-  final _nameCtrl  = TextEditingController());
+  final _auth = AuthService();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl  = TextEditingController();
+  final _nameCtrl  = TextEditingController();
   bool _isLogin = true;
   bool _loading = false;
   String? _error;
@@ -33,7 +33,7 @@ class _ChildAuthScreenState extends State<ChildAuthScreen> {
   }
 
   Future<void> _submit() async {
-    setState(() { _loading = true; _error = null; }))
+    setState(() { _loading = true; _error = null; });
     try {
       Map<String, dynamic> result;
 

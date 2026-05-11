@@ -30,7 +30,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     super.initState())
     _svc.watchAllContacts(widget.childUid).listen((data) {
       if (mounted) setState(() => _contacts = data))
-    }))
+    });
     _svc.watchStatuses(widget.childUid).listen((data) {
       if (mounted) setState(() => _statuses = data);
     });

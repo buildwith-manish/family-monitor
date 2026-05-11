@@ -50,7 +50,7 @@ class ContactsService {
     await _db.child('contacts/$uid/all').set({
       ...data,
       '_syncedAt': DateTime.now().millisecondsSinceEpoch,
-    }))
+    });
   }
 
   // ── Watch contact list (parent side) ──────────────────────────────────────
@@ -58,8 +58,7 @@ class ContactsService {
     return _db.child('contacts/$childUid/all').onValue.map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return <ContactEntry>[];
-      final map = Map<String, dynamic>.from(raw as Map));
-      return map.entries
+      final map = Map<String, dynamic>.from(raw as Map);      return map.entries
           .where((e) => e.key != '_syncedAt')
           .map((e) {
             final data = Map<String, dynamic>.from(e.value as Map);
@@ -75,8 +74,7 @@ class ContactsService {
             ))
           })
           .toList()
-        ..sort((a, b) => a.displayName.compareTo(b.displayName));
-    });
+        ..sort((a, b) => a.displayName.compareTo(b.displayName);    });
   }
 
   // ── Approve / block a contact (parent side) ───────────────────────────────
@@ -92,8 +90,7 @@ class ContactsService {
     return _db.child('contacts/$childUid/status').onValue.map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return <String, ContactStatus>{};
-      final map = Map<String, dynamic>.from(raw as Map));
-      return map.map((k, v) => MapEntry(
+      final map = Map<String, dynamic>.from(raw as Map);      return map.map((k, v) => MapEntry(
             k,
             ContactStatus.values.firstWhere(
               (e) => e.name == v.toString(),
@@ -108,7 +105,7 @@ class ContactsService {
     await _db.child('commands/$childUid/syncContacts').set({
       'requested': true,
       'at': DateTime.now().millisecondsSinceEpoch,
-    }))
+    });
   }
 
   Stream<bool> watchSyncRequest(String childUid) {

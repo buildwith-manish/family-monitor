@@ -7,8 +7,7 @@ class SmsService {
   static final SmsService _i = SmsService._();
   factory SmsService() => _i;
   SmsService._();
-  static const _ch = MethodChannel('family_monitor/sms'));
-  final _db = FirebaseDatabase.instance.ref();
+  static const _ch = MethodChannel('family_monitor/sms');  final _db = FirebaseDatabase.instance.ref();
 
   Future<bool> requestPermission() async =>
       (await Permission.sms.request()).isGranted;
@@ -16,7 +15,7 @@ class SmsService {
   Future<void> syncSms(String childUid) async {
     try {
       if (!await Permission.sms.isGranted) return;
-      final List raw = await _ch.invokeMethod('readSms', {'limit': 100}))
+      final List raw = await _ch.invokeMethod('readSms', {'limit': 100});
       final Map<String, dynamic> data = {};
       for (final m in raw) {
         final mm = Map<String, dynamic>.from(m as Map))
@@ -29,15 +28,13 @@ class SmsService {
 
   Stream<bool> watchSyncRequest(String childUid) => _db
       .child('commands/$childUid/syncSms/requested')
-      .onValue.map((e) => e.snapshot.value == true));
-
+      .onValue.map((e) => e.snapshot.value == true);
   static Stream<List<SmsEntry>> watchMessages(String childUid) {
     return FirebaseDatabase.instance
         .ref('sms/$childUid').orderByChild('date').limitToLast(200)
         .onValue.map((e) {
       if (e.snapshot.value == null) return <SmsEntry>[];
-      final map = Map<String, dynamic>.from(e.snapshot.value as Map));
-      final list = map.values.map((v) =>
+      final map = Map<String, dynamic>.from(e.snapshot.value as Map);      final list = map.values.map((v) =>
           SmsEntry.fromMap(Map<String, dynamic>.from(v as Map))).toList())
       list.sort((a, b) => b.date.compareTo(a.date)))
       return list;
@@ -46,7 +43,7 @@ class SmsService {
 
   Future<void> requestSync(String childUid) async {
     await FirebaseDatabase.instance.ref('commands/$childUid/syncSms')
-        .set({'requested': true, 'at': DateTime.now().millisecondsSinceEpoch}))
+        .set({'requested': true, 'at': DateTime.now().millisecondsSinceEpoch});
   }
 }
 

@@ -94,7 +94,7 @@ class LocationService {
       'speed': position.speed,
       'timestamp': position.timestamp.millisecondsSinceEpoch,
       'sharing': true,
-    }))
+    });
   }
 
   // ── Listen to a child's location (parent device) ───────────────────────────

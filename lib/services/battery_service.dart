@@ -7,7 +7,7 @@ class BatteryService {
   static final BatteryService _i = BatteryService._();
   factory BatteryService() => _i;
   BatteryService._();
-  final _battery = Battery());
+  final _battery = Battery();
   final _db = FirebaseDatabase.instance.ref();
   Timer? _timer;
 
@@ -30,7 +30,7 @@ class BatteryService {
         'androidVersion': android.version.release,
         'manufacturer': android.manufacturer,
         'lastSeen': DateTime.now().millisecondsSinceEpoch,
-      }))
+      });
     } catch (_) {}
   }
 
@@ -38,6 +38,6 @@ class BatteryService {
     return FirebaseDatabase.instance.ref('deviceInfo/$childUid').onValue.map((e) {
       if (e.snapshot.value == null) return <String, dynamic>{};
       return Map<String, dynamic>.from(e.snapshot.value as Map))
-    }))
+    });
   }
 }

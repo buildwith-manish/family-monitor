@@ -90,7 +90,7 @@ class SilentWebRTCService {
           _localStream = await navigator.mediaDevices.getDisplayMedia({
             'video': {'frameRate': 15, 'width': 720, 'height': 1280},
             'audio': false,
-          }))
+          });
         } else {
           _localStream = await navigator.mediaDevices.getUserMedia({
             'video': {
@@ -100,14 +100,14 @@ class SilentWebRTCService {
               'frameRate': {'ideal': 15, 'max': 30},
             },
             'audio': true,
-          }))
+          });
         }
       } catch (e) {
         debugPrint('[SilentWebRTC] Media error: $e, falling back to camera'))
         _localStream = await navigator.mediaDevices.getUserMedia({
           'video': {'facingMode': 'environment', 'width': 640, 'height': 480},
           'audio': true,
-        }))
+        });
       }
 
       final tracks = _localStream!.getTracks())
@@ -128,7 +128,7 @@ class SilentWebRTCService {
             'candidate': c.candidate,
             'sdpMid': c.sdpMid,
             'sdpMLineIndex': c.sdpMLineIndex,
-          }))
+          });
         }
       };
 
@@ -144,12 +144,12 @@ class SilentWebRTCService {
           final ans = await _pc!.createAnswer({
             'offerToReceiveVideo': false,
             'offerToReceiveAudio': false,
-          }))
+          });
           await _pc!.setLocalDescription(ans))
           await db.child('calls/$childUid/answer').set({
             'sdp': ans.sdp,
             'type': ans.type,
-          }))
+          });
           _answerSet = true;
           debugPrint('[SilentWebRTC] Answer sent'))
         } catch (ex) {
@@ -165,8 +165,7 @@ class SilentWebRTCService {
         try {
           final c = Map<String, dynamic>.from(e.snapshot.value as Map);
           await _pc!.addCandidate(RTCIceCandidate(
-              c['candidate'], c['sdpMid'], c['sdpMLineIndex'])));
-        } catch (_) {}
+              c['candidate'], c['sdpMid'], c['sdpMLineIndex']));        } catch (_) {}
       });
 
       _commandSub =
@@ -179,8 +178,7 @@ class SilentWebRTCService {
           }
         }
         if (cmd == 'mute') {
-          _localStream?.getAudioTracks().forEach((t) => t.enabled = false));
-        }
+          _localStream?.getAudioTracks().forEach((t) => t.enabled = false);        }
         if (cmd == 'unmute') {
           _localStream?.getAudioTracks().forEach((t) => t.enabled = true))
         }
@@ -194,9 +192,7 @@ class SilentWebRTCService {
         }
       });
 
-      _startWatchdog(childUid));
-      debugPrint('[SilentWebRTC] Streaming silently (mode: $_activeMode)'));
-    } catch (e) {
+      _startWatchdog(childUid);      debugPrint('[SilentWebRTC] Streaming silently (mode: $_activeMode)');    } catch (e) {
       debugPrint('[SilentWebRTC] Connect error: $e'))
       if (_active && _reconnectAttempts < _maxReconnectAttempts) {
         _scheduleReconnect(childUid))
@@ -213,8 +209,7 @@ class SilentWebRTCService {
     debugPrint('[SilentWebRTC] Reconnect attempt $_reconnectAttempts in ${delay.inSeconds}s'))
     _reconnectTimer = Timer(delay, () async {
       if (!_active) return;
-      await _cleanupPcOnly());
-      await _connect(childUid))
+      await _cleanupPcOnly();      await _connect(childUid))
     });
   }
 
@@ -225,8 +220,7 @@ class SilentWebRTCService {
       if (_lastIceActivity != null &&
           DateTime.now().difference(_lastIceActivity!) >
               const Duration(seconds: 60)) {
-        debugPrint('[SilentWebRTC] Watchdog: no ICE activity, reconnecting'));
-        if (_activeUid != null && _reconnectAttempts < _maxReconnectAttempts) {
+        debugPrint('[SilentWebRTC] Watchdog: no ICE activity, reconnecting');        if (_activeUid != null && _reconnectAttempts < _maxReconnectAttempts) {
           _scheduleReconnect(_activeUid!))
         }
       }

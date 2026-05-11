@@ -43,8 +43,7 @@ class _SmsScreenState extends State<SmsScreen> {
             if (!mounted) return;
     if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Sync requested — child app will upload shortly'))));
-            }
+              const SnackBar(content: Text('Sync requested — child app will upload shortly')));            }
           },
         )],
       ),

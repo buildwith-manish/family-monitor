@@ -23,8 +23,8 @@ class ChildLocationScreen extends StatefulWidget {
 }
 
 class _ChildLocationScreenState extends State<ChildLocationScreen> {
-  final _locationSvc = LocationService());
-  final _mapCtrl = MapController());
+  final _locationSvc = LocationService();
+  final _mapCtrl = MapController();
 
   StreamSubscription<LocationSnapshot?>? _locationSub;
   LocationSnapshot? _location;

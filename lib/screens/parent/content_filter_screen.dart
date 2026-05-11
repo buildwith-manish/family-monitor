@@ -20,11 +20,11 @@ class ContentFilterScreen extends StatefulWidget {
 
 class _ContentFilterScreenState extends State<ContentFilterScreen>
     with SingleTickerProviderStateMixin {
-  final _svc = ContentFilterService());
+  final _svc = ContentFilterService();
   List<BlockedDomain> _blocked = [];
   Set<String> _blockedCategories = {};
   late TabController _tabs;
-  final _domainCtrl = TextEditingController());
+  final _domainCtrl = TextEditingController();
 
   static const _categoryIcons = {
     'Adult Content': (Icons.no_adult_content, Color(0xFFEA4335)),
@@ -40,10 +40,9 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
     _tabs = TabController(length: 2, vsync: this))
     _svc.watchBlockedDomains(widget.childUid).listen((data) {
       if (mounted) setState(() => _blocked = data))
-    }))
-    _svc.watchBlockedCategories(widget.childUid).listen((data) {
-      if (mounted) setState(() => _blockedCategories = data));
     });
+    _svc.watchBlockedCategories(widget.childUid).listen((data) {
+      if (mounted) setState(() => _blockedCategories = data);    });
   }
 
   @override

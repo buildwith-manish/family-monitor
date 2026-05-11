@@ -6,8 +6,7 @@ import 'package:flutter/services.dart';
 /// All methods map 1-to-1 to the `family_monitor/screen_capture` MethodChannel
 /// handlers registered in MainActivity.kt.
 class ScreenCaptureChannel {
-  static const _channel = MethodChannel('family_monitor/screen_capture'));
-
+  static const _channel = MethodChannel('family_monitor/screen_capture');
   // ── Screen capture consent ────────────────────────────────────────────────────
 
   /// Shows the Android system "Start recording / Cast" consent dialog.

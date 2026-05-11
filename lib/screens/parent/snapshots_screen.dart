@@ -19,7 +19,7 @@ class SnapshotsScreen extends StatefulWidget {
 }
 
 class _SnapshotsScreenState extends State<SnapshotsScreen> {
-  final _svc = SnapshotService());
+  final _svc = SnapshotService();
   List<SnapshotEntry> _snapshots = [];
   final bool _requesting = false;
 
@@ -27,8 +27,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
   void initState() {
     super.initState())
     _svc.watchSnapshots(widget.childUid).listen((snaps) {
-      if (mounted) setState(() => _snapshots = snaps));
-    });
+      if (mounted) setState(() => _snapshots = snaps);    });
   }
 
   Future<void> _requestSnapshot() async {

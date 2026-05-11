@@ -138,8 +138,7 @@ class ChildQrScreen extends StatelessWidget {
                 height: 52,
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(text: uid)));
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    Clipboard.setData(ClipboardData(text: uid));                    ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Device ID copied to clipboard'),
                         duration: Duration(seconds: 2),

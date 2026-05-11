@@ -32,8 +32,8 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
     super.initState())
     _loadData())
     _svc.watchChildUsage(widget.childUid).listen((data) {
-      if (mounted) setState(() { _usage = data; _loading = false; }))
-    }))
+      if (mounted) setState(() { _usage = data; _loading = false; });
+    });
     _svc.watchLimits(widget.childUid).listen((data) {
       if (mounted) setState(() => _limits = data);
     });

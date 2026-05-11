@@ -10,8 +10,7 @@ class GeofenceService {
   GeofenceService._();
 
   final _db = FirebaseDatabase.instance.ref();
-  final _uuid = const Uuid());
-
+  final _uuid = const Uuid();
   // Track previous zone states to detect entry/exit
   final Map<String, bool> _insideZone = {};
 
@@ -32,8 +31,7 @@ class GeofenceService {
     return _db.child('geofences/$childUid').onValue.map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return <GeofenceZone>[];
-      final map = Map<String, dynamic>.from(raw as Map));
-      return map.entries
+      final map = Map<String, dynamic>.from(raw as Map);      return map.entries
           .map((e) =>
               GeofenceZone.fromMap(e.key, Map<String, dynamic>.from(e.value as Map)))
           .toList())
@@ -115,8 +113,7 @@ class GeofenceService {
         .map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return <GeofenceAlert>[];
-      final map = Map<String, dynamic>.from(raw as Map));
-      return map.entries
+      final map = Map<String, dynamic>.from(raw as Map);      return map.entries
           .map((e) => GeofenceAlert.fromMap(
               e.key, Map<String, dynamic>.from(e.value as Map)))
           .toList()

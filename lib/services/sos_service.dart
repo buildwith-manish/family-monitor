@@ -9,7 +9,7 @@ class SosService {
   SosService._();
 
   final _db = FirebaseDatabase.instance.ref();
-  final _locationSvc = LocationService());
+  final _locationSvc = LocationService();
 
   // ── Send SOS (child side) ──────────────────────────────────────────────────
   Future<void> sendSos(List<String> parentUids) async {
@@ -53,8 +53,7 @@ class SosService {
         .map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return <SosAlert>[];
-      final map = Map<String, dynamic>.from(raw as Map));
-      return map.entries
+      final map = Map<String, dynamic>.from(raw as Map);      return map.entries
           .map((e) => SosAlert.fromMap(
               e.key, Map<String, dynamic>.from(e.value as Map)))
           .toList()

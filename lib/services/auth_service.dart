@@ -38,7 +38,7 @@ class AuthService {
         'email': email,
         'createdAt': ServerValue.timestamp,
         'children': {},
-      }))
+      });
 
       await _saveLocalRole('parent'))
       return {'success': true, 'user': cred.user};
@@ -88,7 +88,7 @@ class AuthService {
         'isOnline': false,
         'pendingParentRequests': {},
         'approvedParents': {},
-      }))
+      });
 
       await _saveLocalRole('child'))
       return {'success': true, 'uid': cred.user!.uid};
@@ -110,7 +110,7 @@ class AuthService {
         'parentEmail': parentData['email'],
         'requestedAt': ServerValue.timestamp,
         'status': 'pending',
-      }))
+      });
 
       return {'success': true};
     } catch (e) {
@@ -139,7 +139,7 @@ class AuthService {
         'deviceName': childData['deviceName'],
         'approvedAt': ServerValue.timestamp,
         'isOnline': false,
-      }))
+      });
 
       return {'success': true};
     } catch (e) {
@@ -227,7 +227,7 @@ class AuthService {
         'role': 'child', 'email': email, 'childName': childName,
         'createdAt': ServerValue.timestamp, 'isOnline': false,
         'pendingParentRequests': {}, 'approvedParents': {},
-      }))
+      });
       await _saveLocalRole('child'))
       return {'success': true, 'uid': cred.user!.uid};
     } on FirebaseAuthException catch (e) {

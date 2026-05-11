@@ -68,8 +68,7 @@ class ScreenTimeService {
     return _db.child('screen_time/$childUid/today').onValue.map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return <AppUsageEntry>[];
-      final map = Map<String, dynamic>.from(raw as Map));
-      final entries = map.entries
+      final map = Map<String, dynamic>.from(raw as Map);      final entries = map.entries
           .where((e) => e.key != '_updatedAt' && e.value is int)
           .map((e) => AppUsageEntry(
                 packageName: e.key,
@@ -102,7 +101,7 @@ class ScreenTimeService {
       if (event.snapshot.value == null) return <String, int>{};
       return Map<String, int>.from((event.snapshot.value as Map)
           .map((k, v) => MapEntry(k.toString(), v as int))))
-    }))
+    });
   }
 
   // ── Package → friendly name ────────────────────────────────────────────────

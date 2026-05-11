@@ -66,8 +66,7 @@ class WebRTCService {
       try {
         final d = Map<String, dynamic>.from(e.snapshot.value as Map);
         await _peerConnection!.setRemoteDescription(
-            RTCSessionDescription(d['sdp'], d['type']));
-        final ans = await _peerConnection!.createAnswer();
+            RTCSessionDescription(d['sdp'], d['type']);        final ans = await _peerConnection!.createAnswer();
         await _peerConnection!.setLocalDescription(ans);
         await _db.child('calls/$childUid/answer')
             .set({'sdp': ans.sdp, 'type': ans.type});
@@ -83,8 +82,7 @@ class WebRTCService {
       try {
         final c = Map<String, dynamic>.from(e.snapshot.value as Map);
         await _peerConnection!.addCandidate(
-            RTCIceCandidate(c['candidate'], c['sdpMid'], c['sdpMLineIndex']));
-      } catch (_) {}
+            RTCIceCandidate(c['candidate'], c['sdpMid'], c['sdpMLineIndex']);      } catch (_) {}
     });
     _commandSub =
         _db.child('calls/$childUid/command').onValue.listen((e) async {
@@ -127,8 +125,7 @@ class WebRTCService {
       try {
         final d = Map<String, dynamic>.from(e.snapshot.value as Map);
         await _peerConnection!.setRemoteDescription(
-            RTCSessionDescription(d['sdp'], d['type']));
-        final ans = await _peerConnection!.createAnswer();
+            RTCSessionDescription(d['sdp'], d['type']);        final ans = await _peerConnection!.createAnswer();
         await _peerConnection!.setLocalDescription(ans);
         await _db.child('calls/$childUid/answer')
             .set({'sdp': ans.sdp, 'type': ans.type});
@@ -144,8 +141,7 @@ class WebRTCService {
       try {
         final c = Map<String, dynamic>.from(e.snapshot.value as Map);
         await _peerConnection!.addCandidate(
-            RTCIceCandidate(c['candidate'], c['sdpMid'], c['sdpMLineIndex']));
-      } catch (_) {}
+            RTCIceCandidate(c['candidate'], c['sdpMid'], c['sdpMLineIndex']);      } catch (_) {}
     });
     _statusSub = _db.child('calls/$childUid/status').onValue.listen((e) {
       if (e.snapshot.value == 'ended') {
@@ -194,8 +190,7 @@ class WebRTCService {
       try {
         final d = Map<String, dynamic>.from(e.snapshot.value as Map);
         await _peerConnection!.setRemoteDescription(
-            RTCSessionDescription(d['sdp'], d['type']));
-        _answerSet = true;
+            RTCSessionDescription(d['sdp'], d['type']);        _answerSet = true;
       } catch (ex) {
         debugPrint('[WebRTC] remote desc error: $ex');
       }
@@ -208,8 +203,7 @@ class WebRTCService {
       try {
         final c = Map<String, dynamic>.from(e.snapshot.value as Map);
         await _peerConnection!.addCandidate(
-            RTCIceCandidate(c['candidate'], c['sdpMid'], c['sdpMLineIndex']));
-      } catch (_) {}
+            RTCIceCandidate(c['candidate'], c['sdpMid'], c['sdpMLineIndex']);      } catch (_) {}
     });
     _statusSub = _db.child('calls/$childUid/status').onValue.listen((e) {
       if (e.snapshot.value == 'ended') {
@@ -221,8 +215,7 @@ class WebRTCService {
 
   Future<void> sendFlipCommand(String childUid) async {
     await _db.child('calls/$childUid/command').set('flip');
-    await Future.delayed(const Duration(milliseconds: 500));
-    await _db.child('calls/$childUid/command').remove();
+    await Future.delayed(const Duration(milliseconds: 500);    await _db.child('calls/$childUid/command').remove();
   }
 
   Future<void> sendMuteCommand(String childUid, bool mute) async {
@@ -242,8 +235,7 @@ class WebRTCService {
 
   Future<void> endCall(String childUid) async {
     await _db.child('calls/$childUid/status').set('ended');
-    await Future.delayed(const Duration(milliseconds: 300));
-    await _db.child('calls/$childUid').remove();
+    await Future.delayed(const Duration(milliseconds: 300);    await _db.child('calls/$childUid').remove();
     await _cleanup();
   }
 
@@ -253,8 +245,7 @@ class WebRTCService {
     _candidateSub?.cancel();
     _statusSub?.cancel();
     _commandSub?.cancel();
-    _localStream?.getTracks().forEach((t) => t.stop();
-    await _localStream?.dispose();
+    _localStream?.getTracks().forEach((t) => t.stop();    await _localStream?.dispose();
     await _peerConnection?.close();
     _localStream = null;
     _peerConnection = null;

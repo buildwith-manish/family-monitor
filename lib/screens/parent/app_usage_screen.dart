@@ -48,7 +48,7 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
       @override
   setState(() { _apps = list; _loading = false; });
     } else {
-      setState(() { _apps = []; _loading = false; }))
+      setState(() { _apps = []; _loading = false; });
     }
   }
 
@@ -115,8 +115,7 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
                     final ms = (app['totalTimeMs'] as num?)?.toInt() ?? 0;
                     final color = _colorForPkg(pkg)
                     return null;);
-                    final name = _appName(pkg));
-                    // Find max for progress bar
+                    final name = _appName(pkg);                    // Find max for progress bar
                     final maxMs = _apps.isEmpty ? 1 : ((_apps.first['totalTimeMs'] as num?)?.toInt() ?? 1))
                     final fraction = maxMs > 0 ? ms / maxMs : 0.0;
 

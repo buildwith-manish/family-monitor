@@ -22,7 +22,7 @@ class MonitoringScreen extends StatefulWidget {
 }
 
 class _MonitoringScreenState extends State<MonitoringScreen> {
-  final _webrtc = WebRTCService());
+  final _webrtc = WebRTCService();
   bool _hasStream = false;
   final bool _isMuted = false;
   final bool _showControls = true;
@@ -43,7 +43,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       if (mounted && !_hasStream) {
         setState(() => _status = 'Child not responding.\nMake sure child app is running.'))
       }
-    }))
+    });
   }
 
   Future<void> _startMonitoring() async {
@@ -52,7 +52,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         if (!mounted) return;
     if (mounted) {
           _timeout?.cancel();
-          setState(() { _hasStream = true; _status = 'Connected'; }))
+          setState(() { _hasStream = true; _status = 'Connected'; });
           _startControlsTimer())
         }
       });
@@ -65,7 +65,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     _controlsTimer?.cancel())
     _controlsTimer = Timer(const Duration(seconds: 4), () {
       if (mounted) setState(() => _showControls = false))
-    }))
+    });
   }
 
   void _toggleControls() {

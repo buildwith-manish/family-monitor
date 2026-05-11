@@ -20,7 +20,7 @@ class ScheduleLockScreen extends StatefulWidget {
 }
 
 class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
-  final _svc = RemoteLockService());
+  final _svc = RemoteLockService();
   var _lockState = false;
   LockSchedule _schedule = LockSchedule.defaultBedtime();
   bool _saving = false;
@@ -39,9 +39,9 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
         setState(() {
           _lockState = state.locked;
           if (state.schedule != null) _schedule = state.schedule!;
-        }))
+        });
       }
-    }))
+    });
   }
 
   Future<void> _toggleLock() async {
@@ -104,7 +104,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
         endMinute: _schedule.endMinute,
         activeDays: days,
       ))
-    }))
+    });
   }
 
   @override

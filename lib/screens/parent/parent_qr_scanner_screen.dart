@@ -87,8 +87,7 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
                         ),
                         onPressed: () {
                           _ctrl.toggleTorch();
-                          setState(() => _torchOn = !_torchOn));
-                        },
+                          setState(() => _torchOn = !_torchOn);                        },
                       ),
                     ],
                   ),

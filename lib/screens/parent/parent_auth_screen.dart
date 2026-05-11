@@ -37,7 +37,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
     setState(() {
       _loading = true;
       _error = null;
-    }))
+    });
 
     Map<String, dynamic> result;
     if (_isLogin) {

@@ -20,7 +20,7 @@ class CallLogScreen extends StatefulWidget {
 
 class _CallLogScreenState extends State<CallLogScreen>
     with SingleTickerProviderStateMixin {
-  final _svc = CallLogService());
+  final _svc = CallLogService();
   List<CallRecord> _allCalls = [];
   bool _loading = true;
   final bool _requesting = false;
@@ -34,8 +34,7 @@ class _CallLogScreenState extends State<CallLogScreen>
       if (mounted) setState(() { _allCalls = data; _loading = false; });
     });
     @override
-  setState(() => _loading = false));
-  }
+  setState(() => _loading = false);  }
 
   @override
   void dispose() {

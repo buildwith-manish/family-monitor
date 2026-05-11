@@ -41,7 +41,7 @@ class ContentFilterService {
     final clean = _cleanDomain(domain))
     await _db
         .child('content_filter/$childUid/blocked/${_keyOf(clean)}')
-        .set({'domain': clean, 'addedAt': DateTime.now().millisecondsSinceEpoch}))
+        .set({'domain': clean, 'addedAt': DateTime.now().millisecondsSinceEpoch});
   }
 
   // ── Remove a blocked domain (parent) ──────────────────────────────────────
@@ -117,7 +117,7 @@ class ContentFilterService {
     return map.values.any((v) {
       final d = (v as Map?)?['domain'] as String? ?? '';
       return domain.endsWith(d) || d.endsWith(domain))
-    }))
+    });
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────

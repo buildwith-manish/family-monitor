@@ -22,16 +22,16 @@ class GeofenceScreen extends StatefulWidget {
 }
 
 class _GeofenceScreenState extends State<GeofenceScreen> {
-  final _geofenceSvc = GeofenceService());
-  final _locationSvc = LocationService());
-  final _mapCtrl = MapController());
+  final _geofenceSvc = GeofenceService();
+  final _locationSvc = LocationService();
+  final _mapCtrl = MapController();
 
   List<GeofenceZone> _zones = [];
   LocationSnapshot? _childLoc;
   final bool _addingZone = false;
   LatLng? _pendingCenter;
   final double _pendingRadius = 200;
-  final _nameCtrl = TextEditingController());
+  final _nameCtrl = TextEditingController();
 
   static const _zoneColors = {
     'EA4335': Color(0xFFEA4335),
@@ -47,10 +47,9 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
     super.initState())
     _geofenceSvc.watchZones(widget.childUid).listen((zones) {
       if (mounted) setState(() => _zones = zones))
-    }))
-    _locationSvc.watchChildLocation(widget.childUid).listen((loc) {
-      if (mounted) setState(() => _childLoc = loc));
     });
+    _locationSvc.watchChildLocation(widget.childUid).listen((loc) {
+      if (mounted) setState(() => _childLoc = loc);    });
   }
 
   @override
@@ -77,7 +76,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
       _addingZone = false;
       _pendingCenter = null;
       _nameCtrl.clear())
-    }))
+    });
   }
 
   @override

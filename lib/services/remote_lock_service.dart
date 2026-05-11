@@ -16,14 +16,14 @@ class RemoteLockService {
       'locked': true,
       'lockedAt': DateTime.now().millisecondsSinceEpoch,
       'lockedBy': 'parent',
-    }))
+    });
   }
 
   Future<void> unlockDevice(String childUid) async {
     await _db.child('commands/$childUid/lock').update({
       'locked': false,
       'unlockedAt': DateTime.now().millisecondsSinceEpoch,
-    }))
+    });
   }
 
   // ── Save bedtime schedule (parent) ─────────────────────────────────────────
@@ -37,8 +37,7 @@ class RemoteLockService {
   Stream<LockState> watchLockState(String childUid) {
     return _db.child('commands/$childUid/lock').onValue.map((event) {
       final raw = event.snapshot.value;
-      if (raw == null) return const LockState(locked: false));
-      return LockState.fromMap(Map<String, dynamic>.from(raw as Map)))
+      if (raw == null) return const LockState(locked: false);      return LockState.fromMap(Map<String, dynamic>.from(raw as Map)))
     });
   }
 

@@ -65,7 +65,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
         if (_batterySubs.containsKey(uid)) continue;
         _batterySubs[uid] = BatteryService.watchDeviceInfo(uid).listen((info) {
           if (mounted) setState(() => _deviceInfo[uid] = info))
-        }))
+        });
       }
     });
   }
@@ -77,7 +77,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
       if (!mounted) return;
       setState(() =>
           _sosAlerts = alerts.where((a) => !a.acknowledged).toList()))
-    }))
+    });
   }
 
   Future<void> _acknowledgeAll() async {

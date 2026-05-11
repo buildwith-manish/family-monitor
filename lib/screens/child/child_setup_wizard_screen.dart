@@ -22,10 +22,10 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
   bool _loading = false;
   String? _error;
 
-  final _nameCtrl = TextEditingController());
-  final _deviceCtrl = TextEditingController());
+  final _nameCtrl = TextEditingController();
+  final _deviceCtrl = TextEditingController();
 
-  final _auth = AuthService());
+  final _auth = AuthService();
 
   static const int _totalPages = 5;
 
@@ -93,13 +93,13 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
     setState(() {
       _loading = true;
       _error = null;
-    }))
+    });
 
     try {
       // Use already-logged-in user (email auth) — do NOT call signInAnonymously
       final uid = _auth.currentUser?.uid ?? widget.childUid;
       if (uid == null || uid.isEmpty) {
-        setState(() { _error = 'Session expired. Please sign in again.'; _loading = false; }))
+        setState(() { _error = 'Session expired. Please sign in again.'; _loading = false; });
         return;
       }
 
@@ -113,7 +113,7 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
         'deviceName': deviceName,
         'role': 'child',
         'isOnline': false,
-      }))
+      });
 
       await BackgroundMonitoringService.saveChildUid(uid))
       await BackgroundMonitoringService.setWizardDone(true))
@@ -419,7 +419,7 @@ class _WizardPage3State extends State<_WizardPage3> {
       setState(() {
         _cameraGranted = camStatus.isGranted;
         _micGranted = micStatus.isGranted;
-      }))
+      });
     }
   }
 
@@ -441,7 +441,7 @@ class _WizardPage3State extends State<_WizardPage3> {
     setState(() {
       _cameraGranted = camStatus.isGranted;
       _micGranted = micStatus.isGranted;
-    }))
+    });
   }
 
   @override
