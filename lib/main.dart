@@ -12,12 +12,12 @@ import 'screens/child/child_setup_wizard_screen.dart';
 import 'screens/child/child_home_screen.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized())
+  WidgetsFlutterBinding.ensureInitialized()
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
-  ]))
+  ])
 
   await Firebase.initializeApp(
     options: const FirebaseOptions(
@@ -29,9 +29,9 @@ void main() async {
       messagingSenderId: "758644747673",
       appId: "1:758644747673:android:69ef23a2fa4b508122f708",
     ),
-  ))
+  )
 
-  runApp(const FamilyMonitorApp()))
+  runApp(const FamilyMonitorApp())
 }
 
 class FamilyMonitorApp extends StatelessWidget {
@@ -53,17 +53,17 @@ class FamilyMonitorApp extends StatelessWidget {
         '/child/setup': (context) => const ChildSetupWizardScreen(),
         '/child/home': (context) => const ChildHomeScreen(),
       },
-    ))
+    )
   }
 
   ThemeData _buildTheme() {
-    final base = ThemeData(
+    final base: ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
         seedColor: const Color(0xFF1A73E8),
         brightness: Brightness.light,
       ),
-    ))
+    )
 
     return base.copyWith(
       textTheme: GoogleFonts.interTextTheme(base.textTheme),
@@ -105,7 +105,7 @@ class FamilyMonitorApp extends StatelessWidget {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: const Color(0xFF1A73E8),
-          side: const BorderSide(color: Color(0xFF1A73E8)),
+          side: const BorderSide(color: Color(0xFF1A73E8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -132,7 +132,7 @@ class FamilyMonitorApp extends StatelessWidget {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFEA4335)),
+          borderSide: const BorderSide(color: Color(0xFFEA4335),
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -147,6 +147,6 @@ class FamilyMonitorApp extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
         ),
       ),
-    ))
+    )
   }
 }

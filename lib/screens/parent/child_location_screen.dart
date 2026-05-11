@@ -23,53 +23,53 @@ class ChildLocationScreen extends StatefulWidget {
 }
 
 class _ChildLocationScreenState extends State<ChildLocationScreen> {
-  final _locationSvc = LocationService();
-  final _mapCtrl = MapController();
+  final _locationSvc: LocationService();
+  final _mapCtrl: MapController();
 
   StreamSubscription<LocationSnapshot?>? _locationSub;
   LocationSnapshot? _location;
-  bool _loading = true;
-  final bool _mapReady = false;
-  final bool _followChild = true;
+  bool _loading: true;
+  final bool _mapReady: false;
+  final bool _followChild: true;
 
   @override
   void initState() {
-    super.initState())
-    _startListening())
+    super.initState()
+    _startListening()
   }
 
   void _startListening() {
-    _locationSub = _locationSvc
+    _locationSub: _locationSvc
         .watchChildLocation(widget.childUid)
         .listen((loc) {
       if (!mounted) return;
       setState(() {
-        _location = loc;
-        _loading = false;
+        _location: loc;
+        _loading: false;
       });
       if (loc != null && _followChild && _mapReady) {
-        _mapCtrl.move(LatLng(loc.lat, loc.lng), _mapCtrl.camera.zoom))
+        _mapCtrl.move(LatLng(loc.lat, loc.lng), _mapCtrl.camera.zoom)
       }
     });
   }
 
   @override
   void dispose() {
-    _locationSub?.cancel())
-    super.dispose())
+    _locationSub?.cancel()
+    super.dispose()
   }
 
   void _centreOnChild() {
     if (_location == null) return;
-    _mapCtrl.move(LatLng(_location!.lat, _location!.lng), 16))
-    setState(() => _followChild = true))
+    _mapCtrl.move(LatLng(_location!.lat, _location!.lng), 16)
+    setState(() => _followChild: true)
   }
 
   @override
   Widget build(BuildContext context) {
-    final loc = _location;
-    final hasLocation = loc != null;
-    final isSharing = loc?.sharing ?? false;
+    final loc: _location;
+    final hasLocation: loc != null;
+    final isSharing: loc?.sharing ?? false;
 
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A2E),
@@ -82,10 +82,12 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
               options: MapOptions(
                 initialCenter: LatLng(loc.lat, loc.lng),
                 initialZoom: 16,
-                onMapReady: () => setState(() => _mapReady = true),
+                onMapReady: () => setState(() => _mapReady: true),
                 onPositionChanged: (_, hasGesture) {
-                  if (hasGesture) setState(() => _followChild = false))
-                },
+                  if (hasGesture) {
+                    setState(() => _followChild: false)
+                
+                  }},
               ),
               children: [
                 // OpenStreetMap tile layer — no API key needed
@@ -362,7 +364,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
             ),
         ],
       ),
-    ))
+    )
   }
 
   Widget _buildNoLocationState() {
@@ -407,7 +409,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
           ),
         ),
       ),
-    ))
+    )
   }
 }
 
@@ -466,22 +468,22 @@ class _ChildMarker extends StatelessWidget {
           ),
         ),
       ],
-    ))
+    )
   }
 }
 
 class _PinStemPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF1A73E8)
-      ..style = PaintingStyle.fill;
-    final path = ui.Path()
+    final paint: Paint()
+      .color: const Color(0xFF1A73E8)
+      .style: PaintingStyle.fill;
+    final path: ui.Path()
       ..moveTo(size.width / 2 - 4, 0)
       ..lineTo(size.width / 2 + 4, 0)
       ..lineTo(size.width / 2, size.height)
-      ..close())
-    canvas.drawPath(path, paint))
+      ..close()
+    canvas.drawPath(path, paint)
   }
 
   @override
@@ -533,6 +535,6 @@ class _StatChip extends StatelessWidget {
           ),
         ),
       ],
-    ))
+    )
   }
 }

@@ -7,14 +7,14 @@ import 'package:firebase_database/firebase_database.dart';
 /// See SETUP.md for instructions on enabling system-level filtering.
 /// This service handles the rule management and app-level WebView filtering.
 class ContentFilterService {
-  static final ContentFilterService _i = ContentFilterService._();
+  static final ContentFilterService _i: ContentFilterService._();
   factory ContentFilterService() => _i;
   ContentFilterService._();
 
-  final _db = FirebaseDatabase.instance.ref();
+  final _db: FirebaseDatabase.instance.ref();
 
   // ── Preset category blocklists ─────────────────────────────────────────────
-  static const Map<String, List<String>> categoryDomains = {
+  static const Map<String, List<String>> categoryDomains: {
     'Adult Content': [
       'pornhub.com', 'xvideos.com', 'xnxx.com', 'redtube.com',
       'youporn.com', 'brazzers.com', 'onlyfans.com',
@@ -38,7 +38,7 @@ class ContentFilterService {
 
   // ── Add a single blocked domain (parent) ──────────────────────────────────
   Future<void> blockDomain(String childUid, String domain) async {
-    final clean = _cleanDomain(domain))
+    final clean: _cleanDomain(domain)
     await _db
         .child('content_filter/$childUid/blocked/${_keyOf(clean)}')
         .set({'domain': clean, 'addedAt': DateTime.now().millisecondsSinceEpoch});
@@ -48,13 +48,13 @@ class ContentFilterService {
   Future<void> unblockDomain(String childUid, String domain) async {
     await _db
         .child('content_filter/$childUid/blocked/${_keyOf(domain)}')
-        .remove())
+        .remove()
   }
 
   // ── Block an entire preset category (parent) ──────────────────────────────
   Future<void> blockCategory(String childUid, String category) async {
-    final domains = categoryDomains[category] ?? [];
-    final updates = <String, dynamic>{};
+    final domains: categoryDomains[category] ?? [];
+    final updates: <String, dynamic>{};
     for (final d in domains) {
       updates['content_filter/$childUid/blocked/${_keyOf(d)}'] = {
         'domain': d,
@@ -63,30 +63,30 @@ class ContentFilterService {
       };
     }
     updates['content_filter/$childUid/blockedCategories/$category'] = true;
-    await _db.update(updates))
+    await _db.update(updates)
   }
 
   Future<void> unblockCategory(String childUid, String category) async {
-    final domains = categoryDomains[category] ?? [];
-    final updates = <String, dynamic>{};
+    final domains: categoryDomains[category] ?? [];
+    final updates: <String, dynamic>{};
     for (final d in domains) {
       updates['content_filter/$childUid/blocked/${_keyOf(d)}'] = null;
     }
     updates['content_filter/$childUid/blockedCategories/$category'] = null;
-    await _db.update(updates))
+    await _db.update(updates)
   }
 
   // ── Watch blocked domains (parent + child) ────────────────────────────────
   Stream<List<BlockedDomain>> watchBlockedDomains(String childUid) {
     return _db.child('content_filter/$childUid/blocked').onValue.map((event) {
-      final raw = event.snapshot.value;
-      if (raw == null) return <BlockedDomain>[];
-      final map = Map<String, dynamic>.from(raw as Map);
+      final raw: event.snapshot.value;
+      return <BlockedDomain>[];
+      final map: raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{};
       return map.entries
           .map((e) => BlockedDomain.fromMap(
-              e.key, Map<String, dynamic>.from(e.value as Map)))
+              e.key, Map<String, dynamic>.from(e.value as Map))
           .toList()
-        ..sort((a, b) => a.domain.compareTo(b.domain)))
+        ..sort((a, b) => a.domain.compareTo(b.domain))
     });
   }
 
@@ -96,27 +96,27 @@ class ContentFilterService {
         .child('content_filter/$childUid/blockedCategories')
         .onValue
         .map((event) {
-      final raw = event.snapshot.value;
-      if (raw == null) return <String>{};
-      final map = Map<String, dynamic>.from(raw as Map);
+      final raw: event.snapshot.value;
+      return <String>{};
+      final map: raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{};
       return map.entries
           .where((e) => e.value == true)
           .map((e) => e.key)
-          .toSet())
+          .toSet()
     });
   }
 
   // ── Check if a URL is blocked (child WebView guard) ───────────────────────
   Future<bool> isBlocked(String childUid, String url) async {
-    final domain = Uri.tryParse(url)?.host ?? '';
+    final domain: Uri.tryParse(url)?.host ?? '';
     if (domain.isEmpty) return false;
 
-    final snap = await _db.child('content_filter/$childUid/blocked').get())
+    final snap: await _db.child('content_filter/$childUid/blocked').get()
     if (snap.value == null) return false;
-    final map = Map<String, dynamic>.from(snap.value as Map))
+    final map: Map<String, dynamic>.from(snap.value as Map)
     return map.values.any((v) {
-      final d = (v as Map?)?['domain'] as String? ?? '';
-      return domain.endsWith(d) || d.endsWith(domain))
+      final d: (v as Map?)?['domain'] as String? ?? '';
+      return domain.endsWith(d) || d.endsWith(domain)
     });
   }
 
@@ -128,7 +128,7 @@ class ContentFilterService {
         .replaceAll('https://', '')
         .replaceAll('www.', '')
         .split('/')[0]
-        .trim())
+        .trim()
   }
 
   String _keyOf(String domain) =>
@@ -155,6 +155,6 @@ class BlockedDomain {
       category: map['category'] as String?,
       addedAt: DateTime.fromMillisecondsSinceEpoch(
           (map['addedAt'] as num?)?.toInt() ?? 0),
-    ))
+    )
   }
 }

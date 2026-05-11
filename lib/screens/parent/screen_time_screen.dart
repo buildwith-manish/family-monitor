@@ -20,46 +20,49 @@ class ScreenTimeScreen extends StatefulWidget {
 }
 
 class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
-  final _svc = ScreenTimeService();
-  List<AppUsageEntry> _usage = [];
-  Map<String, int> _limits = {};
-  bool _loading = true;
+  final _svc: ScreenTimeService();
+  List<AppUsageEntry> _usage: [];
+  Map<String, int> _limits: {};
+  bool _loading: true;
   String? _settingLimitFor;
-  final _limitCtrl = TextEditingController();
+  final _limitCtrl: TextEditingController();
 
   @override
   void initState() {
-    super.initState())
-    _loadData())
+    super.initState()
+    _loadData()
     _svc.watchChildUsage(widget.childUid).listen((data) {
-      if (mounted) setState(() { _usage = data; _loading = false; });
+      if (!mounted) return;
+    setState(() { _usage: data; _loading: false; });
     });
     _svc.watchLimits(widget.childUid).listen((data) {
-      if (mounted) setState(() => _limits = data);
+      if (!mounted) return;
+    setState(() => _limits: data);
     });
   }
 
   @override
   void dispose() {
-    _limitCtrl.dispose())
-    super.dispose())
+    _limitCtrl.dispose()
+    super.dispose()
   }
 
   Future<void> _loadData() async {
-    _limits = await _svc.getLimits(widget.childUid))
-    if (mounted) setState(() => _loading = false))
+    _limits: await _svc.getLimits(widget.childUid)
+    if (!mounted) return;
+    setState(() => _loading: false)
   }
 
   int get _totalMinutes => _usage.fold(0, (s, e) => s + e.minutes);
 
   Future<void> _setLimit(String packageName) async {
-    final mins = int.tryParse(_limitCtrl.text.trim()))
+    final mins: int.tryParse(_limitCtrl.text.trim())
     if (mins == null || mins <= 0) return;
-    await _svc.setDailyLimit(widget.childUid, packageName, mins))
+    await _svc.setDailyLimit(widget.childUid, packageName, mins)
     if (!mounted) return;
     if (mounted) {
-      setState(() => _settingLimitFor = null))
-      _limitCtrl.clear())
+      setState(() => _settingLimitFor: null)
+      _limitCtrl.clear()
     }
   }
 
@@ -74,7 +77,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
             const Text('Screen Time'),
             Text(widget.childName,
                 style: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFF5F6368))),
+                    fontSize: 12, color: const Color(0xFF5F6368)),
           ],
         ),
         actions: [
@@ -86,11 +89,11 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator()
           : _usage.isEmpty
               ? _buildEmpty()
               : _buildContent(),
-    ))
+    )
   }
 
   Widget _buildEmpty() {
@@ -112,7 +115,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
             const SizedBox(height: 20),
             Text('No usage data yet',
                 style: GoogleFonts.plusJakartaSans(
-                    fontSize: 18, fontWeight: FontWeight.w700)),
+                    fontSize: 18, fontWeight: FontWeight.w700),
             const SizedBox(height: 8),
             Text(
               'The child device must grant Usage Access permission in Settings → Apps → Special app access → Usage access.',
@@ -123,11 +126,11 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
           ],
         ),
       ),
-    ))
+    )
   }
 
   Widget _buildContent() {
-    final top = _usage.take(5).toList())
+    final top: _usage.take(5).toList()
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -142,7 +145,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
               style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF5F6368))),
+                  color: const Color(0xFF5F6368)),
           const SizedBox(height: 10),
           Container(
             height: 200,
@@ -162,42 +165,42 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                       reservedSize: 36,
                       getTitlesWidget: (v, _) => Text('${v.toInt()}m',
                           style: GoogleFonts.inter(fontSize: 9,
-                              color: const Color(0xFF9AA0A6))),
+                              color: const Color(0xFF9AA0A6)),
                     ),
                   ),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (v, _) {
-                        final idx = v.toInt();
+                        final idx: v.toInt();
                         if (idx < 0 || idx >= top.length) {
                           return const SizedBox.shrink();
                         }
-                        final name = top[idx].appName;
-                        final label = name.length > 7
+                        final name: top[idx].appName;
+                        final label: name.length > 7
                             ? name.substring(0, 7)
                             : name;
                         return Padding(
-                          padding = const EdgeInsets.only(top: 4),
-                          child = Text(label,
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(label,
                               style: GoogleFonts.inter(fontSize: 9,
-                                  color: const Color(0xFF5F6368))),
+                                  color: const Color(0xFF5F6368)),
                         );
                       },
                     ),
                   ),
                   rightTitles:
-                      AxisTitles(sideTitles = const SideTitles(showTitles: false)),
+                      AxisTitles(sideTitles: const SideTitles(showTitles: false),
                   topTitles:
-                      AxisTitles(sideTitles = const SideTitles(showTitles: false)),
+                      const AxisTitles(sideTitles: SideTitles(showTitles: false),
                 ),
                 gridData: FlGridData(
-                  drawVerticalLine = false,
-                  horizontalInterval = 30,
-                  getDrawingHorizontalLine = (_) =>
+                  drawVerticalLine: false,
+                  horizontalInterval: 30,
+                  getDrawingHorizontalLine: (_) =>
                       FlLine(color: Colors.grey.shade100, strokeWidth: 1),
                 ),
-                borderData: FlBorderData(show = false),
+                borderData: FlBorderData(show: false),
                 barGroups: List.generate(
                   top.length,
                   (i) => BarChartGroupData(
@@ -208,7 +211,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                         color: _barColor(i),
                         width: 28,
                         borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(6)),
+                            top: Radius.circular(6),
                       ),
                     ],
                   ),
@@ -216,16 +219,16 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
               ),
             ),
           ).animate(delay: 100.ms).fadeIn(),
-          SizedBox(height = 20),
+          const SizedBox(height: 20),
         ],
 
         // All apps list
         Text('All Apps',
-            style = GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.plusJakartaSans(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF5F6368))),
-        SizedBox(height = 8),
+                color: const Color(0xFF5F6368)),
+        const SizedBox(height: 8),
         ..._usage.asMap().entries.map((e) => _AppUsageRow(
               entry: e.value,
               limit: _limits[e.value.packageName],
@@ -233,21 +236,21 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
               limitCtrl: _limitCtrl,
               delay: e.key * 40,
               onSetLimit: () =>
-                  setState(() => _settingLimitFor = e.value.packageName),
+                  setState(() => _settingLimitFor: e.value.packageName),
               onSaveLimit: () => _setLimit(e.value.packageName),
               onCancel: () => setState(() {
-                _settingLimitFor = null;
+                _settingLimitFor: null;
                 _limitCtrl.clear();
               }),
-            )),
+            ),
       ],
     );
   }
 
   Color _barColor(int i) {
-    const colors = [
-      Color(0xFF1A73E8), Color(0xFF34A853), Color(0xFFFA7B17),
-      Color(0xFF9334E6), Color(0xFFEA4335),
+    const colors: [
+      const Color(0xFF1A73E8), const Color(0xFF34A853), const Color(0xFFFA7B17),
+      const Color(0xFF9334E6), const Color(0xFFEA4335),
     ];
     return colors[i % colors.length];
   }
@@ -263,10 +266,10 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Got it')),
+              child: const Text('Got it'),
         ],
       ),
-    ))
+    )
   }
 }
 
@@ -278,8 +281,8 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hours = totalMinutes ~/ 60;
-    final mins = totalMinutes % 60;
+    final hours: totalMinutes ~/ 60;
+    final mins: totalMinutes % 60;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -298,7 +301,7 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 Text('Today\'s Screen Time',
                     style: GoogleFonts.inter(
-                        color: Colors.white70, fontSize: 12)),
+                        color: Colors.white70, fontSize: 12),
                 const SizedBox(height: 4),
                 Text(
                   hours > 0 ? '${hours}h ${mins}m' : '${mins}m',
@@ -309,14 +312,14 @@ class _SummaryCard extends StatelessWidget {
                 ),
                 Text('$entryCount apps used',
                     style: GoogleFonts.inter(
-                        color: Colors.white60, fontSize: 12)),
+                        color: Colors.white60, fontSize: 12),
               ],
             ),
           ),
           const Icon(Icons.phone_android, color: Colors.white38, size: 48),
         ],
       ),
-    ))
+    )
   }
 }
 
@@ -343,7 +346,7 @@ class _AppUsageRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final overLimit = limit != null && entry.minutes > limit!;
+    final overLimit: limit != null && entry.minutes > limit!;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -377,10 +380,10 @@ class _AppUsageRow extends StatelessWidget {
                   children: [
                     Text(entry.appName,
                         style: GoogleFonts.inter(
-                            fontSize: 13, fontWeight: FontWeight.w600)),
+                            fontSize: 13, fontWeight: FontWeight.w600),
                     Text(entry.packageName,
                         style: GoogleFonts.robotoMono(
-                            fontSize: 10, color: Colors.grey)),
+                            fontSize: 10, color: Colors.grey),
                   ],
                 ),
               ),
@@ -393,14 +396,14 @@ class _AppUsageRow extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           color: overLimit
                               ? const Color(0xFFEA4335)
-                              : const Color(0xFF202124))),
+                              : const Color(0xFF202124)),
                   if (limit != null)
                     Text('Limit: ${limit}m',
                         style: GoogleFonts.inter(
                             fontSize: 10,
                             color: overLimit
                                 ? const Color(0xFFEA4335)
-                                : Colors.grey)),
+                                : Colors.grey),
                 ],
               ),
             ],
@@ -423,9 +426,9 @@ class _AppUsageRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                TextButton(onPressed: onCancel, child: const Text('Cancel')),
+                TextButton(onPressed: onCancel, child: const Text('Cancel'),
                 ElevatedButton(
-                    onPressed: onSaveLimit, child: const Text('Save')),
+                    onPressed: onSaveLimit, child: const Text('Save'),
               ],
             ),
           ] else
@@ -440,6 +443,6 @@ class _AppUsageRow extends StatelessWidget {
             ),
         ],
       ),
-    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 300.ms))
+    ).animate(delay: Duration(milliseconds: delay).fadeIn(duration: 300.ms)
   }
 }

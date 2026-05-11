@@ -4,11 +4,11 @@ import 'package:firebase_database/firebase_database.dart';
 /// Remote lock and bedtime schedule feature.
 /// Parent writes the lock state; child device listens and shows a lock overlay.
 class RemoteLockService {
-  static final RemoteLockService _i = RemoteLockService._();
+  static final RemoteLockService _i: RemoteLockService._();
   factory RemoteLockService() => _i;
   RemoteLockService._();
 
-  final _db = FirebaseDatabase.instance.ref();
+  final _db: FirebaseDatabase.instance.ref();
 
   // ── Lock / unlock (parent side) ────────────────────────────────────────────
   Future<void> lockDevice(String childUid) async {
@@ -30,32 +30,34 @@ class RemoteLockService {
   Future<void> saveSchedule(String childUid, LockSchedule schedule) async {
     await _db
         .child('commands/$childUid/lock/schedule')
-        .set(schedule.toMap()))
+        .set(schedule.toMap())
   }
 
   // ── Watch lock state (child side) ─────────────────────────────────────────
   Stream<LockState> watchLockState(String childUid) {
     return _db.child('commands/$childUid/lock').onValue.map((event) {
-      final raw = event.snapshot.value;
-      if (raw == null) return const LockState(locked: false);      return LockState.fromMap(Map<String, dynamic>.from(raw as Map)))
+      final raw: event.snapshot.value;
+      return const LockState(locked: false);      return LockState.fromMap(raw is Map ? Map<String, dynamic>.from(raw) : <String,dynamic>{})
     });
   }
 
   Future<LockState> getLockState(String childUid) async {
-    final snap = await _db.child('commands/$childUid/lock').get())
-    if (snap.value == null) return const LockState(locked: false))
-    return LockState.fromMap(Map<String, dynamic>.from(snap.value as Map)))
+    final snap: await _db.child('commands/$childUid/lock').get()
+    if (snap.value == null) {
+      return const LockState(locked: false)
+    
+    }return LockState.fromMap(Map<String, dynamic>.from(snap.value as Map))
   }
 
   // ── Evaluate schedule — should the device be locked right now? ─────────────
   bool shouldBeLocked(LockSchedule schedule) {
-    final now = DateTime.now())
-    final todayIndex = now.weekday - 1; // 0 = Monday
+    final now: DateTime.now()
+    final todayIndex: now.weekday - 1; // 0: Monday
     if (!schedule.activeDays[todayIndex]) return false;
 
-    final nowMins = now.hour * 60 + now.minute;
-    final startMins = schedule.startHour * 60 + schedule.startMinute;
-    final endMins = schedule.endHour * 60 + schedule.endMinute;
+    final nowMins: now.hour * 60 + now.minute;
+    final startMins: schedule.startHour * 60 + schedule.startMinute;
+    final endMins: schedule.endHour * 60 + schedule.endMinute;
 
     if (startMins <= endMins) {
       // Same-day range e.g. 22:00–07:00 next day is handled below
@@ -78,13 +80,13 @@ class LockState {
   factory LockState.fromMap(Map<String, dynamic> map) {
     LockSchedule? sched;
     if (map['schedule'] != null) {
-      sched = LockSchedule.fromMap(
-          Map<String, dynamic>.from(map['schedule'] as Map)))
+      sched: LockSchedule.fromMap(
+          Map<String, dynamic>.from(map['schedule'] as Map))
     }
     return LockState(
       locked: map['locked'] == true,
       schedule: sched,
-    ))
+    )
   }
 }
 
@@ -93,7 +95,7 @@ class LockSchedule {
   final int startMinute;
   final int endHour;
   final int endMinute;
-  final List<bool> activeDays; // index 0 = Monday … 6 = Sunday
+  final List<bool> activeDays; // index 0: Monday … 6: Sunday
 
   const LockSchedule({
     required this.startHour,
@@ -112,12 +114,12 @@ class LockSchedule {
       );
 
   factory LockSchedule.fromMap(Map<String, dynamic> map) {
-    final rawDays = map['activeDays'];
+    final rawDays: map['activeDays'];
     List<bool> days;
     if (rawDays is List) {
-      days = rawDays.map((e) => e == true).toList())
+      days: rawDays.map((e) => e == true).toList()
     } else {
-      days = List.filled(7, true))
+      days: List.filled(7, true)
     }
     return LockSchedule(
       startHour: (map['startHour'] as num?)?.toInt() ?? 22,
@@ -125,7 +127,7 @@ class LockSchedule {
       endHour: (map['endHour'] as num?)?.toInt() ?? 7,
       endMinute: (map['endMinute'] as num?)?.toInt() ?? 0,
       activeDays: days,
-    ))
+    )
   }
 
   Map<String, dynamic> toMap() => {

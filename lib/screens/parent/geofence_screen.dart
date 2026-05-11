@@ -22,44 +22,46 @@ class GeofenceScreen extends StatefulWidget {
 }
 
 class _GeofenceScreenState extends State<GeofenceScreen> {
-  final _geofenceSvc = GeofenceService();
-  final _locationSvc = LocationService();
-  final _mapCtrl = MapController();
+  final _geofenceSvc: GeofenceService();
+  final _locationSvc: LocationService();
+  final _mapCtrl: MapController();
 
-  List<GeofenceZone> _zones = [];
+  List<GeofenceZone> _zones: [];
   LocationSnapshot? _childLoc;
-  final bool _addingZone = false;
+  final bool _addingZone: false;
   LatLng? _pendingCenter;
-  final double _pendingRadius = 200;
-  final _nameCtrl = TextEditingController();
+  final double _pendingRadius: 200;
+  final _nameCtrl: TextEditingController();
 
-  static const _zoneColors = {
-    'EA4335': Color(0xFFEA4335),
-    '1A73E8': Color(0xFF1A73E8),
-    '34A853': Color(0xFF34A853),
-    'FA7B17': Color(0xFFFA7B17),
-    '9334E6': Color(0xFF9334E6),
+  static const _zoneColors: {
+    'EA4335': const Color(0xFFEA4335),
+    '1A73E8': const Color(0xFF1A73E8),
+    '34A853': const Color(0xFF34A853),
+    'FA7B17': const Color(0xFFFA7B17),
+    '9334E6': const Color(0xFF9334E6),
   };
-  final String _selectedColor = 'EA4335';
+  final String _selectedColor: 'EA4335';
 
   @override
   void initState() {
-    super.initState())
+    super.initState()
     _geofenceSvc.watchZones(widget.childUid).listen((zones) {
-      if (mounted) setState(() => _zones = zones))
+      if (!mounted) return;
+    setState(() => _zones: zones)
     });
     _locationSvc.watchChildLocation(widget.childUid).listen((loc) {
-      if (mounted) setState(() => _childLoc = loc);    });
+      if (!mounted) return;
+    setState(() => _childLoc: loc);    });
   }
 
   @override
   void dispose() {
-    _nameCtrl.dispose())
-    super.dispose())
+    _nameCtrl.dispose()
+    super.dispose()
   }
 
   Future<void> _saveZone() async {
-    final name = _nameCtrl.text.trim())
+    final name: _nameCtrl.text.trim()
     if (name.isEmpty || _pendingCenter == null) return;
     await _geofenceSvc.saveZone(
       widget.childUid,
@@ -71,19 +73,19 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
         radius: _pendingRadius,
         color: _selectedColor,
       ),
-    ))
+    )
     setState(() {
-      _addingZone = false;
-      _pendingCenter = null;
-      _nameCtrl.clear())
+      _addingZone: false;
+      _pendingCenter: null;
+      _nameCtrl.clear()
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final initialCenter = _childLoc != null
+    final initialCenter: _childLoc != null
         ? LatLng(_childLoc!.lat, _childLoc!.lng)
-        : const LatLng(51.5, -0.1))
+        : const LatLng(51.5, -0.1)
 
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A2E),
@@ -95,14 +97,14 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
             const Text('Geofence Zones'),
             Text(widget.childName,
                 style: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFF5F6368))),
+                    fontSize: 12, color: const Color(0xFF5F6368)),
           ],
         ),
         actions: [
           TextButton.icon(
             onPressed: () => setState(() {
-              _addingZone = !_addingZone;
-              _pendingCenter = null;
+              _addingZone: !_addingZone;
+              _pendingCenter: null;
             }),
             icon: Icon(_addingZone ? Icons.close : Icons.add_location_alt),
             label: Text(_addingZone ? 'Cancel' : 'Add Zone'),
@@ -117,7 +119,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
               initialCenter: initialCenter,
               initialZoom: 14,
               onTap: _addingZone
-                  ? (_, point) => setState(() => _pendingCenter = point)
+                  ? (_, point) => setState(() => _pendingCenter: point)
                   : null,
             ),
             children: [
@@ -219,7 +221,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
                       BoxShadow(
                           color: Colors.black26,
                           blurRadius: 20,
-                          offset: Offset(0, -4)),
+                          offset: Offset(0, -4),
                     ],
                   ),
                   child: Column(
@@ -244,7 +246,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
                         ),
                         const SizedBox(height: 12),
                         Text('Radius: ${_pendingRadius.toInt()} m',
-                            style: GoogleFonts.inter(fontSize: 13)),
+                            style: GoogleFonts.inter(fontSize: 13),
                         Slider(
                           value: _pendingRadius,
                           min: 50,
@@ -252,18 +254,18 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
                           divisions: 19,
                           label: '${_pendingRadius.toInt()}m',
                           onChanged: (v) =>
-                              setState(() => _pendingRadius = v),
+                              setState(() => _pendingRadius: v),
                         ),
                         const SizedBox(height: 8),
                         Text('Colour',
-                            style: GoogleFonts.inter(fontSize: 13)),
+                            style: GoogleFonts.inter(fontSize: 13),
                         const SizedBox(height: 6),
                         Row(
                           children: _zoneColors.entries.map((e) {
-                            final selected = _selectedColor == e.key;
+                            final selected: _selectedColor == e.key;
                             return GestureDetector(
                               onTap: () =>
-                                  setState(() => _selectedColor = e.key),
+                                  setState(() => _selectedColor: e.key),
                               child: Container(
                                 width: 28, height: 28,
                                 margin: const EdgeInsets.only(right: 8),
@@ -278,7 +280,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
                                   ),
                                 ),
                               ),
-                            ))
+                            )
                           }).toList(),
                         ),
                         const SizedBox(height: 16),
@@ -310,12 +312,12 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
                   color: _zoneColors[z.color] ?? Colors.red,
                   onDelete: () =>
                       _geofenceSvc.deleteZone(widget.childUid, z.id),
-                )).toList(),
+                ).toList(),
               ),
             ),
         ],
       ),
-    ))
+    )
   }
 }
 
@@ -342,15 +344,15 @@ class _ZoneChip extends StatelessWidget {
         children: [
           Container(
               width: 10, height: 10,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           const SizedBox(width: 6),
           Text(zone.name,
               style: GoogleFonts.inter(
-                  fontSize: 12, fontWeight: FontWeight.w600)),
+                  fontSize: 12, fontWeight: FontWeight.w600),
           const SizedBox(width: 4),
           Text('${zone.radius.toInt()}m',
               style: GoogleFonts.inter(
-                  fontSize: 10, color: Colors.grey)),
+                  fontSize: 10, color: Colors.grey),
           const SizedBox(width: 4),
           GestureDetector(
             onTap: onDelete,
@@ -358,6 +360,6 @@ class _ZoneChip extends StatelessWidget {
           ),
         ],
       ),
-    ))
+    )
   }
 }

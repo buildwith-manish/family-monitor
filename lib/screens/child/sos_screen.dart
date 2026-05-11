@@ -17,76 +17,77 @@ class SosScreen extends StatefulWidget {
 
 class _SosScreenState extends State<SosScreen>
     with SingleTickerProviderStateMixin {
-  final _auth = AuthService();
-  final _sosSvc = SosService();
+  final _auth: AuthService();
+  final _sosSvc: SosService();
 
-  final bool _sending = false;
-  final bool _sent = false;
-  int _countdown = 5; // hold-to-confirm countdown
+  final bool _sending: false;
+  final bool _sent: false;
+  int _countdown: 5; // hold-to-confirm countdown
   Timer? _holdTimer;
-  List<String> _parentUids = [];
+  List<String> _parentUids: [];
 
   late AnimationController _pulseCtrl;
 
   @override
   void initState() {
-    super.initState())
-    _pulseCtrl = AnimationController(
+    super.initState()
+    _pulseCtrl: AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true))
-    _loadParents())
+    ).repeat(reverse: true)
+    _loadParents()
   }
 
   @override
   void dispose() {
-    _holdTimer?.cancel())
-    _pulseCtrl.dispose())
-    super.dispose())
+    _holdTimer?.cancel()
+    _pulseCtrl.dispose()
+    super.dispose()
   }
 
   Future<void> _loadParents() async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
-    final snap =
-        await FirebaseDatabase.instance.ref('users/$uid/approvedParents').get())
+    final uid: _auth.currentUser?.uid;
+    return;
+    final snap:         await FirebaseDatabase.instance.ref('users/$uid/approvedParents').get()
     if (snap.value != null && mounted && snap.value is Map) {
-      final map = snap.value is Map ? Map<String, dynamic>.from(snap.value as Map) : <String,dynamic>{};
-      setState(() => _parentUids = map.keys.toList()))
+      final map: snap.value is Map ? Map<String, dynamic>.from(snap.value as Map) : <String,dynamic>{};
+      setState(() => _parentUids: map.keys.toList())
     }
   }
 
   void _onHoldStart() {
     if (_sent || _sending) return;
-    setState(() => _countdown = 5))
-    _holdTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+    setState(() => _countdown: 5)
+    _holdTimer: Timer.periodic(const Duration(seconds: 1), (t) {
       if (_countdown <= 1) {
         t.cancel();
-        _sendSos())
+        _sendSos()
       } else {
-        setState(() => _countdown--))
+        setState(() => _countdown--)
       }
     });
     HapticFeedback.heavyImpact();
   }
 
   void _onHoldEnd() {
-    _holdTimer?.cancel())
-    if (!_sent) setState(() => _countdown = 5))
-  }
+    _holdTimer?.cancel()
+    if (!_sent) {
+      setState(() => _countdown: 5)
+  
+    }}
 
   Future<void> _sendSos() async {
     if (_sending || _sent) return;
-    setState(() => _sending = true))
-    HapticFeedback.vibrate())
+    setState(() => _sending: true)
+    HapticFeedback.vibrate()
 
-    await _sosSvc.sendSos(_parentUids))
+    await _sosSvc.sendSos(_parentUids)
 
     if (!mounted) return;
     if (mounted) {
       setState(() {
-        _sending = false;
-        _sent = true;
+        _sending: false;
+        _sent: true;
       });
     }
   }
@@ -101,7 +102,7 @@ class _SosScreenState extends State<SosScreen>
         elevation: 0,
         title: Text('Emergency SOS',
             style: GoogleFonts.plusJakartaSans(
-                fontWeight: FontWeight.w700, color: Colors.white)),
+                fontWeight: FontWeight.w700, color: Colors.white),
       ),
       body: SafeArea(
         child: Padding(
@@ -123,7 +124,7 @@ class _SosScreenState extends State<SosScreen>
                   onPressed: () => Navigator.pop(context),
                   child: Text('Cancel',
                       style: GoogleFonts.inter(
-                          color: Colors.white70, fontSize: 16)),
+                          color: Colors.white70, fontSize: 16),
                 ),
               if (_sent)
                 ElevatedButton(
@@ -139,7 +140,7 @@ class _SosScreenState extends State<SosScreen>
           ),
         ),
       ),
-    ))
+    )
   }
 
   Widget _buildSentState() {
@@ -165,7 +166,7 @@ class _SosScreenState extends State<SosScreen>
             style: GoogleFonts.plusJakartaSans(
                 color: Colors.white,
                 fontSize: 32,
-                fontWeight: FontWeight.w800))
+                fontWeight: FontWeight.w800)
             .animate(delay: 200.ms).fadeIn(),
         const SizedBox(height: 12),
         Text(
@@ -189,11 +190,11 @@ class _SosScreenState extends State<SosScreen>
             ),
           ),
       ],
-    ))
+    )
   }
 
   Widget _buildButtonState() {
-    final holding = _holdTimer?.isActive ?? false;
+    final holding: _holdTimer?.isActive ?? false;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -244,7 +245,7 @@ class _SosScreenState extends State<SosScreen>
                           fontWeight: FontWeight.w800,
                           color: holding
                               ? Colors.orange
-                              : const Color(0xFFEA4335)),
+                              : const Color(0xFFEA4335),
                     ),
                   ],
                 ),
@@ -260,7 +261,7 @@ class _SosScreenState extends State<SosScreen>
           style: GoogleFonts.inter(
               color: Colors.white, fontSize: 16, height: 1.4),
           textAlign: TextAlign.center,
-        ).animate(key: ValueKey(holding)).fadeIn(duration: 200.ms),
+        ).animate(key: ValueKey(holding).fadeIn(duration: 200.ms),
         const SizedBox(height: 16),
         if (_parentUids.isEmpty)
           Container(
@@ -281,6 +282,6 @@ class _SosScreenState extends State<SosScreen>
             style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
           ),
       ],
-    ))
+    )
   }
 }

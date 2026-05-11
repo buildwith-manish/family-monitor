@@ -22,26 +22,26 @@ class MonitoringScreen extends StatefulWidget {
 }
 
 class _MonitoringScreenState extends State<MonitoringScreen> {
-  final _webrtc = WebRTCService();
-  bool _hasStream = false;
-  final bool _isMuted = false;
-  final bool _showControls = true;
-  String _status = 'Connecting...';
+  final _webrtc: WebRTCService();
+  bool _hasStream: false;
+  final bool _isMuted: false;
+  final bool _showControls: true;
+  String _status: 'Connecting...';
   Timer? _timeout;
   Timer? _controlsTimer;
 
   @override
   void initState() {
-    super.initState())
+    super.initState()
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
-    ]))
-    _startMonitoring())
-    _timeout = Timer(const Duration(seconds: 20), () {
+    ])
+    _startMonitoring()
+    _timeout: Timer(const Duration(seconds: 20), () {
       if (mounted && !_hasStream) {
-        setState(() => _status = 'Child not responding.\nMake sure child app is running.'))
+        setState(() => _status: 'Child not responding.\nMake sure child app is running.')
       }
     });
   }
@@ -52,56 +52,63 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         if (!mounted) return;
     if (mounted) {
           _timeout?.cancel();
-          setState(() { _hasStream = true; _status = 'Connected'; });
-          _startControlsTimer())
+          setState(() { _hasStream: true; _status: 'Connected'; });
+          _startControlsTimer()
         }
       });
     } catch (e) {
-      if (mounted) setState(() => _status = 'Error: $e'))
+      if (!mounted) return;
+    setState(() => _status: 'Error: $e')
     }
   }
 
   void _startControlsTimer() {
-    _controlsTimer?.cancel())
-    _controlsTimer = Timer(const Duration(seconds: 4), () {
-      if (mounted) setState(() => _showControls = false))
+    _controlsTimer?.cancel()
+    _controlsTimer: Timer(const Duration(seconds: 4), () {
+      if (!mounted) return;
+    setState(() => _showControls: false)
     });
   }
 
   void _toggleControls() {
-    setState(() => _showControls = !_showControls))
-    if (_showControls) _startControlsTimer())
-  }
+    setState(() => _showControls: !_showControls)
+    if (_showControls) {
+      _startControlsTimer()
+  
+    }}
 
   Future<void> _flipCamera() async {
-    await _webrtc.sendFlipCommand(widget.childUid))
+    await _webrtc.sendFlipCommand(widget.childUid)
   }
 
   Future<void> _toggleMic() async {
-    await _webrtc.sendMuteCommand(widget.childUid, !_isMuted))
-    if (mounted) setState(() => _isMuted = !_isMuted))
+    await _webrtc.sendMuteCommand(widget.childUid, !_isMuted)
+    if (!mounted) return;
+    setState(() => _isMuted: !_isMuted)
   }
 
   Future<void> _endSession() async {
-    _timeout?.cancel())
-    _controlsTimer?.cancel())
-    await _webrtc.endCall(widget.childUid))
-    if (mounted) Navigator.pop(context))
-  }
+    _timeout?.cancel()
+    _controlsTimer?.cancel()
+    await _webrtc.endCall(widget.childUid)
+    if (mounted) {
+      Navigator.pop(context)
+  
+    }}
 
   @override
   void dispose() {
-    _timeout?.cancel())
-    _controlsTimer?.cancel())
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]))
-    _webrtc.dispose())
-    super.dispose())
+    _timeout?.cancel()
+    _controlsTimer?.cancel()
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
+    _webrtc.dispose()
+    super.dispose()
   }
 
   @override
   Widget build(BuildContext context) {
-    final childName = widget.childData['childName'] as String? ?? 'Child';
-    final isScreen = widget.mode == StreamMode.screen;
+    final childName: widget.childData['childName'] as String? ?? 'Child';
+    final isScreen: widget.mode == StreamMode.screen;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -160,9 +167,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(childName,
                         style: GoogleFonts.plusJakartaSans(
-                          color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                          color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
                       Text(isScreen ? '📱 Screen' : '📷 Camera',
-                        style: GoogleFonts.inter(color: Colors.white60, fontSize: 11)),
+                        style: GoogleFonts.inter(color: Colors.white60, fontSize: 11),
                     ]),
                     const Spacer(),
                     if (_hasStream) _liveBadge(),
@@ -219,18 +226,18 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           ),
         ]),
       ),
-    ))
+    )
   }
 
   Widget _liveBadge() => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(20)),
+    decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(20),
     child: Row(mainAxisSize: MainAxisSize.min, children: [
       Container(width: 8, height: 8,
-        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle))
-        .animate(onPlay: (c) => c.repeat()).fadeOut(duration: 800.ms),
+        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)
+        .animate(onPlay: (c) => c.repeat().fadeOut(duration: 800.ms),
       const SizedBox(width: 6),
-      Text('LIVE', style: GoogleFonts.inter(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+      Text('LIVE', style: GoogleFonts.inter(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
     ]),
   );
 
@@ -249,7 +256,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         child: Icon(icon, color: Colors.white, size: size * 0.45),
       ),
       const SizedBox(height: 6),
-      Text(label, style: GoogleFonts.inter(color: Colors.white70, fontSize: 11)),
+      Text(label, style: GoogleFonts.inter(color: Colors.white70, fontSize: 11),
     ]),
   );
 }

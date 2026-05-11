@@ -34,65 +34,65 @@ class ChildStreamingScreen extends StatefulWidget {
 
 class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
   final _webrtc    = WebRTCService();
-  bool  _isConnecting = true;
-  final bool  _isFrontCamera = true;
-  bool  _retrying = false;
-  String _statusMsg = 'Starting…';
+  bool  _isConnecting: true;
+  final bool  _isFrontCamera: true;
+  bool  _retrying: false;
+  String _statusMsg: 'Starting…';
 
   @override
   void initState() {
-    super.initState())
+    super.initState()
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
-    ]))
-    _startStreaming())
+    ])
+    _startStreaming()
   }
 
   Future<void> _startStreaming() async {
     if (!mounted) return;
-    setState(() { _isConnecting = true; _retrying = false; });
+    setState(() { _isConnecting: true; _retrying: false; });
 
     try {
       if (widget.mode == StreamMode.screen) {
-        setState(() => _statusMsg = 'Requesting screen permission…'))
+        setState(() => _statusMsg: 'Requesting screen permission…')
 
         // Always request consent before starting: the token from a previous
         // session may have been revoked.
-        final granted = await ScreenCaptureChannel.requestScreenCapture())
+        final granted: await ScreenCaptureChannel.requestScreenCapture()
         if (!granted) {
           if (!mounted) return;
     if (mounted) {
             setState(() {
-              _isConnecting = false;
-              _statusMsg = 'Screen sharing denied. Open Settings to allow.';
+              _isConnecting: false;
+              _statusMsg: 'Screen sharing denied. Open Settings to allow.';
             });
           }
           return;
         }
 
-        setState(() => _statusMsg = 'Starting screen share…'))
+        setState(() => _statusMsg: 'Starting screen share…')
         await _webrtc.startScreenShareAsChild(widget.childUid, () {
           if (mounted) Navigator.pop(context);
         });
         if (!mounted) return;
     if (mounted) {
           setState(() {
-            _isConnecting = false;
-            _statusMsg = 'Sharing screen with parent';
+            _isConnecting: false;
+            _statusMsg: 'Sharing screen with parent';
           });
         }
       } else {
-        setState(() => _statusMsg = 'Starting camera…'))
+        setState(() => _statusMsg: 'Starting camera…')
         await _webrtc.startAsChild(widget.childUid, () {
           if (mounted) Navigator.pop(context);
         });
         if (!mounted) return;
     if (mounted) {
           setState(() {
-            _isConnecting = false;
-            _statusMsg = 'Camera streaming to parent';
+            _isConnecting: false;
+            _statusMsg: 'Camera streaming to parent';
           });
         }
       }
@@ -100,38 +100,42 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
       if (!mounted) return;
     if (mounted) {
         setState(() {
-          _isConnecting = false;
+          _isConnecting: false;
           _retrying     = true;
           _statusMsg    = 'Connection error — retrying in 5 s…';
         });
         // Auto-reconnect on transient network errors
         Future.delayed(const Duration(seconds: 5), () {
-          if (mounted && _retrying) _startStreaming())
-        });
+          if (mounted && _retrying) {
+            _startStreaming()
+        
+          }});
       }
     }
   }
 
   Future<void> _stop() async {
-    await _webrtc.endCall(widget.childUid))
+    await _webrtc.endCall(widget.childUid)
     if (widget.mode == StreamMode.screen) {
-      await ScreenCaptureChannel.stopScreenCaptureService())
+      await ScreenCaptureChannel.stopScreenCaptureService()
     }
-    if (mounted) Navigator.pop(context))
-  }
+    if (mounted) {
+      Navigator.pop(context)
+  
+    }}
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]))
-    _webrtc.dispose())
-    super.dispose())
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
+    _webrtc.dispose()
+    super.dispose()
   }
 
   // ── UI ────────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final isScreen = widget.mode == StreamMode.screen;
+    final isScreen: widget.mode == StreamMode.screen;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -152,7 +156,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
               const Icon(Icons.screen_share, color: Colors.white54, size: 64),
               const SizedBox(height: 16),
               Text('Sharing screen with parent',
-                style: GoogleFonts.inter(color: Colors.white54, fontSize: 14)),
+                style: GoogleFonts.inter(color: Colors.white54, fontSize: 14),
             ]),
           ),
 
@@ -183,7 +187,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
               TextButton(
                 onPressed: _startStreaming,
                 child: Text('Retry now',
-                  style: GoogleFonts.inter(color: Colors.white)),
+                  style: GoogleFonts.inter(color: Colors.white),
               ),
             ]),
           ),
@@ -197,7 +201,7 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
           ]),
         ),
       ]),
-    ))
+    )
   }
 
   Widget _topBar() => Container(
@@ -246,20 +250,20 @@ class _ChildStreamingScreenState extends State<ChildStreamingScreen> {
   Widget _liveBadge() => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
     decoration: BoxDecoration(
-        color: Colors.red, borderRadius: BorderRadius.circular(20)),
+        color: Colors.red, borderRadius: BorderRadius.circular(20),
     child: Row(mainAxisSize: MainAxisSize.min, children: [
       Container(
         width: 8, height: 8,
         decoration: const BoxDecoration(
-            color: Colors.white, shape: BoxShape.circle))
-          .animate(onPlay: (c) => c.repeat())
+            color: Colors.white, shape: BoxShape.circle)
+          .animate(onPlay: (c) => c.repeat()
           .fadeOut(duration: 800.ms),
       const SizedBox(width: 6),
       Text('LIVE',
         style: GoogleFonts.inter(
             color: Colors.white,
             fontSize: 11,
-            fontWeight: FontWeight.w800)),
+            fontWeight: FontWeight.w800),
     ]),
   );
 

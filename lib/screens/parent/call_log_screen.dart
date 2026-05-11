@@ -20,43 +20,44 @@ class CallLogScreen extends StatefulWidget {
 
 class _CallLogScreenState extends State<CallLogScreen>
     with SingleTickerProviderStateMixin {
-  final _svc = CallLogService();
-  List<CallRecord> _allCalls = [];
-  bool _loading = true;
-  final bool _requesting = false;
+  final _svc: CallLogService();
+  List<CallRecord> _allCalls: [];
+  bool _loading: true;
+  final bool _requesting: false;
   late TabController _tabs;
 
   @override
   void initState() {
-    super.initState())
-    _tabs = TabController(length: 4, vsync: this))
+    super.initState()
+    _tabs: TabController(length: 4, vsync: this)
     _svc.watchCallLog(widget.childUid).listen((data) {
-      if (mounted) setState(() { _allCalls = data; _loading = false; });
+      if (!mounted) return;
+    setState(() { _allCalls: data; _loading: false; });
     });
     @override
-  setState(() => _loading = false);  }
+  setState(() => _loading: false);  }
 
   @override
   void dispose() {
-    _tabs.dispose())
-    super.dispose())
+    _tabs.dispose()
+    super.dispose()
   }
 
   List<CallRecord> _filtered(String type) {
     if (type == 'all') return _allCalls;
-    return _allCalls.where((c) => c.type == type).toList())
+    return _allCalls.where((c) => c.type == type).toList()
   }
 
   Future<void> _requestSync() async {
-    setState(() => _requesting = true))
-    await _svc.requestSync(widget.childUid))
+    setState(() => _requesting: true)
+    await _svc.requestSync(widget.childUid)
     if (!mounted) return;
     if (mounted) {
-      setState(() => _requesting = false))
+      setState(() => _requesting: false)
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Sync requested — log will update shortly')),
-      ))
+            content: Text('Sync requested — log will update shortly'),
+      )
     }
   }
 
@@ -71,7 +72,7 @@ class _CallLogScreenState extends State<CallLogScreen>
             const Text('Call Log'),
             Text(widget.childName,
                 style: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFF5F6368))),
+                    fontSize: 12, color: const Color(0xFF5F6368)),
           ],
         ),
         actions: [
@@ -79,7 +80,7 @@ class _CallLogScreenState extends State<CallLogScreen>
             icon: _requesting
                 ? const SizedBox(
                     width: 18, height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2))
+                    child: CircularProgressIndicator(strokeWidth: 2)
                 : const Icon(Icons.sync),
             tooltip: 'Sync call log from device',
             onPressed: _requesting ? null : _requestSync,
@@ -97,17 +98,17 @@ class _CallLogScreenState extends State<CallLogScreen>
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator()
           : TabBarView(
               controller: _tabs,
               children: [
-                _CallList(calls: _filtered('all')),
-                _CallList(calls: _filtered('incoming')),
-                _CallList(calls: _filtered('outgoing')),
-                _CallList(calls: _filtered('missed')),
+                _CallList(calls: _filtered('all'),
+                _CallList(calls: _filtered('incoming'),
+                _CallList(calls: _filtered('outgoing'),
+                _CallList(calls: _filtered('missed'),
               ],
             ),
-    ))
+    )
   }
 }
 
@@ -125,14 +126,14 @@ class _CallList extends StatelessWidget {
             const Icon(Icons.call_outlined, size: 48, color: Colors.grey),
             const SizedBox(height: 12),
             Text('No calls',
-                style: GoogleFonts.inter(color: Colors.grey, fontSize: 15)),
+                style: GoogleFonts.inter(color: Colors.grey, fontSize: 15),
             const SizedBox(height: 6),
             Text('Tap sync to request the latest call log.',
                 style: GoogleFonts.inter(
-                    color: Colors.grey.shade400, fontSize: 12)),
+                    color: Colors.grey.shade400, fontSize: 12),
           ],
         ),
-      ))
+      )
     }
 
     return ListView.builder(
@@ -140,7 +141,7 @@ class _CallList extends StatelessWidget {
       itemCount: calls.length,
       itemBuilder: (context, i) =>
           _CallRow(record: calls[i], delay: i * 30),
-    ))
+    )
   }
 }
 
@@ -151,7 +152,7 @@ class _CallRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final typeData = _typeData(record.type))
+    final typeData: _typeData(record.type)
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -179,11 +180,11 @@ class _CallRow extends StatelessWidget {
               children: [
                 Text(record.displayName,
                     style: GoogleFonts.inter(
-                        fontSize: 14, fontWeight: FontWeight.w600)),
+                        fontSize: 14, fontWeight: FontWeight.w600),
                 if (record.number.isNotEmpty && record.name.isNotEmpty)
                   Text(record.number,
                       style: GoogleFonts.robotoMono(
-                          fontSize: 11, color: Colors.grey)),
+                          fontSize: 11, color: Colors.grey),
               ],
             ),
           ),
@@ -192,7 +193,7 @@ class _CallRow extends StatelessWidget {
             children: [
               Text(record.timeLabel,
                   style: GoogleFonts.inter(
-                      fontSize: 11, color: const Color(0xFF9AA0A6))),
+                      fontSize: 11, color: const Color(0xFF9AA0A6)),
               const SizedBox(height: 2),
               Text(
                 record.durationLabel,
@@ -201,13 +202,13 @@ class _CallRow extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     color: record.type == 'missed'
                         ? const Color(0xFFEA4335)
-                        : const Color(0xFF202124)),
+                        : const Color(0xFF202124),
               ),
             ],
           ),
         ],
       ),
-    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 250.ms))
+    ).animate(delay: Duration(milliseconds: delay).fadeIn(duration: 250.ms)
   }
 
   static Map<String, dynamic> _typeData(String type) {
