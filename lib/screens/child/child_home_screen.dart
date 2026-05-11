@@ -60,26 +60,42 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    MonitoringForegroundService.initForegroundTask();
-    _loadData();
-    _listenForRequests();
-    _setOnline(true);
-    _listenForCommands();
-    _startExtraServices();
-    _askPermissions();
+    // initForegroundTask already called in main() — skip here to avoid double-init
+    _safeInit();
+  }
+
+  Future<void> _safeInit() async {
+    try { await _loadData(); } catch (_) {}
+    try { _listenForRequests(); } catch (_) {}
+    try { await _setOnline(true); } catch (_) {}
+    try { _listenForCommandsSafe(); } catch (_) {}
+    try { await _startExtraServices(); } catch (_) {}
+    try { await _askPermissions(); } catch (_) {}
   }
 
   Future<void> _askPermissions() async {
-    final perms = <Permission>[
-      Permission.camera,
-      Permission.microphone,
-      Permission.location,
-      Permission.locationAlways,
-    ];
-    if (await Permission.notification.status != PermissionStatus.granted) {
-      perms.add(Permission.notification);
+    try {
+      final perms = <Permission>[
+        Permission.camera,
+        Permission.microphone,
+        Permission.location,
+      ];
+      if (await Permission.notification.status != PermissionStatus.granted) {
+        perms.add(Permission.notification);
+      }
+      await perms.request();
+      // locationAlways MUST be requested separately AFTER location is granted
+      // Requesting it together with other perms crashes on Android 12+
+      final locStatus = await Permission.location.status;
+      if (locStatus.isGranted) {
+        final bgStatus = await Permission.locationAlways.status;
+        if (!bgStatus.isGranted) {
+          await Permission.locationAlways.request();
+        }
+      }
+    } catch (_) {
+      // Never crash the home screen due to permission errors
     }
-    await perms.request();
   }
 
   @override
@@ -163,9 +179,15 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     });
   }
 
-  void _listenForCommands() {
+  void _listenForCommandsSafe() {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
+    // Clear stale "calling" status so we don't auto-push streaming on load
+    FirebaseDatabase.instance.ref('calls/$uid/status').get().then((snap) {
+      if (snap.value == 'calling') {
+        FirebaseDatabase.instance.ref('calls/$uid').remove();
+      }
+    }).catchError((_) {});
 
     // Remote lock
     _lockSub = _lockSvc.watchLockState(uid).listen((state) {
@@ -206,16 +228,18 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         .ref('calls/$uid')
         .onValue
         .listen((event) async {
-      if (!mounted) return;
-      final data = event.snapshot.value;
-      if (data == null) return;
-      final map  = Map<String, dynamic>.from(data as Map);
-      final status = map['status'] as String?;
-      if (status == 'calling') {
-        final modeStr = map['mode'] as String? ?? 'camera';
-        final mode = modeStr == 'screen' ? StreamMode.screen : StreamMode.camera;
-        _autoStartStreaming(uid, mode);
-      }
+      try {
+        if (!mounted) return;
+        final data = event.snapshot.value;
+        if (data == null) return;
+        final map  = Map<String, dynamic>.from(data as Map);
+        final status = map['status'] as String?;
+        if (status == 'calling') {
+          final modeStr = map['mode'] as String? ?? 'camera';
+          final mode = modeStr == 'screen' ? StreamMode.screen : StreamMode.camera;
+          _autoStartStreaming(uid, mode);
+        }
+      } catch (_) {}
     });
   }
 
