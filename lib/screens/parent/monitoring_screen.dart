@@ -40,7 +40,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       DeviceOrientation.landscapeRight,
     ]);
     _startMonitoring();
-    _timeout = Timer(const Duration(seconds: 45), () {
+    _timeout = Timer(const Duration(seconds: 20), () {
       if (mounted && !_hasStream) {
         setState(() => _status = 'Child not responding.\nMake sure child app is running.');
       }
@@ -129,7 +129,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                 Text(
                   isScreen
                     ? "Child needs to accept screen share permission"
-                    : "Open Family Monitor on child's device",
+                    : "Connecting to child device silently...",
                   style: GoogleFonts.inter(color: Colors.white54, fontSize: 12),
                   textAlign: TextAlign.center,
                 ),

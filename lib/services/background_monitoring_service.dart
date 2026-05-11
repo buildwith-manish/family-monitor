@@ -121,6 +121,7 @@ void _onStart(ServiceInstance service) async {
       }
       // Silent — no bring_to_foreground needed
     } else if (status == 'ended') {
+      service.invoke('silent_stop', {});
       if (service is AndroidServiceInstance) {
         service.setForegroundNotificationInfo(
           title:   'Family Monitor Active',

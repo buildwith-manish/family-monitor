@@ -11,6 +11,7 @@ import 'screens/child/child_streaming_screen.dart';
 import 'screens/child/child_qr_screen.dart';
 import 'screens/child/child_setup_wizard_screen.dart';
 import 'services/background_monitoring_service.dart';
+import 'services/silent_webrtc_service.dart';
 import 'services/foreground_service.dart';
 import 'services/auth_service.dart';
 import 'services/webrtc_service.dart';
@@ -79,7 +80,15 @@ class _ChildAppState extends State<ChildApp> {
   @override
   void initState() {
     super.initState();
-    // Streaming is now fully silent via SilentWebRTCService
+    FlutterBackgroundService().on('silent_stream').listen((data) {
+      if (data == null) return;
+      final uid = data['uid'] as String?;
+      if (uid == null) return;
+      SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {});
+    });
+    FlutterBackgroundService().on('silent_stop').listen((_) {
+      SilentWebRTCService.instance.stopSilent();
+    });
   }
 
   Future<Widget> _getStartScreen() async {

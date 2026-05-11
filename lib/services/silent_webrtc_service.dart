@@ -7,18 +7,14 @@ class SilentWebRTCService {
   static SilentWebRTCService? _instance;
   static SilentWebRTCService get instance => _instance ??= SilentWebRTCService._();
   SilentWebRTCService._();
-
   RTCPeerConnection? _pc;
   MediaStream? _localStream;
   bool _active = false;
   String? _activeUid;
   StreamSubscription? _offerSub, _candidateSub, _statusSub, _commandSub;
   bool _answerSet = false;
-
   static const _ice = {'iceServers': [{'urls': 'stun:stun.l.google.com:19302'},{'urls': 'stun:stun1.l.google.com:19302'}],'sdpSemantics': 'unified-plan'};
-
   bool get isActive => _active;
-
   Future<void> startSilentCamera(String childUid) async {
     if (_active && _activeUid == childUid) return;
     await stopSilent();
@@ -54,7 +50,6 @@ class SilentWebRTCService {
       debugPrint('[SilentWebRTC] Streaming silently');
     } catch (e) { debugPrint('[SilentWebRTC] Error: $e'); _active = false; }
   }
-
   Future<void> stopSilent() async {
     _active = false; _activeUid = null; _answerSet = false;
     _offerSub?.cancel(); _candidateSub?.cancel(); _statusSub?.cancel(); _commandSub?.cancel();
