@@ -5,9 +5,9 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const _kUidKey = 'child_uid';
+const _kUidKey     = 'child_uid';
 const _kWizardDone = 'wizard_done';
-const _kPermKey = 'permissions_granted';
+const _kPermKey    = 'permissions_granted';
 
 class BackgroundMonitoringService {
   static final _svc = FlutterBackgroundService();
@@ -16,11 +16,13 @@ class BackgroundMonitoringService {
     await _svc.configure(
       androidConfiguration: AndroidConfiguration(
         onStart: _onStart,
+        // autoStart: true — Android will restart this service if the OS kills it
+        // (e.g. low memory). Without this the service dies permanently on swipe.
         autoStart: true,
         isForegroundMode: true,
-        notificationChannelId: 'family_monitor_bg',
-        initialNotificationTitle: 'Family Monitor',
-        initialNotificationContent: 'Monitoring service running',
+        notificationChannelId:           'family_monitor_bg',
+        initialNotificationTitle:        'Family Monitor',
+        initialNotificationContent:      'Monitoring service running…',
         foregroundServiceNotificationId: 888,
       ),
       iosConfiguration: IosConfiguration(autoStart: false),
@@ -28,78 +30,100 @@ class BackgroundMonitoringService {
   }
 
   static Future<void> startService() async {
-    if (!await _svc.isRunning()) await _svc.startService();
+    if (!await _svc.isRunning()) {
+      await _svc.startService();
+      await Future.delayed(const Duration(seconds: 2));
+    }
   }
 
-  static Future<void> saveChildUid(String uid) async {
-    final p = await SharedPreferences.getInstance();
-    await p.setString(_kUidKey, uid);
+  static Future<void> stopService() async {
+    _svc.invoke('stop');
   }
 
-  static Future<void> setWizardDone(bool v) async {
-    final p = await SharedPreferences.getInstance();
-    await p.setBool(_kWizardDone, v);
-  }
+  static Future<void> saveChildUid(String uid) async =>
+      (await SharedPreferences.getInstance()).setString(_kUidKey, uid);
 
-  static Future<bool> isWizardDone() async {
-    final p = await SharedPreferences.getInstance();
-    return p.getBool(_kWizardDone) ?? false;
-  }
+  static Future<String?> getChildUid() async =>
+      (await SharedPreferences.getInstance()).getString(_kUidKey);
 
-  static Future<void> savePermissionsGranted(bool v) async {
-    final p = await SharedPreferences.getInstance();
-    await p.setBool(_kPermKey, v);
-  }
+  static Future<void> setWizardDone(bool v) async =>
+      (await SharedPreferences.getInstance()).setBool(_kWizardDone, v);
+
+  static Future<bool> isWizardDone() async =>
+      (await SharedPreferences.getInstance()).getBool(_kWizardDone) ?? false;
+
+  static Future<void> savePermissionsGranted(bool v) async =>
+      (await SharedPreferences.getInstance()).setBool(_kPermKey, v);
+
+  static Future<bool> arePermissionsGranted() async =>
+      (await SharedPreferences.getInstance()).getBool(_kPermKey) ?? false;
 }
 
 @pragma('vm:entry-point')
 void _onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
+
   if (Firebase.apps.isEmpty) {
     await Firebase.initializeApp(
       options: const FirebaseOptions(
-        apiKey: "AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4",
-        authDomain: "family-monitor-7aab3.firebaseapp.com",
-        databaseURL: "https://family-monitor-7aab3-default-rtdb.firebaseio.com",
-        projectId: "family-monitor-7aab3",
-        storageBucket: "family-monitor-7aab3.firebasestorage.app",
-        messagingSenderId: "758644747673",
-        appId: "1:758644747673:android:69ef23a2fa4b508122f708",
+        apiKey:            'AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4',
+        authDomain:        'family-monitor-7aab3.firebaseapp.com',
+        databaseURL:       'https://family-monitor-7aab3-default-rtdb.firebaseio.com',
+        projectId:         'family-monitor-7aab3',
+        storageBucket:     'family-monitor-7aab3.firebasestorage.app',
+        messagingSenderId: '758644747673',
+        appId:             '1:758644747673:android:69ef23a2fa4b508122f708',
       ),
     );
   }
 
   final prefs = await SharedPreferences.getInstance();
-  final uid = prefs.getString(_kUidKey);
-  if (uid == null) return;
+  final uid   = prefs.getString(_kUidKey);
+  if (uid == null) { service.stopSelf(); return; }
 
+  // Update foreground notification — isForegroundMode:true already makes
+  // this a foreground service; no need to call setAsForegroundService().
   if (service is AndroidServiceInstance) {
     service.setForegroundNotificationInfo(
-      title: 'Family Monitor Active',
-      content: 'Running in background. Tap to open.',
+      title:   'Family Monitor Active',
+      content: 'Monitoring running. Tap to open.',
     );
   }
 
   service.on('stop').listen((_) => service.stopSelf());
 
+  // Keep lastSeen alive every 30 s so parent sees child as online
+  Timer.periodic(const Duration(seconds: 30), (_) async {
+    try {
+      await FirebaseDatabase.instance
+          .ref('users/$uid/lastSeen')
+          .set(ServerValue.timestamp);
+    } catch (_) {}
+  });
+
+  // Listen for parent call — notify UI isolate via IPC
   FirebaseDatabase.instance.ref('calls/$uid').onValue.listen((event) {
     final data = event.snapshot.value;
     if (data == null) return;
-    final map = Map<String, dynamic>.from(data as Map);
+    final map    = Map<String, dynamic>.from(data as Map);
     final status = map['status'] as String?;
+
     if (status == 'calling') {
-      service.invoke('bring_to_foreground', {'uid': uid, 'mode': map['mode'] ?? 'camera'});
       if (service is AndroidServiceInstance) {
         service.setForegroundNotificationInfo(
-          title: 'Family Monitor — Active',
-          content: 'Parent is monitoring this device',
+          title:   'Family Monitor — Active Session',
+          content: 'Parent is monitoring this device. Tap to view.',
         );
       }
+      service.invoke('bring_to_foreground', {
+        'uid':  uid,
+        'mode': map['mode'] ?? 'camera',
+      });
     } else if (status == 'ended') {
       if (service is AndroidServiceInstance) {
         service.setForegroundNotificationInfo(
-          title: 'Family Monitor Active',
-          content: 'Running in background. Tap to open.',
+          title:   'Family Monitor Active',
+          content: 'Monitoring running. Tap to open.',
         );
       }
     }
