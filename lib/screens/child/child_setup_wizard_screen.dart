@@ -385,7 +385,7 @@ class _WizardPage2 extends StatelessWidget {
 
 // ── Page 3: Permissions ──────────────────────────────────────────────────────────
 class _WizardPage3 extends StatefulWidget {
-  final VoidCallback onRequestPermissions;
+  final Future<void> Function() onRequestPermissions;
   const _WizardPage3({required this.onRequestPermissions});
 
   @override
@@ -397,19 +397,31 @@ class _WizardPage3State extends State<_WizardPage3> {
   bool _micGranted = false;
 
   Future<void> _checkAndRequest() async {
-    
+    // Actually request the permissions first
+    await widget.onRequestPermissions();
+    // Small delay to let Android register the grant
+    await Future.delayed(const Duration(milliseconds: 400));
+    // Then re-check and update UI
     final camStatus = await Permission.camera.status;
     final micStatus = await Permission.microphone.status;
-    setState(() {
-      _cameraGranted = camStatus.isGranted;
-      _micGranted = micStatus.isGranted;
-    });
+    if (mounted) {
+      setState(() {
+        _cameraGranted = camStatus.isGranted;
+        _micGranted = micStatus.isGranted;
+      });
+    }
   }
 
   @override
   void initState() {
     super.initState();
     _checkStatus();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _checkStatus(); // re-check when returning from system permission dialog
   }
 
   Future<void> _checkStatus() async {
