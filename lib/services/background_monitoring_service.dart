@@ -17,7 +17,7 @@ class BackgroundMonitoringService {
     await _svc.configure(
       androidConfiguration: AndroidConfiguration(
         onStart: _onStart,
-        autoStart: true,
+        autoStart: false,
         isForegroundMode: true,
         notificationChannelId:           'family_monitor_bg',
         initialNotificationTitle:        'Family Monitor',
@@ -113,9 +113,10 @@ void _onStart(ServiceInstance service) async {
       }
       return;
     }
-    final map    = Map<String, dynamic>.from(data as Map);
+    if (data is! Map) return;
+    final map = Map<String, dynamic>.from(data as Map);
     final status = map['status'] as String?;
-    final mode   = (map['mode'] as String?) ?? 'camera';
+    final mode = (map['mode'] as String?) ?? 'camera';
 
     if (status == 'calling') {
       if (service is AndroidServiceInstance) {

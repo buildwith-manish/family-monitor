@@ -50,7 +50,7 @@ class _SosScreenState extends State<SosScreen>
     if (uid == null) return;
     final snap =
         await FirebaseDatabase.instance.ref('users/$uid/approvedParents').get();
-    if (snap.value != null && mounted) {
+    if (snap.value != null && mounted && snap.value is Map) {
       final map = Map<String, dynamic>.from(snap.value as Map);
       setState(() => _parentUids = map.keys.toList());
     }

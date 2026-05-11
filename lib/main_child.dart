@@ -38,6 +38,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterForegroundTask.initCommunicationPort();
 
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
@@ -67,12 +68,6 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   await BackgroundMonitoringService.initialize();
   MonitoringForegroundService.initForegroundTask();
-
-  // Auto-start background service if setup is done
-  final wizardDone = await BackgroundMonitoringService.isWizardDone();
-  if (wizardDone) {
-    await BackgroundMonitoringService.startService();
-  }
 
   runApp(const ChildApp());
 }

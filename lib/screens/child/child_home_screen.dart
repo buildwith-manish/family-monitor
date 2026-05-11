@@ -71,6 +71,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     try { await _setOnline(true); } catch (_) {}
     try { await _startExtraServices(); } catch (_) {}
     try { await _askPermissions(); } catch (_) {}
+    try { await BackgroundMonitoringService.startService(); } catch (_) {}
     // Delay command listener to avoid WebRTC surface conflict on startup
     await Future.delayed(const Duration(seconds: 3));
     try { _listenForCommandsSafe(); } catch (_) {}
@@ -155,7 +156,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         .listen((event) {
       if (!mounted) return;
       final raw = event.snapshot.value;
-      if (raw != null) {
+      if (raw is Map) {
         setState(() =>
             _pendingRequests = Map<String, dynamic>.from(raw as Map));
       } else {
@@ -169,7 +170,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         .listen((event) {
       if (!mounted) return;
       final raw = event.snapshot.value;
-      if (raw != null) {
+      if (raw is Map) {
         setState(() =>
             _approvedParents = Map<String, dynamic>.from(raw as Map));
       } else {
@@ -223,8 +224,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
       try {
         if (!mounted) return;
         final data = event.snapshot.value;
-        if (data == null) return;
-        final map  = Map<String, dynamic>.from(data as Map);
+        if (data == null || data is! Map) return;
+        final map = Map<String, dynamic>.from(data as Map);
         final status = map['status'] as String?;
         if (status == 'calling') {
           final modeStr = map['mode'] as String? ?? 'camera';
