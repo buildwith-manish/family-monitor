@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Family Monitor Child</string>
     <string name="accessibility_service_description">Required for device management</string>
 </resources>

