@@ -145,7 +145,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
               style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF5F6368),
+                  color: const Color(0xFF5F6368))),
           const SizedBox(height: 10),
           Container(
             height: 200,
@@ -227,7 +227,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
             style: GoogleFonts.plusJakartaSans(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF5F6368),
+                color: const Color(0xFF5F6368))),
         const SizedBox(height: 8),
         ..._usage.asMap().entries.map((e) => _AppUsageRow(
               entry: e.value,
@@ -380,10 +380,10 @@ class _AppUsageRow extends StatelessWidget {
                   children: [
                     Text(entry.appName,
                         style: GoogleFonts.inter(
-                            fontSize: 13, fontWeight: FontWeight.w600),
+                            fontSize: 13, fontWeight: FontWeight.w600)),
                     Text(entry.packageName,
                         style: GoogleFonts.robotoMono(
-                            fontSize: 10, color: Colors.grey),
+                            fontSize: 10, color: Colors.grey)),
                   ],
                 ),
               ),
@@ -426,7 +426,7 @@ class _AppUsageRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                TextButton(onPressed: onCancel, child: const Text('Cancel'),
+                TextButton(onPressed: onCancel, child: const Text('Cancel')),
                 ElevatedButton(
                     onPressed: onSaveLimit, child: const Text('Save'),
               ],

@@ -348,7 +348,7 @@ class _ZoneChip extends StatelessWidget {
           const SizedBox(width: 6),
           Text(zone.name,
               style: GoogleFonts.inter(
-                  fontSize: 12, fontWeight: FontWeight.w600),
+                  fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(width: 4),
           Text('${zone.radius.toInt()}m',
               style: GoogleFonts.inter(

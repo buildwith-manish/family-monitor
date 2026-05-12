@@ -52,17 +52,17 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   Future<void> _setStatus(String id, ContactStatus status) async {
-    await _svc.setContactStatus(widget.childUid, id, status)
+    await _svc.setContactStatus(widget.childUid, id, status);
   }
-;
+
   List<ContactEntry> get _filtered {
     if (_query.isEmpty) return _contacts;
     final q = _query.toLowerCase();
     return _contacts
         .where((c) =>
             c.displayName.toLowerCase().contains(q) ||
-            c.phones.any((p) => p.contains(q)
-        .toList()
+            c.phones.any((p) => p.contains(q)))
+        .toList();
   }
 
   @override
@@ -84,7 +84,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
             icon: _requesting
                 ? const SizedBox(
                     width: 18, height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2)
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.sync),
             onPressed: _requesting ? null : _requestSync,
             tooltip: 'Sync contacts from device',
@@ -132,7 +132,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
             const SizedBox(height: 16),
             Text('No contacts synced yet',
                 style: GoogleFonts.plusJakartaSans(
-                    fontSize: 17, fontWeight: FontWeight.w700),
+                    fontSize: 17, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Text(
               'Tap the sync button to request contacts from the child device.',
@@ -187,10 +187,10 @@ class _StatsBar extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _Stat(value: contacts.length, label: 'Total', color: const Color(0xFF1A73E8),
-          _Stat(value: approved, label: 'Approved', color: const Color(0xFF34A853),
-          _Stat(value: blocked, label: 'Blocked', color: const Color(0xFFEA4335),
-          _Stat(value: pending, label: 'Pending', color: const Color(0xFF9AA0A6),
+          _Stat(value: contacts.length, label: 'Total', color: const Color(0xFF1A73E8)),
+          _Stat(value: approved, label: 'Approved', color: const Color(0xFF34A853)),
+          _Stat(value: blocked, label: 'Blocked', color: const Color(0xFFEA4335)),
+          _Stat(value: pending, label: 'Pending', color: const Color(0xFF9AA0A6)),
         ],
       ),
     );
@@ -209,9 +209,9 @@ class _Stat extends StatelessWidget {
       children: [
         Text('$value',
             style: GoogleFonts.plusJakartaSans(
-                fontSize: 20, fontWeight: FontWeight.w700, color: color),
+                fontSize: 20, fontWeight: FontWeight.w700, color: color)),
         Text(label,
-            style: GoogleFonts.inter(fontSize: 11, color: Colors.grey),
+            style: GoogleFonts.inter(fontSize: 11, color: Colors.grey)),
       ],
     );
   }
@@ -272,7 +272,7 @@ class _ContactRow extends StatelessWidget {
                 style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1A73E8),
+                    color: const Color(0xFF1A73E8))),
           ),
           const SizedBox(width: 12),
 
@@ -282,7 +282,7 @@ class _ContactRow extends StatelessWidget {
               children: [
                 Text(contact.displayName,
                     style: GoogleFonts.inter(
-                        fontSize: 13, fontWeight: FontWeight.w600),
+                        fontSize: 13, fontWeight: FontWeight.w600)),
                 if (contact.primaryPhone.isNotEmpty)
                   Text(contact.primaryPhone,
                       style: GoogleFonts.robotoMono(
@@ -303,7 +303,7 @@ class _ContactRow extends StatelessWidget {
                 style: GoogleFonts.inter(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: statusColor),
+                    color: statusColor)),
           ),
 
           // Action menu
@@ -316,22 +316,22 @@ class _ContactRow extends StatelessWidget {
                     child: ListTile(
                         dense: true,
                         leading: Icon(Icons.check_circle,
-                            color: Color(0xFF34A853),
-                        title: Text('Approve'),
+                            color: Color(0xFF34A853)),
+                        title: Text('Approve')),
               if (status != ContactStatus.blocked)
                 const PopupMenuItem(
                     value: 'block',
                     child: ListTile(
                         dense: true,
-                        leading: Icon(Icons.block, color: Color(0xFFEA4335),
-                        title: Text('Block'),
+                        leading: Icon(Icons.block, color: Color(0xFFEA4335)),
+                        title: Text('Block')),
               if (status != ContactStatus.pending)
                 const PopupMenuItem(
                     value: 'reset',
                     child: ListTile(
                         dense: true,
                         leading: Icon(Icons.undo),
-                        title: Text('Reset to pending'),
+                        title: Text('Reset to pending'))),
             ],
             onSelected: (v) {
               if (v == 'approve') onApprove();

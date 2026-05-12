@@ -59,7 +59,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
           TextButton(
               onPressed: () => Navigator.pop(context, true),
               child: const Text('Delete',
-                  style: TextStyle(color: Color(0xFFEA4335),
+                  style: TextStyle(color: Color(0xFFEA4335))),
         ],
       ),
     );
@@ -210,7 +210,7 @@ class _SnapshotTile extends StatelessWidget {
                   return Container(
                     color: const Color(0xFFF1F3F4),
                     child: const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(strokeWidth: 2)),
                   );
                 },
                 errorBuilder: (_, __, ___) => Container(
@@ -239,7 +239,7 @@ class _SnapshotTile extends StatelessWidget {
                             style: GoogleFonts.inter(
                                 color: Colors.white,
                                 fontSize: 11,
-                                fontWeight: FontWeight.w500),
+                                fontWeight: FontWeight.w500)),
                       ),
                       GestureDetector(
                         onTap: onDelete,
@@ -253,8 +253,8 @@ class _SnapshotTile extends StatelessWidget {
             ],
           ),
         ),
-      ).animate(delay: Duration(milliseconds: delay)).fadeIn().scale(begin: const Offset(0.9, 0.9),
-    );
+      ).animate(delay: Duration(milliseconds: delay)).fadeIn().scale(begin: const Offset(0.9, 0.9));
+  }
   }
 }
 

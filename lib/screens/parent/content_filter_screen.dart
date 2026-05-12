@@ -37,7 +37,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 2, vsync: this)
+    _tabs = TabController(length: 2, vsync: this);
     _svc.watchBlockedDomains(widget.childUid).listen((data) {
       if (!mounted) return;
     setState(() { _blocked = data; });
@@ -123,7 +123,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                 child: Text(
                   'Blocked categories are enforced on the child device. See SETUP.md for DNS-level filtering setup.',
                   style: GoogleFonts.inter(
-                      fontSize: 12, color: const Color(0xFF1A73E8),
+                      fontSize: 12, color: const Color(0xFF1A73E8)),
                 ),
               ),
             ],
@@ -257,7 +257,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                               _svc.unblockDomain(widget.childUid, d.domain),
                         ),
                       ),
-                    ).animate(delay: Duration(milliseconds: i * 30)).fadeIn()
+                    ).animate(delay: Duration(milliseconds: i * 30)).fadeIn();
                   },
                 ),
         ),
