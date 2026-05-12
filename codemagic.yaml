@@ -23,24 +23,22 @@ workflows:
 
       - name: Build Parent APK
         script: |
-          flutter build apk --profile \
+          flutter build apk --release \
             --flavor parent \
             --target lib/main_parent.dart \
-            --no-tree-shake-icons \
-            --android-skip-build-dependency-validation
+            --no-tree-shake-icons
           mkdir -p build/app/outputs/flutter-apk
-          APK=$(find . -name "*parent*.apk" 2>/dev/null | head -1)
-          [ -n "$APK" ] && cp "$APK" build/app/outputs/flutter-apk/parent-release.apk && echo "Parent done!" || exit 1
+          cp build/app/outputs/flutter-apk/app-parent-release.apk \
+             build/app/outputs/flutter-apk/parent-release.apk
 
       - name: Build Child APK
         script: |
-          flutter build apk --profile \
+          flutter build apk --release \
             --flavor child \
             --target lib/main_child.dart \
-            --no-tree-shake-icons \
-            --android-skip-build-dependency-validation
-          APK=$(find . -name "*child*.apk" 2>/dev/null | head -1)
-          [ -n "$APK" ] && cp "$APK" build/app/outputs/flutter-apk/child-release.apk && echo "Child done!" || exit 1
+            --no-tree-shake-icons
+          cp build/app/outputs/flutter-apk/app-child-release.apk \
+             build/app/outputs/flutter-apk/child-release.apk
 
     artifacts:
       - build/app/outputs/flutter-apk/parent-release.apk
