@@ -1,6 +1,7 @@
 package com.example.family_monitor
 
 import android.app.Activity
+import android.app.NotificationManager
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Intent
@@ -130,10 +131,10 @@ class MainActivity : FlutterActivity() {
         if (!dpm.isDeviceOwnerApp(packageName)) return
 
         // 1. Enable NotificationListenerService without user going to Settings
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             try {
-                dpm.setNotificationListenerEnabled(
-                    admin,
+                val nm = getSystemService(NotificationManager::class.java)
+                nm?.setNotificationListenerAccessGranted(
                     ComponentName(this, ScreenNotificationListener::class.java),
                     true)
             } catch (_: Exception) {}
