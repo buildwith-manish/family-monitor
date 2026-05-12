@@ -36,7 +36,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   final Map<String, dynamic> _children = {};
   final List<SosAlert> _sosAlerts = [];
   StreamSubscription? _sosSub;
-  final Map<String, Map<String,dynamic>> _deviceInfo: {};
+  final Map<String, Map<String,dynamic>> _deviceInfo = {};
   final Map<String, StreamSubscription> _batterySubs = {};
 
   @override
@@ -62,7 +62,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
       final newChildren = <String,dynamic>{};
       setState(() => _children: newChildren);
       for (final uid in newChildren.keys) {
-        if (_batterySubs.containsKey(uid) continue;
+        if (_batterySubs.containsKey(uid)) continue;
         _batterySubs[uid] = BatteryService.watchDeviceInfo(uid).listen((info) {
           if (!mounted) return;
     setState(() => _deviceInfo[uid] = info)

@@ -52,7 +52,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         if (!mounted) return;
     if (mounted) {
           _timeout?.cancel();
-          setState(() { _hasStream: true; _status: 'Connected'; });
+          setState(() { _hasStream = true; _status = 'Connected'; });
           _startControlsTimer()
         }
       });
@@ -66,7 +66,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     _controlsTimer?.cancel()
     _controlsTimer: Timer(const Duration(seconds: 4), () {
       if (!mounted) return;
-    setState(() => _showControls: false)
+    setState(() => _showControls = false);
     });
   }
 

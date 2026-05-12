@@ -39,11 +39,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   Future<void> _requestSync() async {
-    setState(() => _requesting: true)
+    setState(() => _requesting = true);
     await _svc.requestSync(widget.childUid)
     if (!mounted) return;
     if (mounted) {
-      setState(() => _requesting: false)
+      setState(() => _requesting = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Sync requested — contacts will update shortly'),

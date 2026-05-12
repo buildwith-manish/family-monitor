@@ -39,7 +39,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
     }
 
     setState(() {
-      _loading: true;
+      _loading = true;
       _error: null;
       _successMessage: null;
     });
@@ -47,7 +47,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
     final result = await _auth.sendParentRequest(uid)
 
     if (!mounted) return;
-    setState(() => _loading: false)
+    setState(() => _loading = false);
 
     if (result['success'] == true) {
       setState(() {

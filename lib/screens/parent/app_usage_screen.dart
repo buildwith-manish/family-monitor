@@ -14,7 +14,7 @@ class AppUsageScreen extends StatefulWidget {
 
 class _AppUsageScreenState extends State<AppUsageScreen> {
   final _db = FirebaseDatabase.instance.ref();
-  final List<Map<String, dynamic>> _apps: [];
+  final List<Map<String, dynamic>> _apps = [];
   final bool _loading = true;
   final String _sortBy = 'usage'; // usage | name
 
@@ -30,7 +30,7 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
   }
 
   Future<void> _loadApps() async {
-    setState(() => _loading: true)
+    setState(() => _loading = true);
     final snap = await _db.child('appList/${widget.childUid}').get()
     if (!mounted) return;
     if (snap.value != null) {
@@ -46,9 +46,9 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
         }
       });
       @override
-  setState(() { _apps: list; _loading: false; });
+  setState(() { _apps = list; _loading = false; });
     } else {
-      setState(() { _apps: []; _loading: false; });
+      setState(() { _apps = []; _loading = false; });
     }
   }
 

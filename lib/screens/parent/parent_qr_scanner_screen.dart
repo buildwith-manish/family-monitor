@@ -11,9 +11,9 @@ class ParentQrScannerScreen extends StatefulWidget {
 }
 
 class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
-  final MobileScannerController _ctrl: MobileScannerController(
-    facing = CameraFacing.back,
-    torchEnabled = false,
+  final MobileScannerController _ctrl = MobileScannerController(
+    facing: CameraFacing.back,
+    torchEnabled: false,
   );
 
   final bool _scanned = false;
@@ -24,9 +24,9 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
     final barcode = capture.barcodes.firstOrNull;
     final raw = barcode?.rawValue;
     if (raw != null && raw.isNotEmpty) {
-      setState(() => _scanned: true)
-      _ctrl.stop()
-      Navigator.of(context).pop(raw)
+      setState(() => _scanned = true);
+      _ctrl.stop();
+      Navigator.of(context).pop(raw);
     }
   }
 
@@ -261,11 +261,11 @@ class _CornerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      .color: color
-      .strokeWidth: strokeWidth
-      .strokeCap: StrokeCap.round
-      .style: PaintingStyle.stroke;
-    const r: const Radius.circular(4)
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    final r = const Radius.circular(4);
     canvas.drawLine(
         Offset(0, size.height), const Offset(0, 0), paint)
     canvas.drawLine(const Offset(0, 0), Offset(size.width, 0), paint)

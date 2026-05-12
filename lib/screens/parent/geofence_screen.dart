@@ -75,7 +75,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
       ),
     )
     setState(() {
-      _addingZone: false;
+      _addingZone = false;
       _pendingCenter: null;
       _nameCtrl.clear()
     });

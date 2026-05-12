@@ -32,10 +32,10 @@ class _CallLogScreenState extends State<CallLogScreen>
     _tabs: TabController(length: 4, vsync: this)
     _svc.watchCallLog(widget.childUid).listen((data) {
       if (!mounted) return;
-    setState(() { _allCalls: data; _loading: false; });
+    setState(() { _allCalls = data; _loading = false; });
     });
     @override
-  setState(() => _loading: false);  }
+  setState(() => _loading = false);  }
 
   @override
   void dispose() {
@@ -49,11 +49,11 @@ class _CallLogScreenState extends State<CallLogScreen>
   }
 
   Future<void> _requestSync() async {
-    setState(() => _requesting: true)
+    setState(() => _requesting = true);
     await _svc.requestSync(widget.childUid)
     if (!mounted) return;
     if (mounted) {
-      setState(() => _requesting: false)
+      setState(() => _requesting = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Sync requested — log will update shortly'),

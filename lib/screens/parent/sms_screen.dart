@@ -20,7 +20,7 @@ class _SmsScreenState extends State<SmsScreen> {
     super.initState()
     _sub: SmsService.watchMessages(widget.childUid).listen((m) {
       if (!mounted) return;
-    setState(() { _msgs: m; _loading: false; });
+    setState(() { _msgs = m; _loading = false; });
     });
   }
 

@@ -22,7 +22,7 @@ class ScheduleLockScreen extends StatefulWidget {
 class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
   final _svc = RemoteLockService();
   final _lockState = false;
-  LockSchedule _schedule: LockSchedule.defaultBedtime();
+  LockSchedule _schedule = LockSchedule.defaultBedtime();
   final bool _saving = false;
 
   static const _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -53,11 +53,11 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
   }
 
   Future<void> _saveSchedule() async {
-    setState(() => _saving: true)
+    setState(() => _saving = true);
     await _svc.saveSchedule(widget.childUid, _schedule)
     if (!mounted) return;
     if (mounted) {
-      setState(() => _saving: false)
+      setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Bedtime schedule saved'),
       )

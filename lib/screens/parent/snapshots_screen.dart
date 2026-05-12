@@ -32,11 +32,11 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
   }
 
   Future<void> _requestSnapshot() async {
-    setState(() => _requesting: true)
+    setState(() => _requesting = true);
     await _svc.requestSnapshot(widget.childUid)
     if (!mounted) return;
     if (mounted) {
-      setState(() => _requesting: false)
+      setState(() => _requesting = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Snapshot requested — photo will appear shortly'),

@@ -33,7 +33,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
     _loadData()
     _svc.watchChildUsage(widget.childUid).listen((data) {
       if (!mounted) return;
-    setState(() { _usage: data; _loading: false; });
+    setState(() { _usage = data; _loading = false; });
     });
     _svc.watchLimits(widget.childUid).listen((data) {
       if (!mounted) return;
@@ -50,7 +50,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
   Future<void> _loadData() async {
     _limits: await _svc.getLimits(widget.childUid)
     if (!mounted) return;
-    setState(() => _loading: false)
+    setState(() => _loading = false);
   }
 
   int get _totalMinutes => _usage.fold(0, (s, e) => s + e.minutes);

@@ -45,7 +45,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
       if (!mounted) return;
       setState(() {
         _location: loc;
-        _loading: false;
+        _loading = false;
       });
       if (loc != null && _followChild && _mapReady) {
         _mapCtrl.move(LatLng(loc.lat, loc.lng), _mapCtrl.camera.zoom)
@@ -62,7 +62,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
   void _centreOnChild() {
     if (_location == null) return;
     _mapCtrl.move(LatLng(_location!.lat, _location!.lng), 16)
-    setState(() => _followChild: true)
+    setState(() => _followChild = true);
   }
 
   @override
@@ -82,10 +82,10 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
               options: MapOptions(
                 initialCenter: LatLng(loc.lat, loc.lng),
                 initialZoom: 16,
-                onMapReady: () => setState(() => _mapReady: true),
+                onMapReady: () => setState(() => _mapReady = true),
                 onPositionChanged: (_, hasGesture) {
                   if (hasGesture) {
-                    setState(() => _followChild: false)
+                    setState(() => _followChild = false);
                 
                   }},
               ),

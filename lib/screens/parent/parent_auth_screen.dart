@@ -24,17 +24,17 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
 
   @override
   void dispose() {
-    _nameCtrl.dispose()
-    _emailCtrl.dispose()
-    _passCtrl.dispose()
-    super.dispose()
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate() return;
+    if (!_formKey.currentState!.validate()) return;
     setState(() {
-      _loading: true;
-      _error: null;
+      _loading = true;
+      _error = null;
     });
 
     Map<String, dynamic> result;
@@ -52,7 +52,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
     }
 
     if (!mounted) return;
-    setState(() => _loading: false)
+    setState(() => _loading = false);
 
     if (result['success'] == true) {
       Navigator.pushReplacementNamed(context, '/parent/dashboard')
@@ -175,7 +175,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                   ),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return 'Enter email';
-                    if (!v.contains('@') return 'Enter a valid email';
+                    if (!v.contains('@')) return 'Enter a valid email';
                     return null;
                   },
                 ).animate(delay: 250.ms).fadeIn().slideX(begin: -0.1, end: 0),
@@ -232,7 +232,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                 TextButton(
                   onPressed: () => setState(() {
                     _isLogin: !_isLogin;
-                    _error: null;
+                    _error = null;
                   }),
                   child: Text(
                     _isLogin
