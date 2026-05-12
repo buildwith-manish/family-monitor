@@ -132,7 +132,7 @@ class _ChildStreamingScreenState
                 context,
               );
             }
-          },
+          }
         );
 
         if (!mounted) {
