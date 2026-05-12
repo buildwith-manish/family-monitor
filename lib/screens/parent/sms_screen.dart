@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../services/sms_service.dart';
 
 class SmsScreen extends StatefulWidget {
@@ -81,7 +82,7 @@ class _SmsScreenState extends State<SmsScreen> {
                     trailing: Text(m.timeLabel,
                       style: GoogleFonts.inter(fontSize: 11, color: Colors.grey)),
                   ),
-                ).animate(delay: Duration(milliseconds: i * 20)).fadeIn(duration: 200.ms)
+                ).animate(delay: Duration(milliseconds: i * 20)).fadeIn(duration: 200.ms);
               }),
     );
   }
