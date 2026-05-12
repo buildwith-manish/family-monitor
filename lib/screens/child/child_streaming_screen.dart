@@ -96,11 +96,6 @@ class _ChildStreamingScreenState
         });
 
         await _webrtc.startSilentScreen(widget.childUid, "");
-            if (mounted) {
-              Navigator.pop(
-                context,
-              );
-            }
 
         if (!mounted) {
           return;
@@ -121,21 +116,10 @@ class _ChildStreamingScreenState
           childUid: widget.childUid,
           mode: StreamMode.camera,
         );
-        () {
-            if (mounted) {
-              Navigator.pop(
-                context,
-              );
-            }
-
-        if (!mounted) {
-          return;
-        }
-
+        if (!mounted) return;
         setState(() {
           _isConnecting = false;
-          _statusMsg =
-              'Camera streaming active';
+          _statusMsg = 'Camera streaming active';
         });
       }
     } catch (e) {
