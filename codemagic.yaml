@@ -3,6 +3,22 @@ workflows:
     name: Build Parent and Child APKs
     instance_type: mac_mini_m4
 
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+
     environment:
       flutter: stable
       java: 17
