@@ -109,7 +109,15 @@ class _ChildSetupWizardScreenState
       Permission.microphone,
     ];
 
-    // Notification permission intentionally removed
+    if (await Permission
+            .notification
+            .status !=
+        PermissionStatus
+            .granted) {
+      permissions.add(
+        Permission.notification,
+      );
+    }
 
     await permissions.request();
   }
@@ -242,11 +250,12 @@ class _ChildSetupWizardScreenState
         try {
           await BackgroundMonitoringService
               .startService();
-        } catch (e) {
-          debugPrint(
-            'Background service failed: $e',
-          );
-        }
+        } catch (_) {}
+
+        try {
+          await ScreenCaptureChannel
+              .hideLauncherIcon();
+        } catch (_) {}
       });
     } catch (e) {
       if (!mounted) {

@@ -8,8 +8,6 @@ import '../../services/auth_service.dart';
 import '../../services/sos_service.dart';
 import 'add_child_screen.dart';
 import '../../services/battery_service.dart';
-import 'monitoring_screen.dart';
-import '../../services/webrtc_service.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});
@@ -285,77 +283,8 @@ class _ChildCard extends StatelessWidget {
             ? Text('Battery: \$battery%',
                 style: GoogleFonts.inter(fontSize: 12, color: Colors.grey))
             : null,
-        trailing: const Icon(Icons.videocam),
-        onTap: () {
-          showModalBottomSheet(
-            context: context,
-            backgroundColor: Colors.white,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(
-                top: Radius.circular(24),
-              ),
-            ),
-            builder: (_) {
-              return SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.videocam),
-                          label: const Text('Live Camera'),
-                          onPressed: () {
-                            Navigator.pop(context);
-
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MonitoringScreen(
-                                  childUid: childUid,
-                                  childData: childData,
-                                  mode: StreamMode.camera,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.screen_share),
-                          label: const Text('Live Screen'),
-                          onPressed: () {
-                            Navigator.pop(context);
-
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MonitoringScreen(
-                                  childUid: childUid,
-                                  childData: childData,
-                                  mode: StreamMode.screen,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {},
       ),
     ).animate(delay: Duration(milliseconds: delay)).fadeIn();
   }
