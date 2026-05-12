@@ -7,7 +7,8 @@ class ParentQrScannerScreen extends StatefulWidget {
   const ParentQrScannerScreen({super.key});
 
   @override
-  State<ParentQrScannerScreen> createState() => _ParentQrScannerScreenState();
+  State<ParentQrScannerScreen> createState() =>
+      _ParentQrScannerScreenState();
 }
 
 class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
@@ -16,8 +17,8 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
     torchEnabled: false,
   );
 
-  final bool _scanned = false;
-  final bool _torchOn = false;
+  bool _scanned = false;
+  bool _torchOn = false;
 
   void _onDetect(BarcodeCapture capture) {
     if (_scanned) return;
@@ -32,7 +33,7 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
 
   @override
   void dispose() {
-    _ctrl.dispose()
+    _ctrl.dispose();
     super.dispose();
   }
 
@@ -42,16 +43,8 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Camera feed
-          MobileScanner(
-            controller: _ctrl,
-            onDetect: _onDetect,
-          ),
-
-          // Dark overlay with scan window cut-out
+          MobileScanner(controller: _ctrl, onDetect: _onDetect),
           _ScanOverlay(),
-
-          // Top bar
           SafeArea(
             child: Column(
               children: [
@@ -76,18 +69,16 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
                           textAlign: TextAlign.center,
                         ),
                       ),
-                      // Torch toggle
                       IconButton(
                         icon: Icon(
                           _torchOn ? Icons.flash_on : Icons.flash_off,
-                          color: _torchOn
-                              ? Colors.amber
-                              : Colors.white,
+                          color: _torchOn ? Colors.amber : Colors.white,
                           size: 24,
                         ),
                         onPressed: () {
                           _ctrl.toggleTorch();
-                          setState(() { _torchOn = !_torchOn; });                        },
+                          setState(() => _torchOn = !_torchOn);
+                        },
                       ),
                     ],
                   ),
@@ -95,8 +86,6 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
               ],
             ),
           ),
-
-          // Bottom instruction
           Positioned(
             bottom: 0,
             left: 0,
@@ -113,7 +102,7 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
                         color: Colors.black.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.15),
+                            color: Colors.white.withValues(alpha: 0.15)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -146,7 +135,6 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
   }
 }
 
-/// Paints a dark overlay with a transparent square cut-out for the scan area.
 class _ScanOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -157,22 +145,18 @@ class _ScanOverlay extends StatelessWidget {
 
     return Stack(
       children: [
-        // Semi-transparent background
         CustomPaint(
           size: size,
           painter: _OverlayPainter(
-            scanRect: Rect.fromLTWH(scanLeft, scanTop, scanSize, scanSize),
+            scanRect:
+                Rect.fromLTWH(scanLeft, scanTop, scanSize, scanSize),
           ),
         ),
-
-        // Corner brackets
         Positioned(
           left: scanLeft,
           top: scanTop,
-          child: const _ScanCorners(size: scanSize),
+          child: _ScanCorners(size: scanSize),
         ),
-
-        // "Align QR code here" label
         Positioned(
           left: 0,
           right: 0,
@@ -197,13 +181,14 @@ class _OverlayPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.black.withValues(alpha: 0.6)
-    final full = Rect.fromLTWH(0, 0, size.width, size.height)
+    final paint = Paint()..color = Colors.black.withValues(alpha: 0.6);
+    final full = Rect.fromLTWH(0, 0, size.width, size.height);
     final path = Path()
       ..addRect(full)
-      ..addRRect(RRect.fromRectAndRadius(scanRect, const Radius.circular(16)
+      ..addRRect(RRect.fromRectAndRadius(
+          scanRect, const Radius.circular(16)))
       ..fillType = PathFillType.evenOdd;
-    canvas.drawPath(path, paint)
+    canvas.drawPath(path, paint);
   }
 
   @override
@@ -218,16 +203,13 @@ class _ScanCorners extends StatelessWidget {
   Widget build(BuildContext context) {
     final cornerLen = 28.0;
     final strokeW = 3.5;
-    final color = const Color(0xFF1A73E8)
+    const color = Color(0xFF1A73E8);
 
-    Widget corner({
-      bool flipX = false,
-      bool flipY = false,
-    }) {
+    Widget corner({bool flipX = false, bool flipY = false}) {
       return Transform.scale(
         scaleX: flipX ? -1 : 1,
         scaleY: flipY ? -1 : 1,
-        child: const SizedBox(
+        child: SizedBox(
           width: cornerLen,
           height: cornerLen,
           child: CustomPaint(
@@ -242,11 +224,13 @@ class _ScanCorners extends StatelessWidget {
       height: size,
       child: Stack(
         children: [
-          Positioned(top: 0, left: 0, child: corner(),
-          Positioned(top: 0, right: 0, child: corner(flipX: true),
-          Positioned(bottom: 0, left: 0, child: corner(flipY: true),
+          Positioned(top: 0, left: 0, child: corner()),
+          Positioned(top: 0, right: 0, child: corner(flipX: true)),
+          Positioned(bottom: 0, left: 0, child: corner(flipY: true)),
           Positioned(
-              bottom: 0, right: 0, child: corner(flipX: true, flipY: true),
+              bottom: 0,
+              right: 0,
+              child: corner(flipX: true, flipY: true)),
         ],
       ),
     );
@@ -265,10 +249,8 @@ class _CornerPainter extends CustomPainter {
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
-    final r = const Radius.circular(4);
-    canvas.drawLine(
-        Offset(0, size.height), const Offset(0, 0), paint)
-    canvas.drawLine(const Offset(0, 0), Offset(size.width, 0), paint)
+    canvas.drawLine(Offset(0, size.height), const Offset(0, 0), paint);
+    canvas.drawLine(const Offset(0, 0), Offset(size.width, 0), paint);
   }
 
   @override
