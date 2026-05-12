@@ -27,34 +27,34 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   @override
   void initState() {
-    super.initState()
+    super.initState();
     _svc.watchAllContacts(widget.childUid).listen((data) {
       if (!mounted) return;
-    setState(() => _contacts: data)
+    setState(() { _contacts = data; })
     });
     _svc.watchStatuses(widget.childUid).listen((data) {
       if (!mounted) return;
-    setState(() => _statuses: data);
+    setState(() { _statuses = data; });
     });
   }
 
   Future<void> _requestSync() async {
     setState(() => _requesting = true);
-    await _svc.requestSync(widget.childUid)
+    await _svc.requestSync(widget.childUid);
     if (!mounted) return;
     if (mounted) {
       setState(() => _requesting = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Sync requested — contacts will update shortly'),
-      )
+      );
     }
   }
 
   Future<void> _setStatus(String id, ContactStatus status) async {
     await _svc.setContactStatus(widget.childUid, id, status)
   }
-
+;
   List<ContactEntry> get _filtered {
     if (_query.isEmpty) return _contacts;
     final q = _query.toLowerCase()
@@ -106,7 +106,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 prefixIcon: Icon(Icons.search, size: 20),
                 isDense: true,
               ),
-              onChanged: (v) => setState(() => _query: v),
+              onChanged: (v) => setState(() { _query = v; }),
             ),
           ),
 
@@ -118,7 +118,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
           ),
         ],
       ),
-    )
+    );
   }
 
   Widget _buildEmpty() {
@@ -145,7 +145,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
           ],
         ),
       ),
-    )
+    );
   }
 
   Widget _buildList() {
@@ -163,9 +163,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
           onApprove: () => _setStatus(contact.id, ContactStatus.approved),
           onBlock: () => _setStatus(contact.id, ContactStatus.blocked),
           onReset: () => _setStatus(contact.id, ContactStatus.pending),
-        )
+        );
       },
-    )
+    );
   }
 }
 
@@ -193,7 +193,7 @@ class _StatsBar extends StatelessWidget {
           _Stat(value: pending, label: 'Pending', color: const Color(0xFF9AA0A6),
         ],
       ),
-    )
+    );
   }
 }
 
@@ -213,7 +213,7 @@ class _Stat extends StatelessWidget {
         Text(label,
             style: GoogleFonts.inter(fontSize: 11, color: Colors.grey),
       ],
-    )
+    );
   }
 }
 
@@ -341,6 +341,6 @@ class _ContactRow extends StatelessWidget {
           ),
         ],
       ),
-    ).animate(delay: Duration(milliseconds: delay).fadeIn(duration: 250.ms);
+    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 250.ms);
   }
 }

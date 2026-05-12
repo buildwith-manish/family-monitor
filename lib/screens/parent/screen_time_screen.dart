@@ -29,22 +29,22 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
 
   @override
   void initState() {
-    super.initState()
-    _loadData()
+    super.initState();
+    _loadData();
     _svc.watchChildUsage(widget.childUid).listen((data) {
       if (!mounted) return;
     setState(() { _usage = data; _loading = false; });
     });
     _svc.watchLimits(widget.childUid).listen((data) {
       if (!mounted) return;
-    setState(() => _limits: data);
+    setState(() { _limits = data; });
     });
   }
 
   @override
   void dispose() {
     _limitCtrl.dispose()
-    super.dispose()
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -58,10 +58,10 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
   Future<void> _setLimit(String packageName) async {
     final mins = int.tryParse(_limitCtrl.text.trim()
     if (mins == null || mins <= 0) return;
-    await _svc.setDailyLimit(widget.childUid, packageName, mins)
+    await _svc.setDailyLimit(widget.childUid, packageName, mins);
     if (!mounted) return;
     if (mounted) {
-      setState(() => _settingLimitFor: null)
+      setState(() { _settingLimitFor = null; })
       _limitCtrl.clear()
     }
   }
@@ -93,7 +93,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
           : _usage.isEmpty
               ? _buildEmpty()
               : _buildContent(),
-    )
+    );
   }
 
   Widget _buildEmpty() {
@@ -126,7 +126,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
           ],
         ),
       ),
-    )
+    );
   }
 
   Widget _buildContent() {
@@ -236,10 +236,10 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
               limitCtrl: _limitCtrl,
               delay: e.key * 40,
               onSetLimit: () =>
-                  setState(() => _settingLimitFor: e.value.packageName),
+                  setState(() { _settingLimitFor = e.value.packageName; }),
               onSaveLimit: () => _setLimit(e.value.packageName),
               onCancel: () => setState(() {
-                _settingLimitFor: null;
+                _settingLimitFor = null;
                 _limitCtrl.clear();
               }),
             ),
@@ -248,7 +248,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
   }
 
   Color _barColor(int i) {
-    const colors: [
+    final colors = [
       const Color(0xFF1A73E8), const Color(0xFF34A853), const Color(0xFFFA7B17),
       const Color(0xFF9334E6), const Color(0xFFEA4335),
     ];
@@ -269,7 +269,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
               child: const Text('Got it'),
         ],
       ),
-    )
+    );
   }
 }
 
@@ -319,7 +319,7 @@ class _SummaryCard extends StatelessWidget {
           const Icon(Icons.phone_android, color: Colors.white38, size: 48),
         ],
       ),
-    )
+    );
   }
 }
 
@@ -443,6 +443,6 @@ class _AppUsageRow extends StatelessWidget {
             ),
         ],
       ),
-    ).animate(delay: Duration(milliseconds: delay).fadeIn(duration: 300.ms)
+    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 300.ms)
   }
 }

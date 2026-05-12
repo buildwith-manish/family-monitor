@@ -17,7 +17,7 @@ class _SmsScreenState extends State<SmsScreen> {
 
   @override
   void initState() {
-    super.initState()
+    super.initState();
     _sub: SmsService.watchMessages(widget.childUid).listen((m) {
       if (!mounted) return;
     setState(() { _msgs = m; _loading = false; });
@@ -82,7 +82,7 @@ class _SmsScreenState extends State<SmsScreen> {
                     trailing: Text(m.timeLabel,
                       style: GoogleFonts.inter(fontSize: 11, color: Colors.grey),
                   ),
-                ).animate(delay: Duration(milliseconds: i * 20).fadeIn(duration: 200.ms)
+                ).animate(delay: Duration(milliseconds: i * 20)).fadeIn(duration: 200.ms)
               }),
     );
   }

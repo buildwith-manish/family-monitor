@@ -36,22 +36,22 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
 
   @override
   void initState() {
-    super.initState()
+    super.initState();
     _tabs: TabController(length: 2, vsync: this)
     _svc.watchBlockedDomains(widget.childUid).listen((data) {
       if (!mounted) return;
-    setState(() => _blocked: data)
+    setState(() { _blocked = data; })
     });
     _svc.watchBlockedCategories(widget.childUid).listen((data) {
       if (!mounted) return;
-    setState(() => _blockedCategories: data);    });
+    setState(() { _blockedCategories = data; });    });
   }
 
   @override
   void dispose() {
     _tabs.dispose()
     _domainCtrl.dispose()
-    super.dispose()
+    super.dispose();
   }
 
   Future<void> _addDomain() async {
@@ -60,16 +60,16 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
     await _svc.blockDomain(widget.childUid, domain)
     _domainCtrl.clear()
   }
-
+;
   Future<void> _toggleCategory(String category) async {
     if (_blockedCategories.contains(category) {
-      await _svc.unblockCategory(widget.childUid, category)
+      await _svc.unblockCategory(widget.childUid, category);
     } else {
       await _svc.blockCategory(widget.childUid, category)
     }
   }
 
-  @override
+  @override;
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFB),
@@ -100,7 +100,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
           _buildDomains(),
         ],
       ),
-    )
+    );
   }
 
   Widget _buildCategories() {
@@ -169,7 +169,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                 activeThumbColor: const Color(0xFFEA4335),
               ),
             ),
-          ).animate(delay: Duration(milliseconds: e.key * 60).fadeIn();
+          ).animate(delay: Duration(milliseconds: e.key * 60)).fadeIn();
         }),
       ],
     );
@@ -226,7 +226,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                               color: Colors.grey.shade400, fontSize: 12),
                     ],
                   ),
-                )
+                );
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(
                       vertical: 8, horizontal: 12),
@@ -257,11 +257,11 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                               _svc.unblockDomain(widget.childUid, d.domain),
                         ),
                       ),
-                    ).animate(delay: Duration(milliseconds: i * 30).fadeIn()
+                    ).animate(delay: Duration(milliseconds: i * 30)).fadeIn()
                   },
                 ),
         ),
       ],
-    )
+    );
   }
 }

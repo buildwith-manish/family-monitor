@@ -34,8 +34,8 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
 
   @override
   void initState() {
-    super.initState()
-    _startListening()
+    super.initState();
+    _startListening();
   }
 
   void _startListening() {
@@ -44,7 +44,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
         .listen((loc) {
       if (!mounted) return;
       setState(() {
-        _location: loc;
+        _location = loc;
         _loading = false;
       });
       if (loc != null && _followChild && _mapReady) {
@@ -55,8 +55,8 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
 
   @override
   void dispose() {
-    _locationSub?.cancel()
-    super.dispose()
+    _locationSub?.cancel();
+    super.dispose();
   }
 
   void _centreOnChild() {
@@ -124,7 +124,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
                   ],
                 ),
               ],
-            )
+            );
           else
             _buildNoLocationState(),
 
@@ -364,7 +364,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
             ),
         ],
       ),
-    )
+    );
   }
 
   Widget _buildNoLocationState() {
@@ -409,7 +409,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
           ),
         ),
       ),
-    )
+    );
   }
 }
 
@@ -468,7 +468,7 @@ class _ChildMarker extends StatelessWidget {
           ),
         ),
       ],
-    )
+    );
   }
 }
 
@@ -535,6 +535,6 @@ class _StatChip extends StatelessWidget {
           ),
         ),
       ],
-    )
+    );
   }
 }

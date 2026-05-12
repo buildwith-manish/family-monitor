@@ -20,9 +20,9 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
 
   @override
   void initState() {
-    super.initState()
-    _loadApps()
-    _requestSync()
+    super.initState();
+    _loadApps();
+    _requestSync();
   }
 
   Future<void> _requestSync() async {
@@ -88,7 +88,7 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: () { _requestSync(); _loadApps(); }),
           PopupMenuButton<String>(
-            onSelected: (v) { setState(() => _sortBy: v); _loadApps(); },
+            onSelected: (v) { setState(() { _sortBy = v; }); _loadApps(); },
             itemBuilder: (_) => [
               const PopupMenuItem(value: 'usage', child: Text('Sort by Usage'),
               PopupMenuItem(value: 'name', child: Text('Sort by Name'),
@@ -153,7 +153,7 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
                           Text('today', style: GoogleFonts.inter(fontSize: 10, color: Colors.grey),
                         ]),
                       ]),
-                    )
+                    );
                   },
                 ),
     );

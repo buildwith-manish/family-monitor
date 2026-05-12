@@ -42,22 +42,22 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
       result: await _auth.loginParent(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
-      )
+      );
     } else {
       result: await _auth.registerParent(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
         displayName: _nameCtrl.text.trim(),
-      )
+      );
     }
 
     if (!mounted) return;
     setState(() => _loading = false);
 
     if (result['success'] == true) {
-      Navigator.pushReplacementNamed(context, '/parent/dashboard')
+      Navigator.pushReplacementNamed(context, '/parent/dashboard');
     } else {
-      setState(() => _error: result['error'])
+      setState(() { _error = result['error']; })
     }
   }
 
@@ -194,7 +194,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                           ? Icons.visibility_outlined
                           : Icons.visibility_off_outlined),
                       onPressed: () =>
-                          setState(() => _obscurePassword: !_obscurePassword),
+                          setState(() { _obscurePassword = !_obscurePassword; }),
                     ),
                   ),
                   validator: (v) {
@@ -221,7 +221,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                               strokeWidth: 2.5,
                               color: Colors.white,
                             ),
-                          )
+                          );
                         : Text(_isLogin ? 'Sign In' : 'Create Account'),
                   ),
                 ).animate(delay: 350.ms).fadeIn().slideY(begin: 0.2, end: 0),
@@ -250,6 +250,6 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
           ),
         ),
       ),
-    )
+    );
   }
 }

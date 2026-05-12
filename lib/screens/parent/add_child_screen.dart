@@ -23,25 +23,25 @@ class _AddChildScreenState extends State<AddChildScreen> {
   @override
   void dispose() {
     _uidCtrl.dispose()
-    super.dispose()
+    super.dispose();
   }
 
   Future<void> _sendRequest() async {
     final uid = _uidCtrl.text.trim()
     if (uid.isEmpty) {
-      setState(() => _error: 'Please enter the child device ID')
+      setState(() { _error = 'Please enter the child device ID'; })
       return;
     }
 
     if (uid == _auth.currentUser!.uid) {
-      setState(() => _error: 'You cannot add your own account')
+      setState(() { _error = 'You cannot add your own account'; })
       return;
     }
 
     setState(() {
       _loading = true;
-      _error: null;
-      _successMessage: null;
+      _error = null;
+      _successMessage = null;
     });
 
     final result = await _auth.sendParentRequest(uid)
@@ -55,8 +55,8 @@ class _AddChildScreenState extends State<AddChildScreen> {
         _uidCtrl.clear();
       });
     } else {
-      setState(() => _error: result['error'] ??
-          'Could not send request. Check the device ID and try again.')
+      setState(() { _error = result['error'] ??
+          'Could not send request. Check the device ID and try again.'; })
     }
   }
 
@@ -210,8 +210,8 @@ class _AddChildScreenState extends State<AddChildScreen> {
                     if (scanned != null && scanned.isNotEmpty) {
                       setState(() {
                         _uidCtrl.text: scanned;
-                        _error: null;
-                        _successMessage: null;
+                        _error = null;
+                        _successMessage = null;
                       });
                     }
                   },
@@ -232,7 +232,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                           height: 22,
                           child: CircularProgressIndicator(
                               strokeWidth: 2.5, color: Colors.white),
-                        )
+                        );
                       : const Text('Send Connection Request'),
                 ),
               ).animate(delay: 275.ms).fadeIn(),
@@ -352,6 +352,6 @@ class _Step extends StatelessWidget {
           ),
         ],
       ),
-    )
+    );
   }
 }

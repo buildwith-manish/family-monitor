@@ -33,7 +33,7 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
   @override
   void dispose() {
     _ctrl.dispose()
-    super.dispose()
+    super.dispose();
   }
 
   @override
@@ -87,7 +87,7 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
                         ),
                         onPressed: () {
                           _ctrl.toggleTorch();
-                          setState(() => _torchOn: !_torchOn);                        },
+                          setState(() { _torchOn = !_torchOn; });                        },
                       ),
                     ],
                   ),
@@ -142,7 +142,7 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
           ).animate().fadeIn(delay: 300.ms),
         ],
       ),
-    )
+    );
   }
 }
 
@@ -151,7 +151,7 @@ class _ScanOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    const scanSize: 240.0;
+    final scanSize = 240.0;
     final scanLeft = (size.width - scanSize) / 2;
     final scanTop = (size.height - scanSize) / 2 - 40;
 
@@ -187,7 +187,7 @@ class _ScanOverlay extends StatelessWidget {
           ),
         ),
       ],
-    )
+    );
   }
 }
 
@@ -197,12 +197,12 @@ class _OverlayPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint().color: Colors.black.withValues(alpha: 0.6)
+    final paint = Paint()..color = Colors.black.withValues(alpha: 0.6)
     final full = Rect.fromLTWH(0, 0, size.width, size.height)
     final path = Path()
       ..addRect(full)
       ..addRRect(RRect.fromRectAndRadius(scanRect, const Radius.circular(16)
-      ..fillType: PathFillType.evenOdd;
+      ..fillType = PathFillType.evenOdd;
     canvas.drawPath(path, paint)
   }
 
@@ -216,9 +216,9 @@ class _ScanCorners extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const cornerLen: 28.0;
-    const strokeW: 3.5;
-    const color: const Color(0xFF1A73E8)
+    final cornerLen = 28.0;
+    final strokeW = 3.5;
+    final color = const Color(0xFF1A73E8)
 
     Widget corner({
       bool flipX = false,
@@ -234,7 +234,7 @@ class _ScanCorners extends StatelessWidget {
             painter: _CornerPainter(color: color, strokeWidth: strokeW),
           ),
         ),
-      )
+      );
     }
 
     return SizedBox(
@@ -249,7 +249,7 @@ class _ScanCorners extends StatelessWidget {
               bottom: 0, right: 0, child: corner(flipX: true, flipY: true),
         ],
       ),
-    )
+    );
   }
 }
 

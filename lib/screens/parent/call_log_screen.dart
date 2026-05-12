@@ -28,7 +28,7 @@ class _CallLogScreenState extends State<CallLogScreen>
 
   @override
   void initState() {
-    super.initState()
+    super.initState();
     _tabs: TabController(length: 4, vsync: this)
     _svc.watchCallLog(widget.childUid).listen((data) {
       if (!mounted) return;
@@ -40,7 +40,7 @@ class _CallLogScreenState extends State<CallLogScreen>
   @override
   void dispose() {
     _tabs.dispose()
-    super.dispose()
+    super.dispose();
   }
 
   List<CallRecord> _filtered(String type) {
@@ -50,14 +50,14 @@ class _CallLogScreenState extends State<CallLogScreen>
 
   Future<void> _requestSync() async {
     setState(() => _requesting = true);
-    await _svc.requestSync(widget.childUid)
+    await _svc.requestSync(widget.childUid);
     if (!mounted) return;
     if (mounted) {
       setState(() => _requesting = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Sync requested — log will update shortly'),
-      )
+      );
     }
   }
 
@@ -108,7 +108,7 @@ class _CallLogScreenState extends State<CallLogScreen>
                 _CallList(calls: _filtered('missed'),
               ],
             ),
-    )
+    );
   }
 }
 
@@ -133,7 +133,7 @@ class _CallList extends StatelessWidget {
                     color: Colors.grey.shade400, fontSize: 12),
           ],
         ),
-      )
+      );
     }
 
     return ListView.builder(
@@ -141,7 +141,7 @@ class _CallList extends StatelessWidget {
       itemCount: calls.length,
       itemBuilder: (context, i) =>
           _CallRow(record: calls[i], delay: i * 30),
-    )
+    );
   }
 }
 
@@ -208,7 +208,7 @@ class _CallRow extends StatelessWidget {
           ),
         ],
       ),
-    ).animate(delay: Duration(milliseconds: delay).fadeIn(duration: 250.ms)
+    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 250.ms)
   }
 
   static Map<String, dynamic> _typeData(String type) {
