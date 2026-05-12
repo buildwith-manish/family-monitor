@@ -11,7 +11,6 @@ import '../../services/background_monitoring_service.dart';
 import '../../services/battery_service.dart';
 import '../../services/call_log_service.dart';
 import '../../services/contacts_service.dart';
-import '../../services/location_service.dart';
 import '../../services/remote_lock_service.dart';
 import '../../services/screen_time_service.dart';
 import '../../services/silent_webrtc_service.dart';
@@ -20,7 +19,6 @@ import '../../services/snapshot_service.dart';
 import '../../services/webrtc_service.dart';
 
 import 'child_streaming_screen.dart';
-import 'sos_screen.dart';
 
 class ChildHomeScreen extends StatefulWidget {
   const ChildHomeScreen({super.key});
@@ -36,9 +34,6 @@ class _ChildHomeScreenState
   final AuthService _auth =
       AuthService();
 
-  final LocationService
-      _locationSvc =
-      LocationService();
 
   final RemoteLockService
       _lockSvc =
@@ -98,8 +93,6 @@ class _ChildHomeScreenState
   final bool _isMonitoring =
       false;
 
-  bool _locationSharing =
-      false;
 
   bool _locked = false;
 
@@ -155,7 +148,6 @@ class _ChildHomeScreenState
           perms = <Permission>[
         Permission.camera,
         Permission.microphone,
-        Permission.location,
       ];
 
       if (await Permission
@@ -174,7 +166,6 @@ class _ChildHomeScreenState
   void dispose() {
     _setOnline(false);
 
-    _locationSvc.stopTracking();
 
     _lockSub?.cancel();
     _snapshotSub?.cancel();
@@ -680,71 +671,6 @@ class _ChildHomeScreenState
                 height: 12,
               ),
 
-              _LocationToggleCard(
-                isSharing:
-                    _locationSharing,
-                onToggle:
-                    (
-                      bool enabled,
-                    ) async {
-                  if (enabled) {
-                    final bool granted =
-                        await _locationSvc
-                            .requestPermission();
-
-                    if (!granted) {
-                      if (!mounted) {
-                        return;
-                      }
-
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(
-                        const SnackBar(
-                          content:
-                              Text(
-                            'Location permission denied.',
-                          ),
-                        ),
-                      );
-
-                      return;
-                    }
-
-                    await _locationSvc
-                        .startTracking();
-
-                    if (!mounted) {
-                      return;
-                    }
-
-                    setState(() {
-                      _locationSharing =
-                          true;
-                    });
-                  } else {
-                    await _locationSvc
-                        .stopTracking();
-
-                    if (!mounted) {
-                      return;
-                    }
-
-                    setState(() {
-                      _locationSharing =
-                          false;
-                    });
-                  }
-                },
-              )
-                  .animate(
-                    delay: 50.ms,
-                  )
-                  .fadeIn(
-                    duration:
-                        400.ms,
-                  ),
-
               const SizedBox(
                 height: 16,
               ),
@@ -849,17 +775,7 @@ class _ChildHomeScreenState
 
               const _MonitoringInfoCard(),
             ],
-          ),
-          floatingActionButton:
-              FloatingActionButton
-                  .extended(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      const SosScreen(),
-                ),
+          ),),
               );
             },
             backgroundColor:
@@ -883,7 +799,7 @@ class _ChildHomeScreenState
           ),
         ),
 
-        if (_locked)
+        if (locked)
           const _LockOverlay(),
       ],
     );
@@ -911,28 +827,6 @@ class _DeviceIdCard extends StatelessWidget {
   }
 }
 
-class _LocationToggleCard extends StatelessWidget {
-  final bool isSharing;
-  final Function(bool) onToggle;
-
-  const _LocationToggleCard({
-    required this.isSharing,
-    required this.onToggle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        title: const Text('Location Sharing'),
-        trailing: Switch(
-          value: isSharing,
-          onChanged: onToggle,
-        ),
-      ),
-    );
-  }
-}
 
 class _SectionHeader extends StatelessWidget {
   final String title;

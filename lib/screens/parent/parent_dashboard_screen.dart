@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 import '../../services/auth_service.dart';
-import '../../services/sos_service.dart';
 import 'add_child_screen.dart';
 import '../../services/battery_service.dart';
 import 'monitoring_screen.dart';
@@ -20,12 +19,9 @@ class ParentDashboardScreen extends StatefulWidget {
 
 class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   final _auth = AuthService();
-  final _sosSvc = SosService();
   final _db = FirebaseDatabase.instance.ref();
 
   final Map<String, dynamic> _children = {};
-  final List<SosAlert> _sosAlerts = [];
-  StreamSubscription? _sosSub;
   final Map<String, Map<String, dynamic>> _deviceInfo = {};
   final Map<String, StreamSubscription> _batterySubs = {};
 
@@ -33,12 +29,10 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   void initState() {
     super.initState();
     _listenForChildren();
-    _listenForSos();
   }
 
   @override
   void dispose() {
-    _sosSub?.cancel();
     for (final s in _batterySubs.values) {
       s.cancel();
     }
@@ -63,26 +57,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     });
   }
 
-  void _listenForSos() {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
-    _sosSub = _sosSvc.watchAlerts(uid).listen((alerts) {
-      if (!mounted) return;
-      setState(() {
-        _sosAlerts
-          ..clear()
-          ..addAll(alerts.where((a) => !a.acknowledged).toList());
-      });
-    });
-  }
 
-  Future<void> _acknowledgeAll() async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
-    for (final alert in _sosAlerts) {
-      await _sosSvc.acknowledgeAlert(uid, alert.key);
-    }
-  }
 
   Widget _batteryBadge(String childUid) {
     final info = _deviceInfo[childUid] ?? {};
@@ -157,11 +132,6 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
       ),
       body: Column(
         children: [
-          if (_sosAlerts.isNotEmpty)
-            _SosBanner(
-              alerts: _sosAlerts,
-              onAcknowledge: _acknowledgeAll,
-            ).animate().slideY(begin: -1, end: 0),
           Expanded(
             child: _children.isEmpty
                 ? _buildEmptyState()
@@ -362,61 +332,3 @@ class _ChildCard extends StatelessWidget {
 }
 
 
-class _SosBanner extends StatelessWidget {
-  final List<SosAlert> alerts;
-  final VoidCallback onAcknowledge;
-
-  const _SosBanner({required this.alerts, required this.onAcknowledge});
-
-  @override
-  Widget build(BuildContext context) {
-    final alert = alerts.first;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEA4335),
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFEA4335).withValues(alpha: 0.4),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.sos, color: Colors.white, size: 28),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('SOS Alert — ${alert.childName}',
-                    style: GoogleFonts.plusJakartaSans(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700)),
-                Text(alert.timeAgo,
-                    style:
-                        GoogleFonts.inter(color: Colors.white70, fontSize: 12)),
-                if (alerts.length > 1)
-                  Text(
-                      '+${alerts.length - 1} more alert${alerts.length > 2 ? "s" : ""}',
-                      style:
-                          GoogleFonts.inter(color: Colors.white60, fontSize: 11)),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: onAcknowledge,
-            child: Text('Dismiss',
-                style: GoogleFonts.inter(
-                    color: Colors.white, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
-  }
-}
