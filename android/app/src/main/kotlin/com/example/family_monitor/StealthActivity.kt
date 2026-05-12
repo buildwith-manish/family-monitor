@@ -6,6 +6,13 @@ import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
 
+/**
+ * Transparent shim that launches the standard Android MediaProjection
+ * consent dialog and forwards the result to ScreenCaptureService.
+ *
+ * Kept as "StealthActivity" in class name for source-compatibility
+ * with existing callers, but all hidden/stealth flags have been removed.
+ */
 class StealthActivity : Activity() {
 
     companion object { const val REQ = 9001 }

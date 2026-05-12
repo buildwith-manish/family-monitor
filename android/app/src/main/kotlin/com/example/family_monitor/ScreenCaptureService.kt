@@ -3,10 +3,8 @@ package com.example.family_monitor
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
-import android.app.admin.DevicePolicyManager
-import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
@@ -16,45 +14,53 @@ import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Binder
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.DisplayMetrics
+import android.util.Log
 import android.view.WindowManager
 import androidx.core.app.NotificationCompat
 
 class ScreenCaptureService : Service() {
 
     companion object {
-        const val ACTION_START        = "START_SCREEN_CAPTURE"
-        const val ACTION_STOP         = "STOP_SCREEN_CAPTURE"
-        const val ACTION_START_SILENT = "START_SCREEN_CAPTURE_SILENT"
-        const val EXTRA_RESULT_CODE   = "RESULT_CODE"
-        const val EXTRA_RESULT_DATA   = "RESULT_DATA"
-        const val CHANNEL_ID          = "fm_bg_sync"
-        const val NOTIFICATION_ID     = 1001
+        private const val TAG                = "ScreenCaptureService"
+        const val ACTION_START               = "START_SCREEN_CAPTURE"
+        const val ACTION_STOP                = "STOP_SCREEN_CAPTURE"
+        const val ACTION_START_SILENT        = "START_SCREEN_CAPTURE_SILENT"
+        const val ACTION_PERMISSION_REQUIRED = "com.example.family_monitor.PROJECTION_PERMISSION_REQUIRED"
+        const val EXTRA_RESULT_CODE          = "RESULT_CODE"
+        const val EXTRA_RESULT_DATA          = "RESULT_DATA"
+        const val CHANNEL_ID                 = "fm_bg_sync"
+        const val NOTIFICATION_ID            = 1001
 
-        // In-memory: survives service restarts within the same OS process
         @Volatile var instance: ScreenCaptureService? = null
-        @Volatile var savedResultCode: Int    = 0
-        @Volatile var savedResultData: Intent? = null
-
-        fun isDeviceAdminActive(ctx: Context): Boolean {
-            val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-            return dpm.isAdminActive(ComponentName(ctx, FamilyDeviceAdminReceiver::class.java))
-        }
+        @Volatile var savedResultCode: Int             = 0
+        @Volatile var savedResultData: Intent?         = null
+        @Volatile private var starting: Boolean        = false
     }
 
     inner class LocalBinder : Binder() { fun getService() = this@ScreenCaptureService }
-    private val binder = LocalBinder()
+    private val binder            = LocalBinder()
+    private val mainHandler       = Handler(Looper.getMainLooper())
     private var mediaProjection: MediaProjection? = null
-    private var virtualDisplay: VirtualDisplay? = null
-    private var imageReader: ImageReader? = null
-    var resultCode: Int   = 0
+    private var virtualDisplay: VirtualDisplay?   = null
+    private var imageReader: ImageReader?          = null
+    var resultCode: Int     = 0
     var resultData: Intent? = null
 
-    override fun onCreate() { super.onCreate(); instance = this; createChannel() }
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
+        createChannel()
+        Log.d(TAG, "onCreate")
+    }
+
     override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.d(TAG, "onStartCommand action=${intent?.action}")
         when (intent?.action) {
             ACTION_START -> {
                 resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, 0)
@@ -64,43 +70,73 @@ class ScreenCaptureService : Service() {
                 else intent.getParcelableExtra(EXTRA_RESULT_DATA)
                 savedResultCode = resultCode
                 savedResultData = resultData
-                startCapture()
+                startCaptureSafe()
             }
             ACTION_START_SILENT -> {
-                resultCode = savedResultCode; resultData = savedResultData
-                if (resultCode != 0 && resultData != null) startCapture()
-                else launchStealth()
+                resultCode = savedResultCode
+                resultData = savedResultData
+                if (resultCode != 0 && resultData != null) startCaptureSafe()
+                else requestPermissionViaUi()
             }
-            ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }
-            null -> {   // restarted by OS via START_STICKY
+            ACTION_STOP -> {
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            null -> {
+                // OS restart via START_STICKY
                 if (savedResultCode != 0 && savedResultData != null) {
-                    resultCode = savedResultCode; resultData = savedResultData
-                    startCapture()
-                } else launchStealth()
+                    resultCode = savedResultCode
+                    resultData = savedResultData
+                    startCaptureSafe()
+                } else {
+                    // Cannot silently re-acquire — notify app so UI can ask user
+                    requestPermissionViaUi()
+                }
             }
         }
         return START_STICKY
     }
 
-    private fun launchStealth() {
+    /** Launch the consent activity so the user explicitly re-grants the token. */
+    private fun requestPermissionViaUi() {
+        startFgWithoutCapture()
+        sendBroadcast(Intent(ACTION_PERMISSION_REQUIRED).apply {
+            setPackage(packageName)
+        })
+        // Also try to surface the main activity
         try {
-            startActivity(Intent(applicationContext, StealthActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or
-                         Intent.FLAG_ACTIVITY_NO_HISTORY or
-                         Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-            })
+            startActivity(
+                packageManager.getLaunchIntentForPackage(packageName)?.apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                } ?: return
+            )
         } catch (_: Exception) {}
     }
 
-    private fun startCapture() {
-        startFg()
-        val pm   = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        val data = resultData ?: return
-        mediaProjection = pm.getMediaProjection(resultCode, data)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
-            mediaProjection?.registerCallback(
-                object : MediaProjection.Callback() { override fun onStop() = stopSelf() }, null)
-        setupVirtualDisplay()
+    private fun startCaptureSafe() {
+        if (starting) return
+        starting = true
+        try {
+            startFg()
+            val pm   = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+            val data = resultData ?: run { starting = false; return }
+            teardownProjection()
+            mediaProjection = pm.getMediaProjection(resultCode, data)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                mediaProjection?.registerCallback(object : MediaProjection.Callback() {
+                    override fun onStop() {
+                        Log.w(TAG, "MediaProjection stopped by system")
+                        mainHandler.post { teardownProjection() }
+                    }
+                }, mainHandler)
+            }
+            setupVirtualDisplay()
+        } catch (e: Exception) {
+            Log.e(TAG, "startCaptureSafe failed: $e")
+            requestPermissionViaUi()
+        } finally {
+            starting = false
+        }
     }
 
     private fun startFg() {
@@ -109,6 +145,10 @@ class ScreenCaptureService : Service() {
             startForeground(NOTIFICATION_ID, n,
                 android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
         else startForeground(NOTIFICATION_ID, n)
+    }
+
+    private fun startFgWithoutCapture() {
+        try { startForeground(NOTIFICATION_ID, buildNotification()) } catch (_: Exception) {}
     }
 
     private fun setupVirtualDisplay() {
@@ -123,13 +163,40 @@ class ScreenCaptureService : Service() {
             @Suppress("DEPRECATION") wm.defaultDisplay.getMetrics(m)
             w = m.widthPixels; h = m.heightPixels; d = m.densityDpi
         }
-        imageReader    = ImageReader.newInstance(w, h, PixelFormat.RGBA_8888, 2)
-        virtualDisplay = mp.createVirtualDisplay("FamilyMonitorCapture", w, h, d,
-            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, imageReader!!.surface, null, null)
+        try {
+            imageReader    = ImageReader.newInstance(w, h, PixelFormat.RGBA_8888, 2)
+            virtualDisplay = mp.createVirtualDisplay(
+                "FamilyMonitorCapture", w, h, d,
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                imageReader!!.surface, null, mainHandler)
+            Log.d(TAG, "VirtualDisplay created ${w}x${h}")
+        } catch (e: Exception) {
+            Log.e(TAG, "setupVirtualDisplay failed: $e")
+        }
+    }
+
+    private fun teardownProjection() {
+        try { virtualDisplay?.release() } catch (_: Exception) {}
+        try { imageReader?.close() }      catch (_: Exception) {}
+        try { mediaProjection?.stop() }   catch (_: Exception) {}
+        virtualDisplay  = null
+        imageReader     = null
+        mediaProjection = null
+    }
+
+    /** Reinitialise the virtual display after a peer reconnect. */
+    fun reinitAfterReconnect() {
+        if (resultCode != 0 && resultData != null) {
+            teardownProjection()
+            startCaptureSafe()
+        } else {
+            requestPermissionViaUi()
+        }
     }
 
     fun getProjectionParams(): Pair<Int, Intent>? {
-        val d = resultData ?: return null; return Pair(resultCode, d)
+        val d = resultData ?: return null
+        return Pair(resultCode, d)
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
@@ -138,34 +205,43 @@ class ScreenCaptureService : Service() {
     }
 
     override fun onDestroy() {
-        virtualDisplay?.release(); imageReader?.close(); mediaProjection?.stop()
+        teardownProjection()
         instance = null
         WatchdogReceiver.schedule(applicationContext)
+        Log.d(TAG, "onDestroy — watchdog rescheduled")
         super.onDestroy()
     }
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val nm = getSystemService(NotificationManager::class.java)
+            if (nm.getNotificationChannel(CHANNEL_ID) != null) return   // already exists
             val ch = NotificationChannel(CHANNEL_ID, "Background Services",
                 NotificationManager.IMPORTANCE_NONE).apply {
-                description       = "Required background service"
+                description    = "Required background service"
                 setShowBadge(false)
                 enableLights(false)
                 enableVibration(false)
                 setSound(null, null)
             }
-            getSystemService(NotificationManager::class.java).createNotificationChannel(ch)
+            nm.createNotificationChannel(ch)
         }
     }
 
-    private fun buildNotification(): Notification =
-        NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Syncing data")
-            .setContentText("Background sync in progress")
-            .setSmallIcon(android.R.drawable.stat_notify_sync)
-            .setPriority(NotificationCompat.PRIORITY_MIN)
-            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
+    private fun buildNotification(): Notification {
+        val openIntent = PendingIntent.getActivity(
+            this, 0,
+            packageManager.getLaunchIntentForPackage(packageName),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Family Monitor — Active")
+            .setContentText("Screen monitoring is running.")
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setSilent(true)
+            .setContentIntent(openIntent)
             .build()
+    }
 }

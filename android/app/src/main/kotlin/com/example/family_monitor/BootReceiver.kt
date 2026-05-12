@@ -4,8 +4,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 
 class BootReceiver : BroadcastReceiver() {
+
+    companion object { private const val TAG = "BootReceiver" }
+
     override fun onReceive(context: Context, intent: Intent) {
         val valid = listOf(
             Intent.ACTION_BOOT_COMPLETED,
@@ -14,31 +18,44 @@ class BootReceiver : BroadcastReceiver() {
         )
         if (intent.action !in valid) return
 
-        val prefs     = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        val prefs      = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
         val wizardDone = prefs.getBoolean("flutter.wizard_done", false)
         val uid        = prefs.getString("flutter.child_uid", null)
-        if (!wizardDone || uid.isNullOrEmpty()) return
+        if (!wizardDone || uid.isNullOrEmpty()) {
+            Log.d(TAG, "Setup not complete — skipping auto-start")
+            return
+        }
 
-        // 1. Flutter background service
-        val bgSvc = Intent(context,
-            id.flutter.flutter_background_service.BackgroundService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            context.startForegroundService(bgSvc)
-        else context.startService(bgSvc)
+        Log.d(TAG, "Boot complete — starting background service")
 
-        // 2. Re-acquire MediaProjection via transparent StealthActivity.
-        //    SilentAccessibilityService will auto-click "Start now".
+        // 1. Flutter background service (foreground, user-visible)
         try {
-            context.startActivity(
-                Intent(context, StealthActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or
-                             Intent.FLAG_ACTIVITY_NO_HISTORY or
-                             Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-                }
-            )
-        } catch (_: Exception) {}
+            val bgSvc = Intent(context,
+                id.flutter.flutter_background_service.BackgroundService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                context.startForegroundService(bgSvc)
+            else context.startService(bgSvc)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start background service: $e")
+        }
 
-        // 3. Arm watchdog so service is kept alive indefinitely
+        // 2. If a saved MediaProjection token exists, restart capture service.
+        //    If not, the app will prompt the user when they next open it.
+        if (ScreenCaptureService.savedResultCode != 0 &&
+            ScreenCaptureService.savedResultData != null) {
+            try {
+                val capSvc = Intent(context, ScreenCaptureService::class.java).apply {
+                    action = ScreenCaptureService.ACTION_START_SILENT
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                    context.startForegroundService(capSvc)
+                else context.startService(capSvc)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to restart capture service: $e")
+            }
+        }
+
+        // 3. Arm watchdog
         WatchdogReceiver.schedule(context)
     }
 }

