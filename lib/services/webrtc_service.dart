@@ -115,16 +115,10 @@ class WebRTCService {
   Future<void> startScreenShareAsChild(String childUid, VoidCallback onEnded) async {
     await startAsChild(childUid: childUid, mode: StreamMode.screen);
   }
-  Future<void> startSilentScreen({
-    String? roomId,
-    bool audioEnabled = false,
-    Map<String, dynamic>? constraints,
-  }) async {
+  Future<void> startSilentScreen(String roomId, String userId, {bool audioEnabled = false}) async {
     // Delegate to existing implementation
     await initialize(roomId: roomId);
   }
-
-  // Silent screen capture — delegates to existing implementation
   Future<void> startSilentScreen(String roomId, String userId, {bool audioEnabled = false}) async {
     try {
       await initialize(roomId);
