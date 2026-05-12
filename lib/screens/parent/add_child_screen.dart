@@ -14,7 +14,7 @@ class AddChildScreen extends StatefulWidget {
 
 class _AddChildScreenState extends State<AddChildScreen> {
   final _uidCtrl = TextEditingController();
-  final bool _loading = false;
+  bool _loading = false;
   String? _error;
   String? _successMessage;
 

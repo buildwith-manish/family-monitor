@@ -23,7 +23,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
   final _svc = ScreenTimeService();
   final List<AppUsageEntry> _usage = [];
   final Map<String, int> _limits = {};
-  final bool _loading = true;
+  bool _loading = true;
   String? _settingLimitFor;
   final _limitCtrl = TextEditingController();
 

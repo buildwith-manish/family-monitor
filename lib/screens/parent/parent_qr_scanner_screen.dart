@@ -16,8 +16,8 @@ class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
     torchEnabled = false,
   );
 
-  final bool _scanned = false;
-  final bool _torchOn = false;
+  bool _scanned = false;
+  bool _torchOn = false;
 
   void _onDetect(BarcodeCapture capture) {
     if (_scanned) return;

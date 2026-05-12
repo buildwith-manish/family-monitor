@@ -28,9 +28,9 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
 
   StreamSubscription<LocationSnapshot?>? _locationSub;
   LocationSnapshot? _location;
-  final bool _loading = true;
-  final bool _mapReady = false;
-  final bool _followChild = true;
+  bool _loading = true;
+  bool _mapReady = false;
+  bool _followChild = true;
 
   @override
   void initState() {

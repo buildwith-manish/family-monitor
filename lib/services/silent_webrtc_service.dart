@@ -11,11 +11,11 @@ class SilentWebRTCService {
 
   RTCPeerConnection? _pc;
   MediaStream? _localStream;
-  final bool _active = false;
+  bool _active = false;
   String? _activeUid;
   String? _activeMode;
   StreamSubscription? _offerSub, _candidateSub, _statusSub, _commandSub;
-  final bool _answerSet = false;
+  bool _answerSet = false;
   int _reconnectAttempts = 0;
   static const int _maxReconnectAttempts = 5;
   Timer? _reconnectTimer;

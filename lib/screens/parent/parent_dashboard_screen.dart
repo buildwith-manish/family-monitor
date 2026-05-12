@@ -340,8 +340,8 @@ class _ChildCard extends StatefulWidget {
 }
 
 class _ChildCardState extends State<_ChildCard> {
-  final bool _isOnline = false;
-  final bool _expanded = false;
+  bool _isOnline = false;
+  bool _expanded = false;
 
   @override
   void initState() {

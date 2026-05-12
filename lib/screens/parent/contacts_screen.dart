@@ -22,7 +22,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   final _svc = ContactsService();
   final List<ContactEntry> _contacts = [];
   final Map<String, ContactStatus> _statuses = {};
-  final bool _requesting = false;
+  bool _requesting = false;
   final String _query = '';
 
   @override

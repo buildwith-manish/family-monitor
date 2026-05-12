@@ -10,9 +10,9 @@ class ParentAuthScreen extends StatefulWidget {
 }
 
 class _ParentAuthScreenState extends State<ParentAuthScreen> {
-  final bool _isLogin = false;
-  final bool _loading = false;
-  final bool _obscurePassword = true;
+  bool _isLogin = false;
+  bool _loading = false;
+  bool _obscurePassword = true;
   String? _error;
 
   final _nameCtrl = TextEditingController();

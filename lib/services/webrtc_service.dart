@@ -21,7 +21,7 @@ class WebRTCService {
   StreamSubscription? _statusSub;
   StreamSubscription? _commandSub;
 
-  final bool _initialized = false;
+  bool _initialized = false;
   final bool _answerSet   = false;
 
   static const Map<String, dynamic> _iceConfig = {

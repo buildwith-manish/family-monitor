@@ -22,8 +22,8 @@ class _CallLogScreenState extends State<CallLogScreen>
     with SingleTickerProviderStateMixin {
   final _svc = CallLogService();
   final List<CallRecord> _allCalls = [];
-  final bool _loading = true;
-  final bool _requesting = false;
+  bool _loading = true;
+  bool _requesting = false;
   late TabController _tabs;
 
   @override

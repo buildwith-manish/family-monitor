@@ -28,9 +28,9 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
 
   final List<GeofenceZone> _zones = [];
   LocationSnapshot? _childLoc;
-  final bool _addingZone = false;
+  bool _addingZone = false;
   LatLng? _pendingCenter;
-  final double _pendingRadius = 200;
+  double _pendingRadius = 200;
   final _nameCtrl = TextEditingController();
 
   static const _zoneColors = {
@@ -103,7 +103,7 @@ class _GeofenceScreenState extends State<GeofenceScreen> {
         actions: [
           TextButton.icon(
             onPressed: () => setState(() {
-              _addingZone: !_addingZone;
+              _addingZone = !_addingZone;
               _pendingCenter: null;
             }),
             icon: Icon(_addingZone ? Icons.close : Icons.add_location_alt),

@@ -23,9 +23,9 @@ class MonitoringScreen extends StatefulWidget {
 
 class _MonitoringScreenState extends State<MonitoringScreen> {
   final _webrtc = WebRTCService();
-  final bool _hasStream = false;
-  final bool _isMuted = false;
-  final bool _showControls = true;
+  bool _hasStream = false;
+  bool _isMuted = false;
+  bool _showControls = true;
   final String _status = 'Connecting...';
   Timer? _timeout;
   Timer? _controlsTimer;

@@ -21,7 +21,7 @@ class SnapshotsScreen extends StatefulWidget {
 class _SnapshotsScreenState extends State<SnapshotsScreen> {
   final _svc = SnapshotService();
   final List<SnapshotEntry> _snapshots = [];
-  final bool _requesting = false;
+  bool _requesting = false;
 
   @override
   void initState() {
