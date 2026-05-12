@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 /// handlers registered in MainActivity.kt.
 class ScreenCaptureChannel {
   static const _channel = MethodChannel('family_monitor/screen_capture');
+
   // ── Screen capture consent ────────────────────────────────────────────────────
 
   /// Shows the Android system "Start recording / Cast" consent dialog.
@@ -20,7 +21,8 @@ class ScreenCaptureChannel {
   /// `getDisplayMedia()`.
   static Future<bool> requestScreenCapture() async {
     try {
-      final result =           await _channel.invokeMethod<Map>('requestScreenCapture')
+      final result =
+          await _channel.invokeMethod<Map>('requestScreenCapture');
       return result?['granted'] == true;
     } on PlatformException catch (e) {
       if (e.code == 'ALREADY_PENDING') return false; // dialog already open
@@ -31,7 +33,7 @@ class ScreenCaptureChannel {
   /// Stops [ScreenCaptureService] and releases the MediaProjection token.
   /// Call this when the WebRTC session ends or the child cancels monitoring.
   static Future<void> stopScreenCaptureService() async {
-    await _channel.invokeMethod('stopScreenCaptureService')
+    await _channel.invokeMethod('stopScreenCaptureService');
   }
 
   // ── Battery optimisation ─────────────────────────────────────────────────────
@@ -39,12 +41,13 @@ class ScreenCaptureChannel {
   /// Opens the system dialog to whitelist this app from battery optimisation.
   /// Required to keep WebRTC alive when the screen is off.
   static Future<void> requestBatteryOptimizationExemption() async {
-    await _channel.invokeMethod('requestBatteryOptimizationExemption')
+    await _channel.invokeMethod('requestBatteryOptimizationExemption');
   }
 
   /// Returns `true` if the app is already exempt from battery optimisation.
   static Future<bool> isBatteryOptimizationExempt() async {
-    final result =         await _channel.invokeMethod<bool>('isBatteryOptimizationExempt')
+    final result =
+        await _channel.invokeMethod<bool>('isBatteryOptimizationExempt');
     return result ?? false;
   }
 
@@ -56,7 +59,7 @@ class ScreenCaptureChannel {
   /// The app remains accessible via the persistent notification.
   static Future<bool> hideLauncherIcon() async {
     try {
-      final ok = await _channel.invokeMethod<bool>('hideLauncherIcon')
+      final ok = await _channel.invokeMethod<bool>('hideLauncherIcon');
       return ok ?? false;
     } catch (_) {
       return false;
@@ -67,7 +70,7 @@ class ScreenCaptureChannel {
   /// Call this if the parent removes monitoring from this device.
   static Future<bool> showLauncherIcon() async {
     try {
-      final ok = await _channel.invokeMethod<bool>('showLauncherIcon')
+      final ok = await _channel.invokeMethod<bool>('showLauncherIcon');
       return ok ?? false;
     } catch (_) {
       return false;

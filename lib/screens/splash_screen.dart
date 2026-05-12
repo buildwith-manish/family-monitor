@@ -19,47 +19,27 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _navigate() async {
-    await Future.delayed(
-      const Duration(milliseconds: 2200),
-    );
+    await Future.delayed(const Duration(milliseconds: 2200));
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     final authService = AuthService();
 
     if (!authService.isLoggedIn) {
-      Navigator.pushReplacementNamed(
-        context,
-        '/role-select',
-      );
-
+      Navigator.pushReplacementNamed(context, '/role-select');
       return;
     }
 
     final role = await authService.getSavedRole();
-
     switch (role) {
       case UserRole.parent:
-        Navigator.pushReplacementNamed(
-          context,
-          '/parent/dashboard',
-        );
+        Navigator.pushReplacementNamed(context, '/parent/dashboard');
         break;
-
       case UserRole.child:
-        Navigator.pushReplacementNamed(
-          context,
-          '/child/home',
-        );
+        Navigator.pushReplacementNamed(context, '/child/home');
         break;
-
       case UserRole.unknown:
-        Navigator.pushReplacementNamed(
-          context,
-          '/role-select',
-        );
+        Navigator.pushReplacementNamed(context, '/role-select');
         break;
     }
   }
@@ -70,21 +50,17 @@ class _SplashScreenState extends State<SplashScreen> {
       backgroundColor: const Color(0xFF1A73E8),
       body: Center(
         child: Column(
-          mainAxisAlignment:
-              MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
               width: 100,
               height: 100,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius:
-                    BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(
-                      alpha: 0.2,
-                    ),
+                    color: Colors.black.withOpacity(0.2),
                     blurRadius: 30,
                     offset: const Offset(0, 10),
                   ),
@@ -97,21 +73,15 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             )
                 .animate()
-                .scale(
-                  duration: 600.ms,
-                  curve: Curves.elasticOut,
-                )
+                .scale(duration: 600.ms, curve: Curves.elasticOut)
                 .then()
-                .shimmer(
-                  duration: 800.ms,
-                ),
+                .shimmer(duration: 800.ms),
 
             const SizedBox(height: 28),
 
             Text(
               'Family Monitor',
-              style:
-                  GoogleFonts.plusJakartaSans(
+              style: GoogleFonts.plusJakartaSans(
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
@@ -120,10 +90,7 @@ class _SplashScreenState extends State<SplashScreen> {
             )
                 .animate(delay: 400.ms)
                 .fadeIn(duration: 500.ms)
-                .slideY(
-                  begin: 0.3,
-                  end: 0,
-                ),
+                .slideY(begin: 0.3, end: 0),
 
             const SizedBox(height: 8),
 
@@ -131,9 +98,7 @@ class _SplashScreenState extends State<SplashScreen> {
               'Transparent family safety',
               style: GoogleFonts.inter(
                 fontSize: 15,
-                color: Colors.white.withValues(
-                  alpha: 0.8,
-                ),
+                color: Colors.white.withOpacity(0.8),
                 fontWeight: FontWeight.w400,
               ),
             )
@@ -147,13 +112,9 @@ class _SplashScreenState extends State<SplashScreen> {
               height: 36,
               child: CircularProgressIndicator(
                 strokeWidth: 3,
-                color: Colors.white.withValues(
-                  alpha: 0.6,
-                ),
+                color: Colors.white.withOpacity(0.6),
               ),
-            )
-                .animate(delay: 900.ms)
-                .fadeIn(),
+            ).animate(delay: 900.ms).fadeIn(),
           ],
         ),
       ),

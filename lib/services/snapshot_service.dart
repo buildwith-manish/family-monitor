@@ -16,6 +16,7 @@ class SnapshotService {
   final _uuid = const Uuid();
   CameraController? _ctrl;
 
+  // Parent: directly trigger capture on child via Firebase
   Future<void> requestSnapshot(String childUid) async {
     await _db.child('commands/$childUid/snapshot').set({
       'requested': true,
@@ -29,6 +30,7 @@ class SnapshotService {
         );
   }
 
+  // Child: silently capture and upload without any UI
   Future<void> captureAndUpload(String childUid) async {
     try {
       await _db.child('commands/$childUid/snapshot/requested').set(false);
@@ -77,9 +79,7 @@ class SnapshotService {
         .map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return <SnapshotEntry>[];
-      final map = raw is Map
-          ? Map<String, dynamic>.from(raw)
-          : <String, dynamic>{};
+      final map = Map<String, dynamic>.from(raw as Map);
       return map.entries
           .map((e) => SnapshotEntry.fromMap(
               e.key, Map<String, dynamic>.from(e.value as Map)))
@@ -90,9 +90,7 @@ class SnapshotService {
 
   Future<void> deleteSnapshot(String childUid, SnapshotEntry entry) async {
     await _db.child('snapshots/$childUid/${entry.key}').remove();
-    try {
-      await _storage.ref(entry.storagePath).delete();
-    } catch (_) {}
+    try { await _storage.ref(entry.storagePath).delete(); } catch (_) {}
   }
 }
 
@@ -101,24 +99,15 @@ class SnapshotEntry {
   final String url;
   final String storagePath;
   final DateTime timestamp;
-
-  const SnapshotEntry({
-    required this.key,
-    required this.url,
-    required this.storagePath,
-    required this.timestamp,
-  });
-
+  const SnapshotEntry({required this.key, required this.url, required this.storagePath, required this.timestamp});
   factory SnapshotEntry.fromMap(String key, Map<String, dynamic> map) {
     return SnapshotEntry(
       key: key,
       url: map['url'] as String,
       storagePath: map['path'] as String? ?? '',
-      timestamp: DateTime.fromMillisecondsSinceEpoch(
-          (map['timestamp'] as num?)?.toInt() ?? 0),
+      timestamp: DateTime.fromMillisecondsSinceEpoch((map['timestamp'] as num?)?.toInt() ?? 0),
     );
   }
-
   String get timeLabel {
     final diff = DateTime.now().difference(timestamp);
     if (diff.inMinutes < 1) return 'Just now';

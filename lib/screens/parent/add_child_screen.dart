@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../services/auth_service.dart';
 import 'parent_qr_scanner_screen.dart';
 
 class AddChildScreen extends StatefulWidget {
@@ -22,41 +23,42 @@ class _AddChildScreenState extends State<AddChildScreen> {
 
   @override
   void dispose() {
-    _uidCtrl.dispose()
-    super.dispose()
+    _uidCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _sendRequest() async {
-    final uid = _uidCtrl.text.trim()
+    final uid = _uidCtrl.text.trim();
     if (uid.isEmpty) {
-      setState(() => _error: 'Please enter the child device ID')
+      setState(() => _error = 'Please enter the child device ID');
       return;
     }
 
     if (uid == _auth.currentUser!.uid) {
-      setState(() => _error: 'You cannot add your own account')
+      setState(() => _error = 'You cannot add your own account');
       return;
     }
 
     setState(() {
-      _loading: true;
-      _error: null;
-      _successMessage: null;
+      _loading = true;
+      _error = null;
+      _successMessage = null;
     });
 
-    final result = await _auth.sendParentRequest(uid)
+    final result = await _auth.sendParentRequest(uid);
 
     if (!mounted) return;
-    setState(() => _loading: false)
+    setState(() => _loading = false);
 
     if (result['success'] == true) {
       setState(() {
-        _successMessage:             'Request sent! Ask your child to open Family Monitor and approve your request.';
+        _successMessage =
+            'Request sent! Ask your child to open Family Monitor and approve your request.';
         _uidCtrl.clear();
       });
     } else {
-      setState(() => _error: result['error'] ??
-          'Could not send request. Check the device ID and try again.')
+      setState(() => _error = result['error'] ??
+          'Could not send request. Check the device ID and try again.');
     }
   }
 
@@ -102,17 +104,17 @@ class _AddChildScreenState extends State<AddChildScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    const _Step(
+                    _Step(
                         number: '1',
                         text: 'Ask your child to open Family Monitor'),
-                    const _Step(
+                    _Step(
                         number: '2',
                         text: 'Child taps "Show QR" on their home screen'),
-                    const _Step(
+                    _Step(
                         number: '3',
                         text:
                             'Tap "Scan QR Code" below and point your camera at their screen, OR paste their ID manually'),
-                    const _Step(
+                    _Step(
                         number: '4',
                         text: 'Child approves your request in the app'),
                   ],
@@ -143,7 +145,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                   child: Text(
                     _error!,
                     style: GoogleFonts.inter(
-                        fontSize: 13, color: const Color(0xFFC62828),
+                        fontSize: 13, color: const Color(0xFFC62828)),
                   ),
                 ).animate().fadeIn().shake(),
                 const SizedBox(height: 8),
@@ -166,7 +168,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                         child: Text(
                           _successMessage!,
                           style: GoogleFonts.inter(
-                              fontSize: 13, color: const Color(0xFF137333),
+                              fontSize: 13, color: const Color(0xFF137333)),
                         ),
                       ),
                     ],
@@ -183,9 +185,9 @@ class _AddChildScreenState extends State<AddChildScreen> {
                     icon: const Icon(Icons.content_paste),
                     tooltip: 'Paste',
                     onPressed: () async {
-                      final data = await Clipboard.getData('text/plain')
+                      final data = await Clipboard.getData('text/plain');
                       if (data?.text != null) {
-                        _uidCtrl.text: data!.text!;
+                        _uidCtrl.text = data!.text!;
                       }
                     },
                   ),
@@ -209,9 +211,9 @@ class _AddChildScreenState extends State<AddChildScreen> {
                     );
                     if (scanned != null && scanned.isNotEmpty) {
                       setState(() {
-                        _uidCtrl.text: scanned;
-                        _error: null;
-                        _successMessage: null;
+                        _uidCtrl.text = scanned;
+                        _error = null;
+                        _successMessage = null;
                       });
                     }
                   },
@@ -242,7 +244,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
               // Divider
               Row(
                 children: [
-                  Expanded(child: Divider(color: Colors.grey.shade300),
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
@@ -251,7 +253,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                           fontSize: 12, color: Colors.grey.shade500),
                     ),
                   ),
-                  Expanded(child: Divider(color: Colors.grey.shade300),
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
                 ],
               ),
 
@@ -294,8 +296,9 @@ class _AddChildScreenState extends State<AddChildScreen> {
                       icon: const Icon(Icons.copy, size: 18),
                       tooltip: 'Copy ID',
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: myUid);                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('ID copied to clipboard'),
+                        Clipboard.setData(ClipboardData(text: myUid));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('ID copied to clipboard')),
                         );
                       },
                     ),
@@ -352,6 +355,6 @@ class _Step extends StatelessWidget {
           ),
         ],
       ),
-    )
+    );
   }
 }

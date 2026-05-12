@@ -3,215 +3,123 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+/// Reads device contacts (child side) and stores the parent-approved list
+/// in Firebase. Parents can approve or block specific contacts.
 class ContactsService {
-  static final ContactsService _instance = ContactsService._internal();
+  static final ContactsService _i = ContactsService._();
+  factory ContactsService() => _i;
+  ContactsService._();
 
-  factory ContactsService() {
-    return _instance;
-  }
+  final _db = FirebaseDatabase.instance.ref();
 
-  ContactsService._internal();
-
-  final DatabaseReference _db = FirebaseDatabase.instance.ref();
-
+  // ── Permission ─────────────────────────────────────────────────────────────
   Future<bool> requestPermission() async {
-    return FlutterContacts.requestPermission();
+    return await FlutterContacts.requestPermission();
   }
 
-  Future<bool> get hasPermission async {
-    return Permission.contacts.isGranted;
-  }
+  Future<bool> get hasPermission async => Permission.contacts.isGranted;
 
+  // ── Read device contacts (child) ───────────────────────────────────────────
   Future<List<ContactEntry>> getDeviceContacts() async {
-    final bool granted = await requestPermission();
+    final granted = await requestPermission();
+    if (!granted) return [];
 
-    if (!granted) {
-      return <ContactEntry>[];
-    }
-
-    final List<Contact> contacts = await FlutterContacts.getContacts(
-      withProperties: true,
-    );
-
-    return contacts.map((contact) {
-      return ContactEntry(
-        id: contact.id,
-        displayName: contact.displayName,
-        phones: contact.phones
-            .map(
-              (phone) => phone.number,
-            )
-            .toList(),
-      );
-    }).toList();
+    final contacts = await FlutterContacts.getContacts(withProperties: true);
+    return contacts
+        .map((c) => ContactEntry(
+              id: c.id,
+              displayName: c.displayName,
+              phones: c.phones.map((p) => p.number).toList(),
+            ))
+        .toList();
   }
 
+  // ── Upload contact list to Firebase (child) ────────────────────────────────
   Future<void> syncContacts() async {
-    final String? uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
 
-    if (uid == null) {
-      return;
-    }
-
-    final List<ContactEntry> contacts = await getDeviceContacts();
-
-    final Map<String, dynamic> data = <String, dynamic>{};
-
-    for (final contact in contacts) {
-      data[contact.id] = {
-        'name': contact.displayName,
-        'phones': contact.phones,
+    final contacts = await getDeviceContacts();
+    final data = <String, dynamic>{};
+    for (final c in contacts) {
+      data[c.id] = {
+        'name': c.displayName,
+        'phones': c.phones,
       };
     }
-
-    await _db
-        .child(
-      'contacts/$uid/all',
-    )
-        .set({
+    await _db.child('contacts/$uid/all').set({
       ...data,
       '_syncedAt': DateTime.now().millisecondsSinceEpoch,
     });
   }
 
-  Stream<List<ContactEntry>> watchAllContacts(
-    String childUid,
-  ) {
-    return _db
-        .child(
-          'contacts/$childUid/all',
-        )
-        .onValue
-        .map((event) {
-      final dynamic raw = event.snapshot.value;
-
-      if (raw == null || raw is! Map) {
-        return <ContactEntry>[];
-      }
-
-      final Map<String, dynamic> map = Map<String, dynamic>.from(
-        raw,
-      );
-
-      final List<ContactEntry> contacts = map.entries
-          .where(
-        (entry) => entry.key != '_syncedAt',
-      )
-          .map((entry) {
-        final dynamic value = entry.value;
-
-        final Map<String, dynamic> data = value is Map
-            ? Map<String, dynamic>.from(
-                value,
-              )
-            : <String, dynamic>{};
-
-        final dynamic rawPhones = data['phones'];
-
-        List<String> phones = <String>[];
-
-        if (rawPhones is List) {
-          phones = rawPhones
-              .map(
-                (phone) => phone.toString(),
-              )
-              .toList();
-        }
-
-        return ContactEntry(
-          id: entry.key,
-          displayName: data['name'] as String? ?? 'Unknown',
-          phones: phones,
-        );
-      }).toList();
-
-      contacts.sort(
-        (a, b) => a.displayName.compareTo(
-          b.displayName,
-        ),
-      );
-
-      return contacts;
+  // ── Watch contact list (parent side) ──────────────────────────────────────
+  Stream<List<ContactEntry>> watchAllContacts(String childUid) {
+    return _db.child('contacts/$childUid/all').onValue.map((event) {
+      final raw = event.snapshot.value;
+      if (raw == null) return <ContactEntry>[];
+      final map = Map<String, dynamic>.from(raw as Map);
+      return map.entries
+          .where((e) => e.key != '_syncedAt')
+          .map((e) {
+            final data = Map<String, dynamic>.from(e.value as Map);
+            final rawPhones = data['phones'];
+            List<String> phones = [];
+            if (rawPhones is List) {
+              phones = rawPhones.map((p) => p.toString()).toList();
+            }
+            return ContactEntry(
+              id: e.key,
+              displayName: data['name'] as String? ?? 'Unknown',
+              phones: phones,
+            );
+          })
+          .toList()
+        ..sort((a, b) => a.displayName.compareTo(b.displayName));
     });
   }
 
+  // ── Approve / block a contact (parent side) ───────────────────────────────
   Future<void> setContactStatus(
-    String childUid,
-    String contactId,
-    ContactStatus status,
-  ) async {
+      String childUid, String contactId, ContactStatus status) async {
     await _db
-        .child(
-          'contacts/$childUid/status/$contactId',
-        )
+        .child('contacts/$childUid/status/$contactId')
         .set(status.name);
   }
 
-  Stream<Map<String, ContactStatus>> watchStatuses(
-    String childUid,
-  ) {
-    return _db
-        .child(
-          'contacts/$childUid/status',
-        )
-        .onValue
-        .map((event) {
-      final dynamic raw = event.snapshot.value;
-
-      if (raw == null || raw is! Map) {
-        return <String, ContactStatus>{};
-      }
-
-      final Map<String, dynamic> map = Map<String, dynamic>.from(
-        raw,
-      );
-
-      return map.map(
-        (key, value) {
-          return MapEntry(
-            key,
+  // ── Watch contact statuses (parent side) ──────────────────────────────────
+  Stream<Map<String, ContactStatus>> watchStatuses(String childUid) {
+    return _db.child('contacts/$childUid/status').onValue.map((event) {
+      final raw = event.snapshot.value;
+      if (raw == null) return <String, ContactStatus>{};
+      final map = Map<String, dynamic>.from(raw as Map);
+      return map.map((k, v) => MapEntry(
+            k,
             ContactStatus.values.firstWhere(
-              (status) => status.name == value.toString(),
+              (e) => e.name == v.toString(),
               orElse: () => ContactStatus.pending,
             ),
-          );
-        },
-      );
+          ));
     });
   }
 
-  Future<void> requestSync(
-    String childUid,
-  ) async {
-    await _db
-        .child(
-      'commands/$childUid/syncContacts',
-    )
-        .set({
+  // ── Request sync from parent ───────────────────────────────────────────────
+  Future<void> requestSync(String childUid) async {
+    await _db.child('commands/$childUid/syncContacts').set({
       'requested': true,
       'at': DateTime.now().millisecondsSinceEpoch,
     });
   }
 
-  Stream<bool> watchSyncRequest(
-    String childUid,
-  ) {
+  Stream<bool> watchSyncRequest(String childUid) {
     return _db
-        .child(
-          'commands/$childUid/syncContacts/requested',
-        )
+        .child('commands/$childUid/syncContacts/requested')
         .onValue
-        .map(
-          (event) => event.snapshot.value == true,
-        );
+        .map((e) => e.snapshot.value == true);
   }
 }
 
-enum ContactStatus {
-  pending,
-  approved,
-  blocked,
-}
+enum ContactStatus { pending, approved, blocked }
 
 class ContactEntry {
   final String id;
@@ -225,24 +133,11 @@ class ContactEntry {
   });
 
   String get initials {
-    final List<String> parts = displayName.trim().split(' ');
-
-    if (parts.isEmpty) {
-      return '?';
-    }
-
-    if (parts.length == 1) {
-      return parts.first[0].toUpperCase();
-    }
-
-    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    final parts = displayName.trim().split(' ');
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts[0][0].toUpperCase();
+    return '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase();
   }
 
-  String get primaryPhone {
-    if (phones.isEmpty) {
-      return '';
-    }
-
-    return phones.first;
-  }
+  String get primaryPhone => phones.isNotEmpty ? phones.first : '';
 }

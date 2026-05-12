@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'location_service.dart';
 
+/// Manages SOS alerts sent from child to all approved parents.
 class SosService {
   static final SosService _i = SosService._();
   factory SosService() => _i;
@@ -10,10 +11,12 @@ class SosService {
   final _db = FirebaseDatabase.instance.ref();
   final _locationSvc = LocationService();
 
+  // ── Send SOS (child side) ──────────────────────────────────────────────────
   Future<void> sendSos(List<String> parentUids) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || parentUids.isEmpty) return;
 
+    // Try to get current location
     LocationSnapshot? loc;
     try {
       loc = await _locationSvc.getChildLocation(uid);
@@ -21,8 +24,7 @@ class SosService {
 
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final snap = await _db.child('users/$uid').get();
-    final childName =
-        snap.child('childName').value as String? ?? 'Child';
+    final childName = snap.child('childName').value as String? ?? 'Child';
 
     final payload = {
       'childUid': uid,
@@ -33,6 +35,7 @@ class SosService {
       'acknowledged': false,
     };
 
+    // Write to every approved parent's alerts node
     final updates = <String, dynamic>{};
     for (final parentUid in parentUids) {
       updates['alerts/$parentUid/sos/$timestamp'] = payload;
@@ -40,6 +43,7 @@ class SosService {
     await _db.update(updates);
   }
 
+  // ── Listen for SOS alerts (parent side) ───────────────────────────────────
   Stream<List<SosAlert>> watchAlerts(String parentUid) {
     return _db
         .child('alerts/$parentUid/sos')
@@ -49,9 +53,7 @@ class SosService {
         .map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return <SosAlert>[];
-      final map = raw is Map
-          ? Map<String, dynamic>.from(raw)
-          : <String, dynamic>{};
+      final map = Map<String, dynamic>.from(raw as Map);
       return map.entries
           .map((e) => SosAlert.fromMap(
               e.key, Map<String, dynamic>.from(e.value as Map)))
@@ -60,12 +62,14 @@ class SosService {
     });
   }
 
+  // ── Acknowledge a SOS alert (parent) ──────────────────────────────────────
   Future<void> acknowledgeAlert(String parentUid, String alertKey) async {
     await _db
         .child('alerts/$parentUid/sos/$alertKey/acknowledged')
         .set(true);
   }
 
+  // ── Count unacknowledged SOS alerts ───────────────────────────────────────
   Stream<int> watchUnacknowledgedCount(String parentUid) {
     return watchAlerts(parentUid)
         .map((list) => list.where((a) => !a.acknowledged).length);
