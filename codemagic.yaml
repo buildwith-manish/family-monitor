@@ -78,11 +78,11 @@ workflows:
 
           mkdir -p build/app/outputs/flutter-apk
 
-          PARENT_APK=$(find build -name "app-parent-release.apk" 2>/dev/null | head -1)
+          PARENT_APK=$(find build android/app/build android/build -name "app-parent-release.apk" 2>/dev/null | head -1)
 
-          [ -z "$PARENT_APK" ] && PARENT_APK=$(find build -name "*parent*release*.apk" 2>/dev/null | head -1)
+          [ -z "$PARENT_APK" ] && PARENT_APK=$(find build android/app/build android/build -name "*parent*release*.apk" 2>/dev/null | head -1)
 
-          [ -z "$PARENT_APK" ] && PARENT_APK=$(find build -name "*.apk" 2>/dev/null | head -1)
+          [ -z "$PARENT_APK" ] && PARENT_APK=$(find build android/app/build android/build -name "*.apk" 2>/dev/null | head -1)
 
           if [ -z "$PARENT_APK" ]; then
             echo "ERROR: No APK found after build"
@@ -102,11 +102,11 @@ workflows:
 
           mkdir -p build/app/outputs/flutter-apk
 
-          CHILD_APK=$(find build -name "app-child-release.apk" 2>/dev/null | head -1)
+          CHILD_APK=$(find build android/app/build android/build -name "app-child-release.apk" 2>/dev/null | head -1)
 
-          [ -z "$CHILD_APK" ] && CHILD_APK=$(find build -name "*child*release*.apk" 2>/dev/null | head -1)
+          [ -z "$CHILD_APK" ] && CHILD_APK=$(find build android/app/build android/build -name "*child*release*.apk" 2>/dev/null | head -1)
 
-          [ -z "$CHILD_APK" ] && CHILD_APK=$(find build -name "*.apk" 2>/dev/null | head -1)
+          [ -z "$CHILD_APK" ] && CHILD_APK=$(find build android/app/build android/build -name "*.apk" 2>/dev/null | head -1)
 
           if [ -z "$CHILD_APK" ]; then
             echo "ERROR: No APK found after build"

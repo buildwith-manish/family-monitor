@@ -132,10 +132,10 @@ afterEvaluate {
 
                 doLast {
 
-                    val flutterApkDir = rootProject.layout.buildDirectory
-                        .dir("app/outputs/flutter-apk")
-                        .get()
-                        .asFile
+                    val flutterApkDir = File(
+                        rootProject.rootDir.parentFile,
+                        "build/app/outputs/flutter-apk"
+                    )
 
                     flutterApkDir.mkdirs()
 
