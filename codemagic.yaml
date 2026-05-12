@@ -6,8 +6,6 @@ workflows:
     environment:
       flutter: stable
       java: 17
-      # Set GOOGLE_SERVICES_JSON in Codemagic UI → Environment Variables
-      # Value = full text of android/app/google-services.json
 
     cache:
       cache_paths:
@@ -18,7 +16,52 @@ workflows:
     scripts:
       - name: Write google-services.json
         script: |
-          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          cat > android/app/google-services.json << 'GSJSON'
+          {
+            "project_info": {
+              "project_number": "758644747673",
+              "firebase_url": "https://family-monitor-7aab3-default-rtdb.firebaseio.com",
+              "project_id": "family-monitor-7aab3",
+              "storage_bucket": "family-monitor-7aab3.firebasestorage.app"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:758644747673:android:69ef23a2fa4b508122f708",
+                  "android_client_info": {
+                    "package_name": "com.example.family_monitor"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [{"current_key": "AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4"}],
+                "services": {"appinvite_service": {"other_platform_oauth_client": []}}
+              },
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:758644747673:android:32a2141244fb9c3222f708",
+                  "android_client_info": {
+                    "package_name": "com.example.family_monitor.child"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [{"current_key": "AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4"}],
+                "services": {"appinvite_service": {"other_platform_oauth_client": []}}
+              },
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:758644747673:android:ea45b7a53b3f2f2e22f708",
+                  "android_client_info": {
+                    "package_name": "com.example.family_monitor.parent"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [{"current_key": "AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4"}],
+                "services": {"appinvite_service": {"other_platform_oauth_client": []}}
+              }
+            ],
+            "configuration_version": "1"
+          }
+          GSJSON
 
       - name: Flutter clean
         script: flutter clean
