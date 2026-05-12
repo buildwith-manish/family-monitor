@@ -226,7 +226,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                               color: Colors.grey.shade400, fontSize: 12)),
                     ],
                   ),
-                );
+                )
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(
                       vertical: 8, horizontal: 12),

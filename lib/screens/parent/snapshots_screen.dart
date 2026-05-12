@@ -91,7 +91,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
                   ? const SizedBox(
                       width: 14, height: 14,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white)
+                          strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.camera_alt, size: 16),
               label:
                   Text(_requesting ? 'Requesting…' : 'Take Photo'),
@@ -254,7 +254,6 @@ class _SnapshotTile extends StatelessWidget {
           ),
         ),
       ).animate(delay: Duration(milliseconds: delay)).fadeIn().scale(begin: const Offset(0.9, 0.9));
-  }
   }
 }
 

@@ -48,10 +48,10 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
     if (_lockState) {
       await _svc.unlockDevice(widget.childUid);
     } else {
-      await _svc.lockDevice(widget.childUid)
+      await _svc.lockDevice(widget.childUid);
     }
   }
-;
+
   Future<void> _saveSchedule() async {
     setState(() => _saving = true);
     await _svc.saveSchedule(widget.childUid, _schedule);
@@ -141,13 +141,11 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: const Color(0xFF5F6368))),
-          ).animate(delay: 100.ms).fadeIn(),
           const SizedBox(height: 4),
           Text(
             'Device will lock automatically during these hours.',
             style: GoogleFonts.inter(
                 fontSize: 12, color: const Color(0xFF9AA0A6))),
-          ).animate(delay: 150.ms).fadeIn(),
           const SizedBox(height: 12),
 
           // Time pickers
@@ -236,7 +234,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
                   ? const SizedBox(
                       width: 20, height: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2.5, color: Colors.white)
+                          strokeWidth: 2.5, color: Colors.white))
                   : const Text('Save Schedule'),
             ),
           ).animate(delay: 300.ms).fadeIn(),
@@ -327,7 +325,6 @@ class _LockCard extends StatelessWidget {
                       : 'Normal usage allowed',
                   style: GoogleFonts.inter(
                       fontSize: 12, color: const Color(0xFF5F6368))),
-                ),
               ],
             ),
           ),

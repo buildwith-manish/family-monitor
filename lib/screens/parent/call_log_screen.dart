@@ -29,13 +29,12 @@ class _CallLogScreenState extends State<CallLogScreen>
   @override
   void initState() {
     super.initState();
-    _tabs: TabController(length: 4, vsync: this)
+    _tabs = TabController(length: 4, vsync: this);
     _svc.watchCallLog(widget.childUid).listen((data) {
       if (!mounted) return;
-    setState(() { _allCalls = data; _loading = false; });
+      setState(() { _allCalls = data; _loading = false; });
     });
-    @override
-  setState(() => _loading = false);  }
+  }
 
   @override
   void dispose() {
@@ -56,7 +55,7 @@ class _CallLogScreenState extends State<CallLogScreen>
       setState(() => _requesting = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Sync requested — log will update shortly'),
+            content: Text('Sync requested — log will update shortly')),
       );
     }
   }
@@ -72,7 +71,7 @@ class _CallLogScreenState extends State<CallLogScreen>
             const Text('Call Log'),
             Text(widget.childName,
                 style: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFF5F6368),
+                    fontSize: 12, color: const Color(0xFF5F6368))),
           ],
         ),
         actions: [
@@ -98,11 +97,11 @@ class _CallLogScreenState extends State<CallLogScreen>
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator()
+          ? const Center(child: CircularProgressIndicator())
           : TabBarView(
               controller: _tabs,
               children: [
-                _CallList(calls: _filtered('all'),
+                _CallList(calls: _filtered('all')),
                 _CallList(calls: _filtered('incoming')),
                 _CallList(calls: _filtered('outgoing')),
                 _CallList(calls: _filtered('missed')),
@@ -126,11 +125,11 @@ class _CallList extends StatelessWidget {
             const Icon(Icons.call_outlined, size: 48, color: Colors.grey),
             const SizedBox(height: 12),
             Text('No calls',
-                style: GoogleFonts.inter(color: Colors.grey, fontSize: 15),
+                style: GoogleFonts.inter(color: Colors.grey, fontSize: 15)),
             const SizedBox(height: 6),
             Text('Tap sync to request the latest call log.',
                 style: GoogleFonts.inter(
-                    color: Colors.grey.shade400, fontSize: 12),
+                    color: Colors.grey.shade400, fontSize: 12)),
           ],
         ),
       );
@@ -180,11 +179,11 @@ class _CallRow extends StatelessWidget {
               children: [
                 Text(record.displayName,
                     style: GoogleFonts.inter(
-                        fontSize: 14, fontWeight: FontWeight.w600),
+                        fontSize: 14, fontWeight: FontWeight.w600)),
                 if (record.number.isNotEmpty && record.name.isNotEmpty)
                   Text(record.number,
                       style: GoogleFonts.robotoMono(
-                          fontSize: 11, color: Colors.grey),
+                          fontSize: 11, color: Colors.grey)),
               ],
             ),
           ),
@@ -193,7 +192,7 @@ class _CallRow extends StatelessWidget {
             children: [
               Text(record.timeLabel,
                   style: GoogleFonts.inter(
-                      fontSize: 11, color: const Color(0xFF9AA0A6),
+                      fontSize: 11, color: const Color(0xFF9AA0A6))),
               const SizedBox(height: 2),
               Text(
                 record.durationLabel,

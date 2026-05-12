@@ -28,9 +28,9 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
 
   StreamSubscription<LocationSnapshot?>? _locationSub;
   LocationSnapshot? _location;
-  final bool _loading = true;
-  final bool _mapReady = false;
-  final bool _followChild = true;
+  bool _loading = true;
+  bool _mapReady = false;
+  bool _followChild = true;
 
   @override
   void initState() {
@@ -39,7 +39,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
   }
 
   void _startListening() {
-    _locationSub: _locationSvc
+    _locationSub = _locationSvc
         .watchChildLocation(widget.childUid)
         .listen((loc) {
       if (!mounted) return;
@@ -48,7 +48,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
         _loading = false;
       });
       if (loc != null && _followChild && _mapReady) {
-        _mapCtrl.move(LatLng(loc.lat, loc.lng), _mapCtrl.camera.zoom)
+        _mapCtrl.move(LatLng(loc.lat, loc.lng), _mapCtrl.camera.zoom);
       }
     });
   }
@@ -61,7 +61,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
 
   void _centreOnChild() {
     if (_location == null) return;
-    _mapCtrl.move(LatLng(_location!.lat, _location!.lng), 16)
+    _mapCtrl.move(LatLng(_location!.lat, _location!.lng), 16);
     setState(() => _followChild = true);
   }
 
@@ -206,8 +206,8 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
                       ),
                       // Centre button
                       if (hasLocation && !_followChild)
-                        const IconButton(
-                          icon: Icon(Icons.my_location,
+                        IconButton(
+                          icon: const Icon(Icons.my_location,
                               color: Color(0xFF1A73E8), size: 20),
                           tooltip: 'Centre on child',
                           onPressed: _centreOnChild,
@@ -476,14 +476,14 @@ class _PinStemPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      .color: const Color(0xFF1A73E8)
-      .style: PaintingStyle.fill;
+      ..color = const Color(0xFF1A73E8)
+      ..style = PaintingStyle.fill;
     final path = ui.Path()
       ..moveTo(size.width / 2 - 4, 0)
       ..lineTo(size.width / 2 + 4, 0)
       ..lineTo(size.width / 2, size.height)
-      ..close()
-    canvas.drawPath(path, paint)
+      ..close();
+    canvas.drawPath(path, paint);
   }
 
   @override

@@ -46,7 +46,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       setState(() => _requesting = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Sync requested — contacts will update shortly'),
+            content: Text('Sync requested — contacts will update shortly')),
       );
     }
   }
@@ -76,7 +76,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
             const Text('Contact Approval'),
             Text(widget.childName,
                 style: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFF5F6368),
+                    fontSize: 12, color: const Color(0xFF5F6368))),
           ],
         ),
         actions: [
@@ -286,7 +286,7 @@ class _ContactRow extends StatelessWidget {
                 if (contact.primaryPhone.isNotEmpty)
                   Text(contact.primaryPhone,
                       style: GoogleFonts.robotoMono(
-                          fontSize: 11, color: Colors.grey),
+                          fontSize: 11, color: Colors.grey)),
               ],
             ),
           ),

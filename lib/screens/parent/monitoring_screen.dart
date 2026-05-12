@@ -41,7 +41,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     _startMonitoring();
     _timeout = Timer(const Duration(seconds: 20), () {
       if (mounted && !_hasStream) {
-        setState(() { _status = 'Child not responding.\nMake sure child app is running.'; })
+        setState(() { _status = 'Child not responding.\nMake sure child app is running.'; });
       }
     });
   }
@@ -58,7 +58,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-    setState(() { _status = 'Error: $e'; })
+    setState(() { _status = 'Error: $e'; });
     }
   }
 
@@ -97,8 +97,8 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
   void dispose() {
     _timeout?.cancel();
     _controlsTimer?.cancel();
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
-    _webrtc.dispose()
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    _webrtc.dispose();
     super.dispose();
   }
 
@@ -156,17 +156,17 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                     ),
                   ),
                   child: Row(children: [
-                    const IconButton(
-                      icon: Icon(Icons.arrow_back, color: Colors.white),
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
                       onPressed: _endSession,
                     ),
                     const SizedBox(width: 4),
                     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(childName,
                         style: GoogleFonts.plusJakartaSans(
-                          color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                          color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
                       Text(isScreen ? '📱 Screen' : '📷 Camera',
-                        style: GoogleFonts.inter(color: Colors.white60, fontSize: 11),
+                        style: GoogleFonts.inter(color: Colors.white60, fontSize: 11)),
                     ]),
                     const Spacer(),
                     if (_hasStream) _liveBadge(),
@@ -228,13 +228,13 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
   Widget _liveBadge() => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(20),
+    decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(20)),
     child: Row(mainAxisSize: MainAxisSize.min, children: [
       Container(width: 8, height: 8,
-        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)
-        .animate(onPlay: (c) => c.repeat().fadeOut(duration: 800.ms),
+        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+      ).animate(onPlay: (c) => c.repeat()).fadeOut(duration: 800.ms),
       const SizedBox(width: 6),
-      Text('LIVE', style: GoogleFonts.inter(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
+      Text('LIVE', style: GoogleFonts.inter(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
     ]),
   );
 
@@ -253,7 +253,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         child: Icon(icon, color: Colors.white, size: size * 0.45),
       ),
       const SizedBox(height: 6),
-      Text(label, style: GoogleFonts.inter(color: Colors.white70, fontSize: 11),
+      Text(label, style: GoogleFonts.inter(color: Colors.white70, fontSize: 11)),
     ]),
   );
 }

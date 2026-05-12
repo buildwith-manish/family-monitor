@@ -115,7 +115,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
             const SizedBox(height: 20),
             Text('No usage data yet',
                 style: GoogleFonts.plusJakartaSans(
-                    fontSize: 18, fontWeight: FontWeight.w700),
+                    fontSize: 18, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Text(
               'The child device must grant Usage Access permission in Settings → Apps → Special app access → Usage access.',
@@ -130,7 +130,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
   }
 
   Widget _buildContent() {
-    final top = _usage.take(5).toList()
+    final top = _usage.take(5).toList();
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -192,7 +192,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                   rightTitles:
                       AxisTitles(sideTitles: const SideTitles(showTitles: false)),
                   topTitles:
-                      const AxisTitles(sideTitles: SideTitles(showTitles: false),
+                      const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
                 gridData: FlGridData(
                   drawVerticalLine: false,
@@ -266,7 +266,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Got it'),
+              child: const Text('Got it')),
         ],
       ),
     );
@@ -301,7 +301,7 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 Text('Today\'s Screen Time',
                     style: GoogleFonts.inter(
-                        color: Colors.white70, fontSize: 12),
+                        color: Colors.white70, fontSize: 12)),
                 const SizedBox(height: 4),
                 Text(
                   hours > 0 ? '${hours}h ${mins}m' : '${mins}m',
@@ -312,7 +312,7 @@ class _SummaryCard extends StatelessWidget {
                 ),
                 Text('$entryCount apps used',
                     style: GoogleFonts.inter(
-                        color: Colors.white60, fontSize: 12),
+                        color: Colors.white60, fontSize: 12)),
               ],
             ),
           ),
@@ -396,14 +396,14 @@ class _AppUsageRow extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           color: overLimit
                               ? const Color(0xFFEA4335)
-                              : const Color(0xFF202124),
+                              : const Color(0xFF202124))),
                   if (limit != null)
                     Text('Limit: ${limit}m',
                         style: GoogleFonts.inter(
                             fontSize: 10,
                             color: overLimit
                                 ? const Color(0xFFEA4335)
-                                : Colors.grey),
+                                : Colors.grey)),
                 ],
               ),
             ],
@@ -428,7 +428,7 @@ class _AppUsageRow extends StatelessWidget {
                 const SizedBox(width: 8),
                 TextButton(onPressed: onCancel, child: const Text('Cancel')),
                 ElevatedButton(
-                    onPressed: onSaveLimit, child: const Text('Save'),
+                    onPressed: onSaveLimit, child: const Text('Save')),
               ],
             ),
           ] else
@@ -443,6 +443,6 @@ class _AppUsageRow extends StatelessWidget {
             ),
         ],
       ),
-    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 300.ms)
+    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 300.ms);
   }
 }

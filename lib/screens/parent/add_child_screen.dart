@@ -14,7 +14,7 @@ class AddChildScreen extends StatefulWidget {
 
 class _AddChildScreenState extends State<AddChildScreen> {
   final _uidCtrl = TextEditingController();
-  final bool _loading = false;
+  bool _loading = false;
   String? _error;
   String? _successMessage;
 
@@ -22,19 +22,19 @@ class _AddChildScreenState extends State<AddChildScreen> {
 
   @override
   void dispose() {
-    _uidCtrl.dispose()
+    _uidCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _sendRequest() async {
-    final uid = _uidCtrl.text.trim()
+    final uid = _uidCtrl.text.trim();
     if (uid.isEmpty) {
-      setState(() { _error = 'Please enter the child device ID'; })
+      setState(() { _error = 'Please enter the child device ID'; });
       return;
     }
 
     if (uid == _auth.currentUser!.uid) {
-      setState(() { _error = 'You cannot add your own account'; })
+      setState(() { _error = 'You cannot add your own account'; });
       return;
     }
 
@@ -44,19 +44,19 @@ class _AddChildScreenState extends State<AddChildScreen> {
       _successMessage = null;
     });
 
-    final result = await _auth.sendParentRequest(uid)
+    final result = await _auth.sendParentRequest(uid);
 
     if (!mounted) return;
     setState(() => _loading = false);
 
     if (result['success'] == true) {
       setState(() {
-        _successMessage:             'Request sent! Ask your child to open Family Monitor and approve your request.';
+        _successMessage = 'Request sent! Ask your child to open Family Monitor and approve your request.';
         _uidCtrl.clear();
       });
     } else {
       setState(() { _error = result['error'] ??
-          'Could not send request. Check the device ID and try again.'; })
+          'Could not send request. Check the device ID and try again.'; });
     }
   }
 
@@ -143,9 +143,8 @@ class _AddChildScreenState extends State<AddChildScreen> {
                   child: Text(
                     _error!,
                     style: GoogleFonts.inter(
-                        fontSize: 13, color: const Color(0xFFC62828),
-                  ),
-                ).animate().fadeIn().shake(),
+                        fontSize: 13, color: const Color(0xFFC62828)),
+                  ).animate().fadeIn().shake(),
                 const SizedBox(height: 8),
               ],
 
@@ -166,7 +165,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                         child: Text(
                           _successMessage!,
                           style: GoogleFonts.inter(
-                              fontSize: 13, color: const Color(0xFF137333),
+                              fontSize: 13, color: const Color(0xFF137333)),
                         ),
                       ),
                     ],
@@ -183,9 +182,9 @@ class _AddChildScreenState extends State<AddChildScreen> {
                     icon: const Icon(Icons.content_paste),
                     tooltip: 'Paste',
                     onPressed: () async {
-                      final data = await Clipboard.getData('text/plain')
+                      final data = await Clipboard.getData('text/plain');
                       if (data?.text != null) {
-                        _uidCtrl.text: data!.text!;
+                        _uidCtrl.text = data!.text!;
                       }
                     },
                   ),
@@ -209,7 +208,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                     );
                     if (scanned != null && scanned.isNotEmpty) {
                       setState(() {
-                        _uidCtrl.text: scanned;
+                        _uidCtrl.text = scanned;
                         _error = null;
                         _successMessage = null;
                       });
@@ -242,7 +241,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
               // Divider
               Row(
                 children: [
-                  Expanded(child: Divider(color: Colors.grey.shade300),
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
@@ -251,7 +250,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                           fontSize: 12, color: Colors.grey.shade500),
                     ),
                   ),
-                  Expanded(child: Divider(color: Colors.grey.shade300),
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
                 ],
               ),
 
@@ -296,7 +295,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                       onPressed: () {
                         Clipboard.setData(ClipboardData(text: myUid));
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('ID copied to clipboard'),
+                          const SnackBar(content: Text('ID copied to clipboard')),
                         );
                       },
                     ),
