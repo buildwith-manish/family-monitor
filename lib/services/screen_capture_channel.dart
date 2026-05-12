@@ -24,4 +24,21 @@ class ScreenCaptureChannel {
       // ignore
     }
   }
+  static Future<bool> isBatteryOptimizationExempt() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('isBatteryOptimizationExempt');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  static Future<void> requestBatteryOptimizationExemption() async {
+    try {
+      await _channel.invokeMethod('requestBatteryOptimizationExemption');
+    } on PlatformException {
+      // ignore
+    }
+  }
+
 }
