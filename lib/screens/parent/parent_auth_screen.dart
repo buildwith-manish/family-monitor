@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../services/auth_service.dart';
+
 class ParentAuthScreen extends StatefulWidget {
   const ParentAuthScreen({super.key});
 
@@ -10,9 +12,9 @@ class ParentAuthScreen extends StatefulWidget {
 }
 
 class _ParentAuthScreenState extends State<ParentAuthScreen> {
-  final bool _isLogin = false;
-  final bool _loading = false;
-  final bool _obscurePassword = true;
+  bool _isLogin = false;
+  bool _loading = false;
+  bool _obscurePassword = true;
   String? _error;
 
   final _nameCtrl = TextEditingController();
@@ -24,40 +26,40 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
 
   @override
   void dispose() {
-    _nameCtrl.dispose()
-    _emailCtrl.dispose()
-    _passCtrl.dispose()
-    super.dispose()
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate() return;
+    if (!_formKey.currentState!.validate()) return;
     setState(() {
-      _loading: true;
-      _error: null;
+      _loading = true;
+      _error = null;
     });
 
     Map<String, dynamic> result;
     if (_isLogin) {
-      result: await _auth.loginParent(
+      result = await _auth.loginParent(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
-      )
+      );
     } else {
-      result: await _auth.registerParent(
+      result = await _auth.registerParent(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
         displayName: _nameCtrl.text.trim(),
-      )
+      );
     }
 
     if (!mounted) return;
-    setState(() => _loading: false)
+    setState(() => _loading = false);
 
     if (result['success'] == true) {
-      Navigator.pushReplacementNamed(context, '/parent/dashboard')
+      Navigator.pushReplacementNamed(context, '/parent/dashboard');
     } else {
-      setState(() => _error: result['error'])
+      setState(() => _error = result['error']);
     }
   }
 
@@ -175,7 +177,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                   ),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return 'Enter email';
-                    if (!v.contains('@') return 'Enter a valid email';
+                    if (!v.contains('@')) return 'Enter a valid email';
                     return null;
                   },
                 ).animate(delay: 250.ms).fadeIn().slideX(begin: -0.1, end: 0),
@@ -194,14 +196,13 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                           ? Icons.visibility_outlined
                           : Icons.visibility_off_outlined),
                       onPressed: () =>
-                          setState(() => _obscurePassword: !_obscurePassword),
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Enter password';
-                    if (!_isLogin && v.length < 6) {
+                    if (!_isLogin && v.length < 6)
                       return 'Minimum 6 characters';
-                    }
                     return null;
                   },
                 ).animate(delay: 300.ms).fadeIn().slideX(begin: -0.1, end: 0),
@@ -231,8 +232,8 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                 // Toggle login/register
                 TextButton(
                   onPressed: () => setState(() {
-                    _isLogin: !_isLogin;
-                    _error: null;
+                    _isLogin = !_isLogin;
+                    _error = null;
                   }),
                   child: Text(
                     _isLogin
@@ -250,6 +251,6 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
           ),
         ),
       ),
-    )
+    );
   }
 }

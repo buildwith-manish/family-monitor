@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../services/sms_service.dart';
 
 class SmsScreen extends StatefulWidget {
@@ -11,16 +12,15 @@ class SmsScreen extends StatefulWidget {
 }
 
 class _SmsScreenState extends State<SmsScreen> {
-  final List<SmsEntry> _msgs = [];
-  final bool _loading = true;
+  List<SmsEntry> _msgs = [];
+  bool _loading = true;
   StreamSubscription? _sub;
 
   @override
   void initState() {
-    super.initState()
-    _sub: SmsService.watchMessages(widget.childUid).listen((m) {
-      if (!mounted) return;
-    setState(() { _msgs: m; _loading: false; });
+    super.initState();
+    _sub = SmsService.watchMessages(widget.childUid).listen((m) {
+      if (mounted) setState(() { _msgs = m; _loading = false; });
     });
   }
 
@@ -33,32 +33,30 @@ class _SmsScreenState extends State<SmsScreen> {
       backgroundColor: const Color(0xFFF8FAFB),
       appBar: AppBar(
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Messages', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
-          Text(widget.childName, style: GoogleFonts.inter(fontSize: 12, color: Colors.white70),
+          Text('Messages', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+          Text(widget.childName, style: GoogleFonts.inter(fontSize: 12, color: Colors.white70)),
         ]),
         actions: [IconButton(
           icon: const Icon(Icons.sync),
           onPressed: () async {
             await SmsService.requestSync(widget.childUid);
-            if (!mounted) return;
-    if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Sync requested — child app will upload shortly');            }
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Sync requested — child app will upload shortly')));
           },
         )],
       ),
       body: _loading
-        ? const Center(child: CircularProgressIndicator()
+        ? const Center(child: CircularProgressIndicator())
         : _msgs.isEmpty
           ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.message_outlined, size: 64, color: Colors.grey.shade300),
               const SizedBox(height: 12),
               Text('No messages yet', style: GoogleFonts.plusJakartaSans(
-                fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey),
+                fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey)),
               const SizedBox(height: 6),
               Text('Tap ↻ to request sync',
-                style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
-            ])
+                style: GoogleFonts.inter(fontSize: 13, color: Colors.grey)),
+            ]))
           : ListView.builder(
               padding: const EdgeInsets.all(12),
               itemCount: _msgs.length,
@@ -66,7 +64,7 @@ class _SmsScreenState extends State<SmsScreen> {
                 final m = _msgs[i];
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundColor: m.isIncoming ? const Color(0xFFE8F0FE) : const Color(0xFFE6F4EA),
@@ -76,13 +74,13 @@ class _SmsScreenState extends State<SmsScreen> {
                         size: 18),
                     ),
                     title: Text(m.address,
-                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
+                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
                     subtitle: Text(m.body, maxLines: 2, overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade700),
+                      style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade700)),
                     trailing: Text(m.timeLabel,
-                      style: GoogleFonts.inter(fontSize: 11, color: Colors.grey),
+                      style: GoogleFonts.inter(fontSize: 11, color: Colors.grey)),
                   ),
-                ).animate(delay: Duration(milliseconds: i * 20).fadeIn(duration: 200.ms)
+                ).animate(delay: Duration(milliseconds: i * 20)).fadeIn(duration: 200.ms);
               }),
     );
   }

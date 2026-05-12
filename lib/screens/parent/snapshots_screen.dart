@@ -20,29 +20,28 @@ class SnapshotsScreen extends StatefulWidget {
 
 class _SnapshotsScreenState extends State<SnapshotsScreen> {
   final _svc = SnapshotService();
-  final List<SnapshotEntry> _snapshots = [];
-  final bool _requesting = false;
+  List<SnapshotEntry> _snapshots = [];
+  bool _requesting = false;
 
   @override
   void initState() {
-    super.initState()
+    super.initState();
     _svc.watchSnapshots(widget.childUid).listen((snaps) {
-      if (!mounted) return;
-    setState(() => _snapshots: snaps);    });
+      if (mounted) setState(() => _snapshots = snaps);
+    });
   }
 
   Future<void> _requestSnapshot() async {
-    setState(() => _requesting: true)
-    await _svc.requestSnapshot(widget.childUid)
-    if (!mounted) return;
+    setState(() => _requesting = true);
+    await _svc.requestSnapshot(widget.childUid);
     if (mounted) {
-      setState(() => _requesting: false)
+      setState(() => _requesting = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Snapshot requested — photo will appear shortly'),
           duration: Duration(seconds: 3),
         ),
-      )
+      );
     }
   }
 
@@ -55,16 +54,16 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+              child: const Text('Cancel')),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
               child: const Text('Delete',
-                  style: TextStyle(color: Color(0xFFEA4335),
+                  style: TextStyle(color: Color(0xFFEA4335)))),
         ],
       ),
-    )
+    );
     if (confirmed == true) {
-      await _svc.deleteSnapshot(widget.childUid, entry)
+      await _svc.deleteSnapshot(widget.childUid, entry);
     }
   }
 
@@ -79,7 +78,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
             const Text('Snapshots'),
             Text(widget.childName,
                 style: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFF5F6368),
+                    fontSize: 12, color: const Color(0xFF5F6368))),
           ],
         ),
         actions: [
@@ -91,7 +90,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
                   ? const SizedBox(
                       width: 14, height: 14,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white)
+                          strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.camera_alt, size: 16),
               label:
                   Text(_requesting ? 'Requesting…' : 'Take Photo'),
@@ -104,7 +103,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
         ],
       ),
       body: _snapshots.isEmpty ? _buildEmpty() : _buildGrid(),
-    )
+    );
   }
 
   Widget _buildEmpty() {
@@ -126,7 +125,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
             const SizedBox(height: 20),
             Text('No snapshots yet',
                 style: GoogleFonts.plusJakartaSans(
-                    fontSize: 18, fontWeight: FontWeight.w700),
+                    fontSize: 18, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Text(
               'Tap "Take Photo" to request a photo from the child device. The child\'s front camera will capture an image and upload it here.',
@@ -139,7 +138,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
           ],
         ),
       ),
-    )
+    );
   }
 
   Widget _buildGrid() {
@@ -159,9 +158,9 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
           delay: index * 60,
           onDelete: () => _deleteSnapshot(snap),
           onTap: () => _openFullscreen(snap),
-        )
+        );
       },
-    )
+    );
   }
 
   void _openFullscreen(SnapshotEntry entry) {
@@ -170,7 +169,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
       MaterialPageRoute(
         builder: (_) => _FullscreenPhoto(entry: entry),
       ),
-    )
+    );
   }
 }
 
@@ -210,8 +209,8 @@ class _SnapshotTile extends StatelessWidget {
                   return Container(
                     color: const Color(0xFFF1F3F4),
                     child: const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                        child: CircularProgressIndicator(strokeWidth: 2)),
+                  );
                 },
                 errorBuilder: (_, __, ___) => Container(
                   color: const Color(0xFFF1F3F4),
@@ -229,7 +228,7 @@ class _SnapshotTile extends StatelessWidget {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)],
+                      colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
                     ),
                   ),
                   child: Row(
@@ -239,7 +238,7 @@ class _SnapshotTile extends StatelessWidget {
                             style: GoogleFonts.inter(
                                 color: Colors.white,
                                 fontSize: 11,
-                                fontWeight: FontWeight.w500),
+                                fontWeight: FontWeight.w500)),
                       ),
                       GestureDetector(
                         onTap: onDelete,
@@ -253,8 +252,8 @@ class _SnapshotTile extends StatelessWidget {
             ],
           ),
         ),
-      ).animate(delay: Duration(milliseconds: delay).fadeIn().scale(begin: const Offset(0.9, 0.9),
-    )
+      ).animate(delay: Duration(milliseconds: delay)).fadeIn().scale(begin: const Offset(0.9, 0.9)),
+    );
   }
 }
 
@@ -270,13 +269,13 @@ class _FullscreenPhoto extends StatelessWidget {
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         title: Text(entry.timeLabel,
-            style: GoogleFonts.inter(color: Colors.white),
+            style: GoogleFonts.inter(color: Colors.white)),
       ),
       body: Center(
         child: InteractiveViewer(
           child: Image.network(entry.url),
         ),
       ),
-    )
+    );
   }
 }

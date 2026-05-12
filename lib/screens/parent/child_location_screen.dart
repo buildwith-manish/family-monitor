@@ -28,41 +28,41 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
 
   StreamSubscription<LocationSnapshot?>? _locationSub;
   LocationSnapshot? _location;
-  final bool _loading = true;
-  final bool _mapReady = false;
-  final bool _followChild = true;
+  bool _loading = true;
+  bool _mapReady = false;
+  bool _followChild = true;
 
   @override
   void initState() {
-    super.initState()
-    _startListening()
+    super.initState();
+    _startListening();
   }
 
   void _startListening() {
-    _locationSub: _locationSvc
+    _locationSub = _locationSvc
         .watchChildLocation(widget.childUid)
         .listen((loc) {
       if (!mounted) return;
       setState(() {
-        _location: loc;
-        _loading: false;
+        _location = loc;
+        _loading = false;
       });
       if (loc != null && _followChild && _mapReady) {
-        _mapCtrl.move(LatLng(loc.lat, loc.lng), _mapCtrl.camera.zoom)
+        _mapCtrl.move(LatLng(loc.lat, loc.lng), _mapCtrl.camera.zoom);
       }
     });
   }
 
   @override
   void dispose() {
-    _locationSub?.cancel()
-    super.dispose()
+    _locationSub?.cancel();
+    super.dispose();
   }
 
   void _centreOnChild() {
     if (_location == null) return;
-    _mapCtrl.move(LatLng(_location!.lat, _location!.lng), 16)
-    setState(() => _followChild: true)
+    _mapCtrl.move(LatLng(_location!.lat, _location!.lng), 16);
+    setState(() => _followChild = true);
   }
 
   @override
@@ -82,12 +82,10 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
               options: MapOptions(
                 initialCenter: LatLng(loc.lat, loc.lng),
                 initialZoom: 16,
-                onMapReady: () => setState(() => _mapReady: true),
+                onMapReady: () => setState(() => _mapReady = true),
                 onPositionChanged: (_, hasGesture) {
-                  if (hasGesture) {
-                    setState(() => _followChild: false)
-                
-                  }},
+                  if (hasGesture) setState(() => _followChild = false);
+                },
               ),
               children: [
                 // OpenStreetMap tile layer — no API key needed
@@ -105,8 +103,8 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
                       point: LatLng(loc.lat, loc.lng),
                       radius: loc.accuracy,
                       useRadiusInMeter: true,
-                      color: const Color(0xFF1A73E8).withValues(alpha: 0.12),
-                      borderColor: const Color(0xFF1A73E8).withValues(alpha: 0.35),
+                      color: const Color(0xFF1A73E8).withOpacity(0.12),
+                      borderColor: const Color(0xFF1A73E8).withOpacity(0.35),
                       borderStrokeWidth: 1.5,
                     ),
                   ],
@@ -141,7 +139,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.12),
+                        color: Colors.black.withOpacity(0.12),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -206,8 +204,8 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
                       ),
                       // Centre button
                       if (hasLocation && !_followChild)
-                        const IconButton(
-                          icon: Icon(Icons.my_location,
+                        IconButton(
+                          icon: const Icon(Icons.my_location,
                               color: Color(0xFF1A73E8), size: 20),
                           tooltip: 'Centre on child',
                           onPressed: _centreOnChild,
@@ -235,7 +233,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.12),
+                          color: Colors.black.withOpacity(0.12),
                           blurRadius: 20,
                           offset: const Offset(0, -4),
                         ),
@@ -354,7 +352,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
                     Text(
                       'Fetching location...',
                       style: GoogleFonts.inter(
-                        color: Colors.white.withValues(alpha: 0.7),
+                        color: Colors.white.withOpacity(0.7),
                         fontSize: 14,
                       ),
                     ),
@@ -364,7 +362,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
             ),
         ],
       ),
-    )
+    );
   }
 
   Widget _buildNoLocationState() {
@@ -380,7 +378,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.08),
+                  color: Colors.white.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Icon(Icons.location_off,
@@ -400,7 +398,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
                 'Ask ${widget.childName} to enable location sharing in Family Monitor.',
                 style: GoogleFonts.inter(
                   fontSize: 14,
-                  color: Colors.white.withValues(alpha: 0.6),
+                  color: Colors.white.withOpacity(0.6),
                   height: 1.5,
                 ),
                 textAlign: TextAlign.center,
@@ -409,7 +407,7 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
           ),
         ),
       ),
-    )
+    );
   }
 }
 
@@ -431,7 +429,7 @@ class _ChildMarker extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF1A73E8).withValues(alpha: 0.4),
+                color: const Color(0xFF1A73E8).withOpacity(0.4),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -461,14 +459,14 @@ class _ChildMarker extends StatelessWidget {
             border: Border.all(color: Colors.white, width: 2),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
+                color: Colors.black.withOpacity(0.3),
                 blurRadius: 4,
               ),
             ],
           ),
         ),
       ],
-    )
+    );
   }
 }
 
@@ -476,14 +474,14 @@ class _PinStemPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      .color: const Color(0xFF1A73E8)
-      .style: PaintingStyle.fill;
+      ..color = const Color(0xFF1A73E8)
+      ..style = PaintingStyle.fill;
     final path = ui.Path()
       ..moveTo(size.width / 2 - 4, 0)
       ..lineTo(size.width / 2 + 4, 0)
       ..lineTo(size.width / 2, size.height)
-      ..close()
-    canvas.drawPath(path, paint)
+      ..close();
+    canvas.drawPath(path, paint);
   }
 
   @override
@@ -513,7 +511,7 @@ class _StatChip extends StatelessWidget {
           width: 34,
           height: 34,
           decoration: BoxDecoration(
-            color: iconColor.withValues(alpha: 0.1),
+            color: iconColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: iconColor, size: 16),
@@ -535,6 +533,6 @@ class _StatChip extends StatelessWidget {
           ),
         ),
       ],
-    )
+    );
   }
 }

@@ -21,51 +21,50 @@ class ContentFilterScreen extends StatefulWidget {
 class _ContentFilterScreenState extends State<ContentFilterScreen>
     with SingleTickerProviderStateMixin {
   final _svc = ContentFilterService();
-  final List<BlockedDomain> _blocked = [];
-  final Set<String> _blockedCategories = {};
+  List<BlockedDomain> _blocked = [];
+  Set<String> _blockedCategories = {};
   late TabController _tabs;
   final _domainCtrl = TextEditingController();
 
   static const _categoryIcons = {
-    'Adult Content': (Icons.no_adult_content, Color(0xFFEA4335),
-    'Gambling': (Icons.casino, Color(0xFFFA7B17),
-    'Social Media': (Icons.group, Color(0xFF1A73E8),
-    'Gaming': (Icons.sports_esports, Color(0xFF9334E6),
-    'Violent Content': (Icons.warning_amber, Color(0xFFEA4335),
+    'Adult Content': (Icons.no_adult_content, Color(0xFFEA4335)),
+    'Gambling': (Icons.casino, Color(0xFFFA7B17)),
+    'Social Media': (Icons.group, Color(0xFF1A73E8)),
+    'Gaming': (Icons.sports_esports, Color(0xFF9334E6)),
+    'Violent Content': (Icons.warning_amber, Color(0xFFEA4335)),
   };
 
   @override
   void initState() {
-    super.initState()
-    _tabs: TabController(length: 2, vsync: this)
+    super.initState();
+    _tabs = TabController(length: 2, vsync: this);
     _svc.watchBlockedDomains(widget.childUid).listen((data) {
-      if (!mounted) return;
-    setState(() => _blocked: data)
+      if (mounted) setState(() => _blocked = data);
     });
     _svc.watchBlockedCategories(widget.childUid).listen((data) {
-      if (!mounted) return;
-    setState(() => _blockedCategories: data);    });
+      if (mounted) setState(() => _blockedCategories = data);
+    });
   }
 
   @override
   void dispose() {
-    _tabs.dispose()
-    _domainCtrl.dispose()
-    super.dispose()
+    _tabs.dispose();
+    _domainCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _addDomain() async {
-    final domain = _domainCtrl.text.trim()
+    final domain = _domainCtrl.text.trim();
     if (domain.isEmpty) return;
-    await _svc.blockDomain(widget.childUid, domain)
-    _domainCtrl.clear()
+    await _svc.blockDomain(widget.childUid, domain);
+    _domainCtrl.clear();
   }
 
   Future<void> _toggleCategory(String category) async {
-    if (_blockedCategories.contains(category) {
-      await _svc.unblockCategory(widget.childUid, category)
+    if (_blockedCategories.contains(category)) {
+      await _svc.unblockCategory(widget.childUid, category);
     } else {
-      await _svc.blockCategory(widget.childUid, category)
+      await _svc.blockCategory(widget.childUid, category);
     }
   }
 
@@ -80,7 +79,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
             const Text('Content Filter'),
             Text(widget.childName,
                 style: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFF5F6368),
+                    fontSize: 12, color: const Color(0xFF5F6368))),
           ],
         ),
         bottom: TabBar(
@@ -100,7 +99,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
           _buildDomains(),
         ],
       ),
-    )
+    );
   }
 
   Widget _buildCategories() {
@@ -123,7 +122,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                 child: Text(
                   'Blocked categories are enforced on the child device. See SETUP.md for DNS-level filtering setup.',
                   style: GoogleFonts.inter(
-                      fontSize: 12, color: const Color(0xFF1A73E8),
+                      fontSize: 12, color: const Color(0xFF1A73E8)),
                 ),
               ),
             ],
@@ -143,14 +142,14 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                   color: blocked
-                      ? const Color(0xFFEA4335).withValues(alpha: 0.3)
+                      ? const Color(0xFFEA4335).withOpacity(0.3)
                       : Colors.grey.shade200),
             ),
             child: ListTile(
               leading: Container(
                 width: 40, height: 40,
                 decoration: BoxDecoration(
-                  color: (iconData?.$2 ?? Colors.grey).withValues(alpha: 0.12),
+                  color: (iconData?.$2 ?? Colors.grey).withOpacity(0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(iconData?.$1 ?? Icons.block,
@@ -158,7 +157,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
               ),
               title: Text(category,
                   style: GoogleFonts.inter(
-                      fontSize: 14, fontWeight: FontWeight.w600),
+                      fontSize: 14, fontWeight: FontWeight.w600)),
               subtitle: Text(
                 '${ContentFilterService.categoryDomains[category]?.length ?? 0} domains',
                 style: GoogleFonts.inter(fontSize: 11, color: Colors.grey),
@@ -166,10 +165,10 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
               trailing: Switch(
                 value: blocked,
                 onChanged: (_) => _toggleCategory(category),
-                activeThumbColor: const Color(0xFFEA4335),
+                activeColor: const Color(0xFFEA4335),
               ),
             ),
-          ).animate(delay: Duration(milliseconds: e.key * 60).fadeIn();
+          ).animate(delay: Duration(milliseconds: e.key * 60)).fadeIn();
         }),
       ],
     );
@@ -201,7 +200,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                 style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFEA4335),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
+                        horizontal: 16, vertical: 14)),
                 child: const Text('Block'),
               ),
             ],
@@ -215,15 +214,15 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Icon(Icons.check_circle_outline,
-                          size: 48, color: Color(0xFF34A853),
-                      SizedBox(height: 12),
+                          size: 48, color: Color(0xFF34A853)),
+                      const SizedBox(height: 12),
                       Text('No custom domains blocked',
                           style: GoogleFonts.inter(
-                              color: Colors.grey, fontSize: 15),
-                      SizedBox(height: 6),
+                              color: Colors.grey, fontSize: 15)),
+                      const SizedBox(height: 6),
                       Text('Type a domain above to block it.',
                           style: GoogleFonts.inter(
-                              color: Colors.grey.shade400, fontSize: 12),
+                              color: Colors.grey.shade400, fontSize: 12)),
                     ],
                   ),
                 )
@@ -244,11 +243,11 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                         leading: const Icon(Icons.block,
                             color: Color(0xFFEA4335), size: 18),
                         title: Text(d.domain,
-                            style: GoogleFonts.robotoMono(fontSize: 13),
+                            style: GoogleFonts.robotoMono(fontSize: 13)),
                         subtitle: d.category != null
                             ? Text(d.category!,
                                 style: GoogleFonts.inter(
-                                    fontSize: 10, color: Colors.grey)
+                                    fontSize: 10, color: Colors.grey))
                             : null,
                         trailing: IconButton(
                           icon: const Icon(Icons.delete_outline,
@@ -257,11 +256,11 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                               _svc.unblockDomain(widget.childUid, d.domain),
                         ),
                       ),
-                    ).animate(delay: Duration(milliseconds: i * 30).fadeIn()
+                    ).animate(delay: Duration(milliseconds: i * 30)).fadeIn();
                   },
                 ),
         ),
       ],
-    )
+    );
   }
 }

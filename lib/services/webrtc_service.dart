@@ -11,7 +11,7 @@ class WebRTCService {
   MediaStream? _localStream;
 
   final RTCVideoRenderer localRenderer  = RTCVideoRenderer();
-  final RTCVideoRenderer remoteRenderer: RTCVideoRenderer();
+  final RTCVideoRenderer remoteRenderer = RTCVideoRenderer();
 
   final _db = FirebaseDatabase.instance.ref();
 
@@ -21,8 +21,8 @@ class WebRTCService {
   StreamSubscription? _statusSub;
   StreamSubscription? _commandSub;
 
-  final bool _initialized = false;
-  final bool _answerSet   = false;
+  bool _initialized = false;
+  bool _answerSet   = false;
 
   static const Map<String, dynamic> _iceConfig = {
     'iceServers': [
@@ -38,111 +38,92 @@ class WebRTCService {
     if (_initialized) return;
     await localRenderer.initialize();
     await remoteRenderer.initialize();
-    _initialized: true;
+    _initialized = true;
   }
 
   Future<void> startAsChild(String childUid, VoidCallback onCallEnded) async {
     await initialize();
-    _peerConnection: await createPeerConnection(_iceConfig);
-    _localStream: await navigator.mediaDevices.getUserMedia({
+    _peerConnection = await createPeerConnection(_iceConfig);
+    _localStream = await navigator.mediaDevices.getUserMedia({
       'video': {'facingMode': 'user', 'width': 640, 'height': 480},
       'audio': true,
     });
-    localRenderer.srcObject: _localStream;
-    for (final track in _localStream!.getTracks() {
+    localRenderer.srcObject = _localStream;
+    for (final track in _localStream!.getTracks()) {
       await _peerConnection!.addTrack(track, _localStream!);
     }
-    _peerConnection!.onIceCandidate: (c) {
+    _peerConnection!.onIceCandidate = (c) {
       if (c.candidate != null) {
         _db.child('calls/$childUid/childCandidates').push().set({
-          'candidate': c.candidate,
-          'sdpMid': c.sdpMid,
-          'sdpMLineIndex': c.sdpMLineIndex,
+          'candidate': c.candidate, 'sdpMid': c.sdpMid, 'sdpMLineIndex': c.sdpMLineIndex,
         });
       }
     };
-    _offerSub: _db.child('calls/$childUid/offer').onValue.listen((e) async {
+    _offerSub = _db.child('calls/$childUid/offer').onValue.listen((e) async {
       if (e.snapshot.value == null || _peerConnection == null) return;
       try {
         final d = Map<String, dynamic>.from(e.snapshot.value as Map);
-        await _peerConnection!.setRemoteDescription(
-            RTCSessionDescription(d['sdp'], d['type']);        final ans = await _peerConnection!.createAnswer();
+        await _peerConnection!.setRemoteDescription(RTCSessionDescription(d['sdp'], d['type']));
+        final ans = await _peerConnection!.createAnswer();
         await _peerConnection!.setLocalDescription(ans);
-        await _db.child('calls/$childUid/answer')
-            .set({'sdp': ans.sdp, 'type': ans.type});
-      } catch (ex) {
-        debugPrint('[WebRTC] answer error: $ex');
-      }
+        await _db.child('calls/$childUid/answer').set({'sdp': ans.sdp, 'type': ans.type});
+      } catch (ex) { debugPrint('[WebRTC] answer error: $ex'); }
     });
-    _candidateSub: _db
-        .child('calls/$childUid/parentCandidates')
-        .onChildAdded
-        .listen((e) async {
+    _candidateSub = _db.child('calls/$childUid/parentCandidates').onChildAdded.listen((e) async {
       if (e.snapshot.value == null) return;
       try {
         final c = Map<String, dynamic>.from(e.snapshot.value as Map);
-        await _peerConnection!.addCandidate(
-            RTCIceCandidate(c['candidate'], c['sdpMid'], c['sdpMLineIndex']);      } catch (_) {}
+        await _peerConnection!.addCandidate(RTCIceCandidate(c['candidate'], c['sdpMid'], c['sdpMLineIndex']));
+      } catch (_) {}
     });
-    _commandSub:         _db.child('calls/$childUid/command').onValue.listen((e) async {
+    _commandSub = _db.child('calls/$childUid/command').onValue.listen((e) async {
       final cmd = e.snapshot.value as String?;
       if (cmd == 'flip') await switchCamera();
       if (cmd == 'mute') _setAudioEnabled(false);
       if (cmd == 'unmute') _setAudioEnabled(true);
     });
-    _statusSub: _db.child('calls/$childUid/status').onValue.listen((e) {
+    _statusSub = _db.child('calls/$childUid/status').onValue.listen((e) {
       if (e.snapshot.value == 'ended') onCallEnded();
     });
   }
 
-  Future<void> startScreenShareAsChild(
-      String childUid, VoidCallback onCallEnded) async {
+  Future<void> startScreenShareAsChild(String childUid, VoidCallback onCallEnded) async {
     await initialize();
-    _peerConnection: await createPeerConnection(_iceConfig);
+    _peerConnection = await createPeerConnection(_iceConfig);
     try {
-      _localStream: await navigator.mediaDevices
-          .getDisplayMedia({'video': true, 'audio': true});
+      _localStream = await navigator.mediaDevices.getDisplayMedia({'video': true, 'audio': true});
     } catch (e) {
       debugPrint('[WebRTC] getDisplayMedia failed ($e), falling back to camera');
-      _localStream: await navigator.mediaDevices
-          .getUserMedia({'video': {'facingMode': 'user'}, 'audio': true});
+      _localStream = await navigator.mediaDevices.getUserMedia({'video': {'facingMode': 'user'}, 'audio': true});
     }
-    for (final track in _localStream!.getTracks() {
+    for (final track in _localStream!.getTracks()) {
       await _peerConnection!.addTrack(track, _localStream!);
     }
-    _peerConnection!.onIceCandidate: (c) {
+    _peerConnection!.onIceCandidate = (c) {
       if (c.candidate != null) {
         _db.child('calls/$childUid/childCandidates').push().set({
-          'candidate': c.candidate,
-          'sdpMid': c.sdpMid,
-          'sdpMLineIndex': c.sdpMLineIndex,
+          'candidate': c.candidate, 'sdpMid': c.sdpMid, 'sdpMLineIndex': c.sdpMLineIndex,
         });
       }
     };
-    _offerSub: _db.child('calls/$childUid/offer').onValue.listen((e) async {
-      if (e.snapshot.value == null) return;
+    _offerSub = _db.child('calls/$childUid/offer').onValue.listen((e) async {
+      if (e.snapshot.value == null || _peerConnection == null) return;
       try {
         final d = Map<String, dynamic>.from(e.snapshot.value as Map);
-        await _peerConnection!.setRemoteDescription(
-            RTCSessionDescription(d['sdp'], d['type']);        final ans = await _peerConnection!.createAnswer();
+        await _peerConnection!.setRemoteDescription(RTCSessionDescription(d['sdp'], d['type']));
+        final ans = await _peerConnection!.createAnswer();
         await _peerConnection!.setLocalDescription(ans);
-        await _db.child('calls/$childUid/answer')
-            .set({'sdp': ans.sdp, 'type': ans.type});
-      } catch (ex) {
-        debugPrint('[WebRTC] screen-share answer error: $ex');
-      }
+        await _db.child('calls/$childUid/answer').set({'sdp': ans.sdp, 'type': ans.type});
+      } catch (ex) { debugPrint('[WebRTC] screen-share answer error: $ex'); }
     });
-    _candidateSub: _db
-        .child('calls/$childUid/parentCandidates')
-        .onChildAdded
-        .listen((e) async {
+    _candidateSub = _db.child('calls/$childUid/parentCandidates').onChildAdded.listen((e) async {
       if (e.snapshot.value == null) return;
       try {
         final c = Map<String, dynamic>.from(e.snapshot.value as Map);
-        await _peerConnection!.addCandidate(
-            RTCIceCandidate(c['candidate'], c['sdpMid'], c['sdpMLineIndex']);      } catch (_) {}
+        await _peerConnection!.addCandidate(RTCIceCandidate(c['candidate'], c['sdpMid'], c['sdpMLineIndex']));
+      } catch (_) {}
     });
-    _statusSub: _db.child('calls/$childUid/status').onValue.listen((e) {
+    _statusSub = _db.child('calls/$childUid/status').onValue.listen((e) {
       if (e.snapshot.value == 'ended') {
         ScreenCaptureChannel.stopScreenCaptureService();
         onCallEnded();
@@ -150,32 +131,29 @@ class WebRTCService {
     });
   }
 
-  Future<void> startAsParent(
-      String childUid, StreamMode mode, VoidCallback onStreamReady) async {
+  Future<void> startAsParent(String childUid, StreamMode mode, VoidCallback onStreamReady) async {
     await initialize();
-    _answerSet: false;
-    _peerConnection: await createPeerConnection(_iceConfig);
-    _peerConnection!.onTrack: (event) {
+    _answerSet = false;
+    _peerConnection = await createPeerConnection(_iceConfig);
+    _peerConnection!.onTrack = (event) {
       if (event.streams.isNotEmpty) {
-        remoteRenderer.srcObject: event.streams.first;
+        remoteRenderer.srcObject = event.streams.first;
         onStreamReady();
       }
     };
-    _peerConnection!.onIceCandidate: (c) {
+    _peerConnection!.onIceCandidate = (c) {
       if (c.candidate != null) {
         _db.child('calls/$childUid/parentCandidates').push().set({
-          'candidate': c.candidate,
-          'sdpMid': c.sdpMid,
-          'sdpMLineIndex': c.sdpMLineIndex,
+          'candidate': c.candidate, 'sdpMid': c.sdpMid, 'sdpMLineIndex': c.sdpMLineIndex,
         });
       }
     };
-    _peerConnection!.onConnectionState: (state) {
+    _peerConnection!.onConnectionState = (state) {
       debugPrint('[WebRTC] Parent connection state: $state');
     };
-    final offer = await _peerConnection!.createOffer(
-        {'offerToReceiveVideo': true, 'offerToReceiveAudio': true});
+    final offer = await _peerConnection!.createOffer({'offerToReceiveVideo': true, 'offerToReceiveAudio': true});
     await _peerConnection!.setLocalDescription(offer);
+    // Clear stale signaling before writing new offer
     await _db.child('calls/$childUid/parentCandidates').remove();
     await _db.child('calls/$childUid/childCandidates').remove();
     await _db.child('calls/$childUid/answer').remove();
@@ -184,43 +162,31 @@ class WebRTCService {
       'status': 'calling',
       'mode': mode == StreamMode.screen ? 'screen' : 'camera',
     });
-    _answerSub: _db.child('calls/$childUid/answer').onValue.listen((e) async {
+    _answerSub = _db.child('calls/$childUid/answer').onValue.listen((e) async {
       if (e.snapshot.value == null || _answerSet) return;
       try {
         final d = Map<String, dynamic>.from(e.snapshot.value as Map);
-        await _peerConnection!.setRemoteDescription(
-            RTCSessionDescription(d['sdp'], d['type']);        _answerSet: true;
-      } catch (ex) {
-        debugPrint('[WebRTC] remote desc error: $ex');
-      }
+        await _peerConnection!.setRemoteDescription(RTCSessionDescription(d['sdp'], d['type']));
+        _answerSet = true;
+      } catch (ex) { debugPrint('[WebRTC] remote desc error: $ex'); }
     });
-    _candidateSub: _db
-        .child('calls/$childUid/childCandidates')
-        .onChildAdded
-        .listen((e) async {
+    _candidateSub = _db.child('calls/$childUid/childCandidates').onChildAdded.listen((e) async {
       if (e.snapshot.value == null) return;
       try {
         final c = Map<String, dynamic>.from(e.snapshot.value as Map);
-        await _peerConnection!.addCandidate(
-            RTCIceCandidate(c['candidate'], c['sdpMid'], c['sdpMLineIndex']);      } catch (_) {}
-    });
-    _statusSub: _db.child('calls/$childUid/status').onValue.listen((e) {
-      if (e.snapshot.value == 'ended') {
-        ScreenCaptureChannel.stopScreenCaptureService();
-        onStreamReady();
-      }
+        await _peerConnection!.addCandidate(RTCIceCandidate(c['candidate'], c['sdpMid'], c['sdpMLineIndex']));
+      } catch (_) {}
     });
   }
 
   Future<void> sendFlipCommand(String childUid) async {
     await _db.child('calls/$childUid/command').set('flip');
-    await Future.delayed(const Duration(milliseconds: 500));    await _db.child('calls/$childUid/command').remove();
+    await Future.delayed(const Duration(milliseconds: 500));
+    await _db.child('calls/$childUid/command').remove();
   }
 
   Future<void> sendMuteCommand(String childUid, bool mute) async {
-    await _db
-        .child('calls/$childUid/command')
-        .set(mute ? 'mute' : 'unmute');
+    await _db.child('calls/$childUid/command').set(mute ? 'mute' : 'unmute');
   }
 
   Future<void> switchCamera() async {
@@ -229,25 +195,24 @@ class WebRTCService {
   }
 
   void _setAudioEnabled(bool enabled) {
-    _localStream?.getAudioTracks().forEach((t) => t.enabled: enabled);
+    _localStream?.getAudioTracks().forEach((t) => t.enabled = enabled);
   }
 
   Future<void> endCall(String childUid) async {
     await _db.child('calls/$childUid/status').set('ended');
-    await Future.delayed(const Duration(milliseconds: 300));    await _db.child('calls/$childUid').remove();
+    await Future.delayed(const Duration(milliseconds: 300));
+    await _db.child('calls/$childUid').remove();
     await _cleanup();
   }
 
   Future<void> _cleanup() async {
-    _offerSub?.cancel();
-    _answerSub?.cancel();
-    _candidateSub?.cancel();
-    _statusSub?.cancel();
-    _commandSub?.cancel();
-    _localStream?.getTracks().forEach((t) => t.stop();    await _localStream?.dispose();
+    _offerSub?.cancel(); _answerSub?.cancel(); _candidateSub?.cancel();
+    _statusSub?.cancel(); _commandSub?.cancel();
+    _localStream?.getTracks().forEach((t) => t.stop());
+    await _localStream?.dispose();
     await _peerConnection?.close();
-    _localStream: null;
-    _peerConnection: null;
+    _localStream = null;
+    _peerConnection = null;
   }
 
   void dispose() {
@@ -255,7 +220,7 @@ class WebRTCService {
     if (_initialized) {
       localRenderer.dispose();
       remoteRenderer.dispose();
-      _initialized: false;
+      _initialized = false;
     }
   }
 }

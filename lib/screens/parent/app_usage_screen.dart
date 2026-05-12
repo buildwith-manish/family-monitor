@@ -14,41 +14,40 @@ class AppUsageScreen extends StatefulWidget {
 
 class _AppUsageScreenState extends State<AppUsageScreen> {
   final _db = FirebaseDatabase.instance.ref();
-  final List<Map<String, dynamic>> _apps: [];
-  final bool _loading = true;
-  final String _sortBy = 'usage'; // usage | name
+  List<Map<String, dynamic>> _apps = [];
+  bool _loading = true;
+  String _sortBy = 'usage'; // usage | name
 
   @override
   void initState() {
-    super.initState()
-    _loadApps()
-    _requestSync()
+    super.initState();
+    _loadApps();
+    _requestSync();
   }
 
   Future<void> _requestSync() async {
-    await _db.child('commands/${widget.childUid}/syncAppList/requested').set(true)
+    await _db.child('commands/${widget.childUid}/syncAppList/requested').set(true);
   }
 
   Future<void> _loadApps() async {
-    setState(() => _loading: true)
-    final snap = await _db.child('appList/${widget.childUid}').get()
+    setState(() => _loading = true);
+    final snap = await _db.child('appList/${widget.childUid}').get();
     if (!mounted) return;
     if (snap.value != null) {
-      final raw = Map<String, dynamic>.from(snap.value as Map)
-      final list = raw.values.map((v) => Map<String, dynamic>.from(v as Map).toList()
+      final raw = Map<String, dynamic>.from(snap.value as Map);
+      final list = raw.values.map((v) => Map<String, dynamic>.from(v as Map)).toList();
       list.sort((a, b) {
         if (_sortBy == 'usage') {
           final aTime = (a['totalTimeMs'] as num?)?.toInt() ?? 0;
           final bTime = (b['totalTimeMs'] as num?)?.toInt() ?? 0;
           return bTime.compareTo(aTime);
         } else {
-          return (a['packageName'] as String? ?? '').compareTo(b['packageName'] as String? ?? '')
+          return (a['packageName'] as String? ?? '').compareTo(b['packageName'] as String? ?? '');
         }
       });
-      @override
-  setState(() { _apps: list; _loading: false; });
+      setState(() { _apps = list; _loading = false; });
     } else {
-      setState(() { _apps: []; _loading: false; });
+      setState(() { _apps = []; _loading = false; });
     }
   }
 
@@ -61,7 +60,7 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
   }
 
   String _appName(String pkg) {
-    final parts = pkg.split('.')
+    final parts = pkg.split('.');
     return parts.length >= 2
         ? parts.last[0].toUpperCase() + parts.last.substring(1)
         : pkg;
@@ -82,30 +81,30 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
       backgroundColor: const Color(0xFFF8FAFB),
       appBar: AppBar(
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('App Activities', style: GoogleFonts.plusJakartaSans(fontSize: 17, fontWeight: FontWeight.w700),
-          Text(widget.childName, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+          Text('App Activities', style: GoogleFonts.plusJakartaSans(fontSize: 17, fontWeight: FontWeight.w700)),
+          Text(widget.childName, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
         ]),
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: () { _requestSync(); _loadApps(); }),
           PopupMenuButton<String>(
-            onSelected: (v) { setState(() => _sortBy: v); _loadApps(); },
+            onSelected: (v) { setState(() => _sortBy = v); _loadApps(); },
             itemBuilder: (_) => [
-              const PopupMenuItem(value: 'usage', child: Text('Sort by Usage'),
-              PopupMenuItem(value: 'name', child: Text('Sort by Name'),
+              const PopupMenuItem(value: 'usage', child: Text('Sort by Usage')),
+              const PopupMenuItem(value: 'name', child: Text('Sort by Name')),
             ],
           ),
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator()
+          ? const Center(child: CircularProgressIndicator())
           : _apps.isEmpty
               ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Icon(Icons.apps, size: 64, color: Colors.grey.shade300),
                   const SizedBox(height: 16),
-                  Text('No app data yet', style: GoogleFonts.plusJakartaSans(fontSize: 16, color: Colors.grey),
+                  Text('No app data yet', style: GoogleFonts.plusJakartaSans(fontSize: 16, color: Colors.grey)),
                   const SizedBox(height: 8),
-                  Text('Data syncs when child device is active', style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade400),
-                ])
+                  Text('Data syncs when child device is active', style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade400)),
+                ]))
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: _apps.length,
@@ -113,10 +112,10 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
                     final app = _apps[i];
                     final pkg = app['packageName'] as String? ?? '';
                     final ms = (app['totalTimeMs'] as num?)?.toInt() ?? 0;
-                    final color = _colorForPkg(pkg)
-                    return null;);
-                    final name = _appName(pkg);                    // Find max for progress bar
-                    final maxMs = _apps.isEmpty ? 1 : ((_apps.first['totalTimeMs'] as num?)?.toInt() ?? 1)
+                    final color = _colorForPkg(pkg);
+                    final name = _appName(pkg);
+                    // Find max for progress bar
+                    final maxMs = _apps.isEmpty ? 1 : ((_apps.first['totalTimeMs'] as num?)?.toInt() ?? 1);
                     final fraction = maxMs > 0 ? ms / maxMs : 0.0;
 
                     return Container(
@@ -130,12 +129,12 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
                       child: Row(children: [
                         Container(
                           width: 42, height: 42,
-                          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10),
-                          child: Center(child: Text(name[0], style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: color),
+                          decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                          child: Center(child: Text(name[0], style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: color))),
                         ),
                         const SizedBox(width: 12),
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(name, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+                          Text(name, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
                           Text(pkg, style: GoogleFonts.robotoMono(fontSize: 10, color: Colors.grey), overflow: TextOverflow.ellipsis),
                           const SizedBox(height: 6),
                           LinearProgressIndicator(
@@ -145,15 +144,15 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
                             minHeight: 4,
                             borderRadius: BorderRadius.circular(2),
                           ),
-                        ]),
+                        ])),
                         const SizedBox(width: 12),
                         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                           Text(ms > 0 ? _formatDuration(ms) : 'No data',
-                              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: color),
-                          Text('today', style: GoogleFonts.inter(fontSize: 10, color: Colors.grey),
+                              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: color)),
+                          Text('today', style: GoogleFonts.inter(fontSize: 10, color: Colors.grey)),
                         ]),
                       ]),
-                    )
+                    );
                   },
                 ),
     );
