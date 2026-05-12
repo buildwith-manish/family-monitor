@@ -56,8 +56,8 @@ class _SmsScreenState extends State<SmsScreen> {
                 fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey)),
               const SizedBox(height: 6),
               Text('Tap ↻ to request sync',
-                style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
-            ])
+                style: GoogleFonts.inter(fontSize: 13, color: Colors.grey)),
+            ]))
           : ListView.builder(
               padding: const EdgeInsets.all(12),
               itemCount: _msgs.length,

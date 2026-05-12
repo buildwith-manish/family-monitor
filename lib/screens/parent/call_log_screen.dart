@@ -201,7 +201,7 @@ class _CallRow extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     color: record.type == 'missed'
                         ? const Color(0xFFEA4335)
-                        : const Color(0xFF202124),
+                        : const Color(0xFF202124)),
               ),
             ],
           ),

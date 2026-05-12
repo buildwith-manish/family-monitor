@@ -124,8 +124,8 @@ class _ChildLocationScreenState extends State<ChildLocationScreen> {
                   ],
                 ),
               ],
-            );
-          else
+            ),
+          if (!hasLocation)
             _buildNoLocationState(),
 
           // ── Top bar ────────────────────────────────────────────────────────

@@ -59,7 +59,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
           TextButton(
               onPressed: () => Navigator.pop(context, true),
               child: const Text('Delete',
-                  style: TextStyle(color: Color(0xFFEA4335))),
+                  style: TextStyle(color: Color(0xFFEA4335)))),
         ],
       ),
     );
@@ -253,7 +253,8 @@ class _SnapshotTile extends StatelessWidget {
             ],
           ),
         ),
-      ).animate(delay: Duration(milliseconds: delay)).fadeIn().scale(begin: const Offset(0.9, 0.9));
+      ).animate(delay: Duration(milliseconds: delay)).fadeIn().scale(begin: const Offset(0.9, 0.9))
+    );
   }
 }
 

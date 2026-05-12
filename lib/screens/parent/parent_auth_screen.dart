@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/auth_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -221,7 +222,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                               strokeWidth: 2.5,
                               color: Colors.white,
                             ),
-                          );
+                          )
                         : Text(_isLogin ? 'Sign In' : 'Create Account'),
                   ),
                 ).animate(delay: 350.ms).fadeIn().slideY(begin: 0.2, end: 0),

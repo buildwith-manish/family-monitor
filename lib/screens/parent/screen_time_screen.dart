@@ -212,7 +212,6 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                         width: 28,
                         borderRadius: const BorderRadius.vertical(
                             top: Radius.circular(6))),
-                      ),
                     ],
                   ),
                 ),
@@ -242,7 +241,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                 _settingLimitFor = null;
                 _limitCtrl.clear();
               }),
-            ),
+            )).toList(),
       ],
     );
   }

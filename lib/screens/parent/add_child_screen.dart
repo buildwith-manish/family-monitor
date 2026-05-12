@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/auth_service.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -145,6 +146,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                     style: GoogleFonts.inter(
                         fontSize: 13, color: const Color(0xFFC62828)),
                   ).animate().fadeIn().shake(),
+                ),
                 const SizedBox(height: 8),
               ],
 
@@ -231,7 +233,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                           height: 22,
                           child: CircularProgressIndicator(
                               strokeWidth: 2.5, color: Colors.white),
-                        );
+                        )
                       : const Text('Send Connection Request'),
                 ),
               ).animate(delay: 275.ms).fadeIn(),

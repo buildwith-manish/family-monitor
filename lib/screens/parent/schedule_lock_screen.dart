@@ -213,7 +213,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
                                     color:
-                                        active ? Colors.white : Colors.grey),
+                                        active ? Colors.white : Colors.grey)),
                           ),
                         ),
                       ),
@@ -317,7 +317,7 @@ class _LockCard extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       color: locked
                           ? const Color(0xFFEA4335)
-                          : const Color(0xFF202124),
+                          : const Color(0xFF202124)),
                 ),
                 Text(
                   locked

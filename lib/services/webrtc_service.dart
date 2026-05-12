@@ -109,4 +109,7 @@ class WebRTCService {
     localRenderer.dispose(); remoteRenderer.dispose();
     _initialized = false; _answerSet = false;
   }
+  Future<void> sendFlipCommand(String childUid) async {}
+  Future<void> sendMuteCommand(String childUid, bool mute) async {}
+  Future<void> endCall(String childUid) async {}
 }
