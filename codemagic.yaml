@@ -2,24 +2,34 @@ workflows:
   android-apk:
     name: Build Parent and Child APKs
     instance_type: mac_mini_m4
+
     environment:
-      flutter: 3.27.4
+      flutter: stable
       java: 17
+
     cache:
       cache_paths:
         - ~/.pub-cache
         - ~/.gradle/caches
         - ~/.gradle/wrapper
+
     scripts:
+      - name: Flutter clean
+        script: flutter clean
+
       - name: Get dependencies
         script: flutter pub get
 
-      - name: Patch plugin gradle files
+      - name: Patch Gradle SDK versions
         script: |
-          find $HOME/.pub-cache -name "build.gradle" -exec sed -i \
-            's/flutter\.compileSdkVersion/36/g; s/flutter\.minSdkVersion/24/g; s/flutter\.targetSdkVersion/36/g' {} \;
-          find $HOME/.pub-cache -name "build.gradle.kts" -exec sed -i \
-            's/flutter\.compileSdkVersion/36/g; s/flutter\.minSdkVersion/24/g; s/flutter\.targetSdkVersion/36/g' {} \;
+          find . -name "build.gradle" -exec sed -i '' \
+          's/compileSdkVersion *= *36/compileSdkVersion = 34/g; s/minSdkVersion *= *21/minSdkVersion = 24/g; s/targetSdkVersion *= *36/targetSdkVersion = 34/g' {} \;
+
+          find . -name "build.gradle.kts" -exec sed -i '' \
+          's/compileSdk *= *36/compileSdk = 34/g; s/minSdk *= *21/minSdk = 24/g; s/targetSdk *= *36/targetSdk = 34/g' {} \;
+
+      - name: Flutter analyze
+        script: flutter analyze
 
       - name: Build Parent APK
         script: |
@@ -27,7 +37,7 @@ workflows:
             --flavor parent \
             --target lib/main_parent.dart \
             --no-tree-shake-icons
-          mkdir -p build/app/outputs/flutter-apk
+
           cp build/app/outputs/flutter-apk/app-parent-release.apk \
              build/app/outputs/flutter-apk/parent-release.apk
 
@@ -37,6 +47,7 @@ workflows:
             --flavor child \
             --target lib/main_child.dart \
             --no-tree-shake-icons
+
           cp build/app/outputs/flutter-apk/app-child-release.apk \
              build/app/outputs/flutter-apk/child-release.apk
 
