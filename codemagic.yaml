@@ -71,9 +71,6 @@ workflows:
           }
           GSJSON
 
-      - name: Flutter clean
-        script: flutter clean
-
       - name: Get dependencies
         script: flutter pub get
 
