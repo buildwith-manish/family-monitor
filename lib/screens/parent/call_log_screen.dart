@@ -21,9 +21,9 @@ class CallLogScreen extends StatefulWidget {
 class _CallLogScreenState extends State<CallLogScreen>
     with SingleTickerProviderStateMixin {
   final _svc = CallLogService();
-  final List<CallRecord> _allCalls = [];
-  final bool _loading = true;
-  final bool _requesting = false;
+  List<CallRecord> _allCalls = [];
+  bool _loading = true;
+  bool _requesting = false;
   late TabController _tabs;
 
   @override
@@ -39,13 +39,13 @@ class _CallLogScreenState extends State<CallLogScreen>
 
   @override
   void dispose() {
-    _tabs.dispose()
+    _tabs.dispose();
     super.dispose();
   }
 
   List<CallRecord> _filtered(String type) {
     if (type == 'all') return _allCalls;
-    return _allCalls.where((c) => c.type == type).toList()
+    return _allCalls.where((c) => c.type == type).toList();
   }
 
   Future<void> _requestSync() async {
@@ -80,7 +80,7 @@ class _CallLogScreenState extends State<CallLogScreen>
             icon: _requesting
                 ? const SizedBox(
                     width: 18, height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2)
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.sync),
             tooltip: 'Sync call log from device',
             onPressed: _requesting ? null : _requestSync,
@@ -103,9 +103,9 @@ class _CallLogScreenState extends State<CallLogScreen>
               controller: _tabs,
               children: [
                 _CallList(calls: _filtered('all'),
-                _CallList(calls: _filtered('incoming'),
-                _CallList(calls: _filtered('outgoing'),
-                _CallList(calls: _filtered('missed'),
+                _CallList(calls: _filtered('incoming')),
+                _CallList(calls: _filtered('outgoing')),
+                _CallList(calls: _filtered('missed')),
               ],
             ),
     );
@@ -152,7 +152,7 @@ class _CallRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final typeData = _typeData(record.type)
+    final typeData = _typeData(record.type);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -208,7 +208,7 @@ class _CallRow extends StatelessWidget {
           ),
         ],
       ),
-    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 250.ms)
+    ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 250.ms);
   }
 
   static Map<String, dynamic> _typeData(String type) {

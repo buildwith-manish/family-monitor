@@ -311,27 +311,27 @@ class _ContactRow extends StatelessWidget {
             icon: const Icon(Icons.more_vert, size: 18, color: Colors.grey),
             itemBuilder: (_) => [
               if (status != ContactStatus.approved)
-                const PopupMenuItem(
+                PopupMenuItem(
                     value: 'approve',
                     child: ListTile(
                         dense: true,
-                        leading: Icon(Icons.check_circle,
+                        leading: const Icon(Icons.check_circle,
                             color: Color(0xFF34A853)),
-                        title: Text('Approve')),
+                        title: const Text('Approve'))),
               if (status != ContactStatus.blocked)
-                const PopupMenuItem(
+                PopupMenuItem(
                     value: 'block',
                     child: ListTile(
                         dense: true,
-                        leading: Icon(Icons.block, color: Color(0xFFEA4335)),
-                        title: Text('Block')),
+                        leading: const Icon(Icons.block, color: Color(0xFFEA4335)),
+                        title: const Text('Block'))),
               if (status != ContactStatus.pending)
-                const PopupMenuItem(
+                PopupMenuItem(
                     value: 'reset',
                     child: ListTile(
                         dense: true,
-                        leading: Icon(Icons.undo),
-                        title: Text('Reset to pending'))),
+                        leading: const Icon(Icons.undo),
+                        title: const Text('Reset to pending'))),
             ],
             onSelected: (v) {
               if (v == 'approve') onApprove();
