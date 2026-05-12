@@ -893,3 +893,217 @@ class _ChildHomeScreenState
   }
 }
 
+class _DeviceIdCard extends StatelessWidget {
+  final String uid;
+
+  const _DeviceIdCard({required this.uid});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const Text('Device ID'),
+            Text(uid, style: const TextStyle(fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LocationToggleCard extends StatelessWidget {
+  final bool isSharing;
+  final Function(bool) onToggle;
+
+  const _LocationToggleCard({
+    required this.isSharing,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        title: const Text('Location Sharing'),
+        trailing: Switch(
+          value: isSharing,
+          onChanged: onToggle,
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _SectionHeader({
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.grey,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PendingRequestCard extends StatelessWidget {
+  final String parentUid;
+  final Map<String, dynamic> requestData;
+  final int delay;
+  final VoidCallback onApprove;
+  final VoidCallback onDecline;
+
+  const _PendingRequestCard({
+    required this.parentUid,
+    required this.requestData,
+    required this.delay,
+    required this.onApprove,
+    required this.onDecline,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text(requestData['name'] ?? 'Unknown Parent'),
+            Row(
+              children: [
+                ElevatedButton(
+                  onPressed: onApprove,
+                  child: const Text('Approve'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: onDecline,
+                  child: const Text('Decline'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyApprovedCard extends StatelessWidget {
+  const _EmptyApprovedCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          children: const [
+            Icon(Icons.info_outline, size: 48, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'No approved parents yet',
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ApprovedParentCard extends StatelessWidget {
+  final String parentUid;
+  final int delay;
+  final VoidCallback onStartMonitoring;
+
+  const _ApprovedParentCard({
+    required this.parentUid,
+    required this.delay,
+    required this.onStartMonitoring,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        title: Text(parentUid),
+        trailing: ElevatedButton(
+          onPressed: onStartMonitoring,
+          child: const Text('Monitor'),
+        ),
+      ),
+    );
+  }
+}
+
+class _MonitoringInfoCard extends StatelessWidget {
+  const _MonitoringInfoCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: const [
+            Icon(Icons.security, size: 32),
+            SizedBox(height: 8),
+            Text('This device is ready for monitoring'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LockOverlay extends StatelessWidget {
+  const _LockOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black87,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(Icons.lock_outline, size: 64, color: Colors.white),
+            SizedBox(height: 16),
+            Text(
+              'Device Locked',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

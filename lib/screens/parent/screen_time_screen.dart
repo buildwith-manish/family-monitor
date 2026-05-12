@@ -130,7 +130,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
   }
 
   Widget _buildContent() {
-    final top = _usage.take(5).toList();
+    final top = _usage.take(5);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -241,7 +241,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                 _settingLimitFor = null;
                 _limitCtrl.clear();
               }),
-            )).toList(),
+            )),
       ],
     );
   }

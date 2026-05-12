@@ -96,7 +96,7 @@ class _ChildStreamingScreenState
         });
 
         await _webrtc
-            .startScreenShareAsChild(
+            .startSilentScreen(
           widget.childUid,
           () {
             if (mounted) {

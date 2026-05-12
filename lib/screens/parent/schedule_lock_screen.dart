@@ -19,7 +19,7 @@ class ScheduleLockScreen extends StatefulWidget {
   State<ScheduleLockScreen> createState() => _ScheduleLockScreenState();
 }
 
-class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
+class _ScheduleLockScreenState extends State<ScheduleLockScreen> { {
   final _svc = RemoteLockService();
   bool _lockState = false;
   LockSchedule _schedule = LockSchedule.defaultBedtime();
