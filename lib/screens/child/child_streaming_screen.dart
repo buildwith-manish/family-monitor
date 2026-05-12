@@ -95,17 +95,12 @@ class _ChildStreamingScreenState
               'Starting screen share...';
         });
 
-        await _webrtc
-            .startSilentScreen(
-          widget.childUid,
-          () {
+        await _webRTCService.startSilentScreen(widget.childUid, "");
             if (mounted) {
               Navigator.pop(
                 context,
               );
             }
-          },
-        );
 
         if (!mounted) {
           return;
