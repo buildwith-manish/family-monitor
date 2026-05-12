@@ -12,7 +12,7 @@ tasks.register<Delete>("clean") {
 subprojects {
     afterEvaluate {
         extensions.findByType<com.android.build.gradle.BaseExtension>()?.apply {
-            compileSdkVersion(35)
+            compileSdkVersion(36)
         }
     }
 }
