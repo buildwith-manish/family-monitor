@@ -10,9 +10,9 @@ class ParentAuthScreen extends StatefulWidget {
 }
 
 class _ParentAuthScreenState extends State<ParentAuthScreen> {
-  final bool _isLogin = false;
-  final bool _loading = false;
-  final bool _obscurePassword = true;
+  bool _isLogin = false;
+  bool _loading = false;
+  bool _obscurePassword = true;
   String? _error;
 
   final _nameCtrl = TextEditingController();
@@ -39,12 +39,12 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
 
     Map<String, dynamic> result;
     if (_isLogin) {
-      result: await _auth.loginParent(
+      result = await _auth.loginParent(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
       );
     } else {
-      result: await _auth.registerParent(
+      result = await _auth.registerParent(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
         displayName: _nameCtrl.text.trim(),
@@ -57,7 +57,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
     if (result['success'] == true) {
       Navigator.pushReplacementNamed(context, '/parent/dashboard');
     } else {
-      setState(() { _error = result['error']; })
+      setState(() { _error = result['error']; });
     }
   }
 
@@ -231,7 +231,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                 // Toggle login/register
                 TextButton(
                   onPressed: () => setState(() {
-                    _isLogin: !_isLogin;
+                    setState(() { _isLogin = !_isLogin; });
                     _error = null;
                   }),
                   child: Text(

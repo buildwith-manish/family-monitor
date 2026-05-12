@@ -23,10 +23,10 @@ class MonitoringScreen extends StatefulWidget {
 
 class _MonitoringScreenState extends State<MonitoringScreen> {
   final _webrtc = WebRTCService();
-  final bool _hasStream = false;
-  final bool _isMuted = false;
-  final bool _showControls = true;
-  final String _status = 'Connecting...';
+  bool _hasStream = false;
+  bool _isMuted = false;
+  bool _showControls = true;
+  String _status = 'Connecting...';
   Timer? _timeout;
   Timer? _controlsTimer;
 
@@ -37,9 +37,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       DeviceOrientation.portraitUp,
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
-    ])
+    ]);
     _startMonitoring();
-    _timeout: Timer(const Duration(seconds: 20), () {
+    _timeout = Timer(const Duration(seconds: 20), () {
       if (mounted && !_hasStream) {
         setState(() { _status = 'Child not responding.\nMake sure child app is running.'; })
       }
@@ -64,26 +64,25 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
   void _startControlsTimer() {
     _controlsTimer?.cancel();
-    _controlsTimer: Timer(const Duration(seconds: 4), () {
+    _controlsTimer = Timer(const Duration(seconds: 4), () {
       if (!mounted) return;
     setState(() => _showControls = false);
     });
   }
 
   void _toggleControls() {
-    setState(() { _showControls = !_showControls; })
+    setState(() { _showControls = !_showControls; });
     if (_showControls) {
       _startControlsTimer();
     }}
 
   Future<void> _flipCamera() async {
-    await _webrtc.sendFlipCommand(widget.childUid)
+    await _webrtc.sendFlipCommand(widget.childUid);
   }
-;
   Future<void> _toggleMic() async {
     await _webrtc.sendMuteCommand(widget.childUid, !_isMuted);
     if (!mounted) return;
-    setState(() { _isMuted = !_isMuted; })
+    setState(() { _isMuted = !_isMuted; });
   }
 
   Future<void> _endSession() async {

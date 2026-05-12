@@ -255,6 +255,54 @@ Widget _buildEmptyState() {
   }
 }
 
+class _ChildCard extends StatelessWidget {
+  final String childUid;
+  final Map<String, dynamic> childData;
+  final int delay;
+  final Map<String, Map<String, dynamic>> deviceInfo;
+
+  const _ChildCard({
+    required this.childUid,
+    required this.childData,
+    required this.delay,
+    required this.deviceInfo,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final name = childData['displayName'] as String? ?? 'Child';
+    final info = deviceInfo[childUid] ?? {};
+    final battery = info['battery'] as int?;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: const Color(0xFFE8F0FE),
+          child: Text(name[0].toUpperCase(),
+              style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1A73E8))),
+        ),
+        title: Text(name,
+            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
+        subtitle: battery != null
+            ? Text('Battery: \$battery%',
+                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey))
+            : null,
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {},
+      ),
+    ).animate(delay: Duration(milliseconds: delay)).fadeIn();
+  }
+}
+
+
 class _SosBanner extends StatelessWidget {
   final List<SosAlert> alerts;
   final VoidCallback onAcknowledge;

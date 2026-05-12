@@ -20,17 +20,17 @@ class ContactsScreen extends StatefulWidget {
 
 class _ContactsScreenState extends State<ContactsScreen> {
   final _svc = ContactsService();
-  final List<ContactEntry> _contacts = [];
-  final Map<String, ContactStatus> _statuses = {};
-  final bool _requesting = false;
-  final String _query = '';
+  List<ContactEntry> _contacts = [];
+  Map<String, ContactStatus> _statuses = {};
+  bool _requesting = false;
+  String _query = '';
 
   @override
   void initState() {
     super.initState();
     _svc.watchAllContacts(widget.childUid).listen((data) {
       if (!mounted) return;
-    setState(() { _contacts = data; })
+    setState(() { _contacts = data; });
     });
     _svc.watchStatuses(widget.childUid).listen((data) {
       if (!mounted) return;
@@ -57,7 +57,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
 ;
   List<ContactEntry> get _filtered {
     if (_query.isEmpty) return _contacts;
-    final q = _query.toLowerCase()
+    final q = _query.toLowerCase();
     return _contacts
         .where((c) =>
             c.displayName.toLowerCase().contains(q) ||

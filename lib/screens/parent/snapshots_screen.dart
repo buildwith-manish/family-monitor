@@ -20,8 +20,8 @@ class SnapshotsScreen extends StatefulWidget {
 
 class _SnapshotsScreenState extends State<SnapshotsScreen> {
   final _svc = SnapshotService();
-  final List<SnapshotEntry> _snapshots = [];
-  final bool _requesting = false;
+  List<SnapshotEntry> _snapshots = [];
+  bool _requesting = false;
 
   @override
   void initState() {
@@ -55,7 +55,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+              child: const Text('Cancel')),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
               child: const Text('Delete',
@@ -64,11 +64,11 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
       ),
     );
     if (confirmed == true) {
-      await _svc.deleteSnapshot(widget.childUid, entry)
+      await _svc.deleteSnapshot(widget.childUid, entry);
     }
   }
 
-  @override;
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFB),
@@ -79,7 +79,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
             const Text('Snapshots'),
             Text(widget.childName,
                 style: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFF5F6368),
+                    fontSize: 12, color: const Color(0xFF5F6368))),
           ],
         ),
         actions: [
@@ -126,7 +126,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
             const SizedBox(height: 20),
             Text('No snapshots yet',
                 style: GoogleFonts.plusJakartaSans(
-                    fontSize: 18, fontWeight: FontWeight.w700),
+                    fontSize: 18, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Text(
               'Tap "Take Photo" to request a photo from the child device. The child\'s front camera will capture an image and upload it here.',
@@ -270,7 +270,7 @@ class _FullscreenPhoto extends StatelessWidget {
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         title: Text(entry.timeLabel,
-            style: GoogleFonts.inter(color: Colors.white),
+            style: GoogleFonts.inter(color: Colors.white)),
       ),
       body: Center(
         child: InteractiveViewer(

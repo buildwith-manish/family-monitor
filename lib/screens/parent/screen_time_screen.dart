@@ -21,9 +21,9 @@ class ScreenTimeScreen extends StatefulWidget {
 
 class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
   final _svc = ScreenTimeService();
-  final List<AppUsageEntry> _usage = [];
-  final Map<String, int> _limits = {};
-  final bool _loading = true;
+  List<AppUsageEntry> _usage = [];
+  Map<String, int> _limits = {};
+  bool _loading = true;
   String? _settingLimitFor;
   final _limitCtrl = TextEditingController();
 
@@ -43,12 +43,12 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
 
   @override
   void dispose() {
-    _limitCtrl.dispose()
+    _limitCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _loadData() async {
-    _limits: await _svc.getLimits(widget.childUid)
+    _limits = await _svc.getLimits(widget.childUid);
     if (!mounted) return;
     setState(() => _loading = false);
   }
@@ -56,13 +56,13 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
   int get _totalMinutes => _usage.fold(0, (s, e) => s + e.minutes);
 
   Future<void> _setLimit(String packageName) async {
-    final mins = int.tryParse(_limitCtrl.text.trim()
+    final mins = int.tryParse(_limitCtrl.text.trim());
     if (mins == null || mins <= 0) return;
     await _svc.setDailyLimit(widget.childUid, packageName, mins);
     if (!mounted) return;
     if (mounted) {
-      setState(() { _settingLimitFor = null; })
-      _limitCtrl.clear()
+      setState(() { _settingLimitFor = null; });
+      _limitCtrl.clear();
     }
   }
 
@@ -77,7 +77,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
             const Text('Screen Time'),
             Text(widget.childName,
                 style: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFF5F6368),
+                    fontSize: 12, color: const Color(0xFF5F6368))),
           ],
         ),
         actions: [
@@ -89,7 +89,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator()
+          ? const Center(child: CircularProgressIndicator())
           : _usage.isEmpty
               ? _buildEmpty()
               : _buildContent(),
@@ -165,7 +165,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                       reservedSize: 36,
                       getTitlesWidget: (v, _) => Text('${v.toInt()}m',
                           style: GoogleFonts.inter(fontSize: 9,
-                              color: const Color(0xFF9AA0A6),
+                              color: const Color(0xFF9AA0A6))),
                     ),
                   ),
                   bottomTitles: AxisTitles(
@@ -184,13 +184,13 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(label,
                               style: GoogleFonts.inter(fontSize: 9,
-                                  color: const Color(0xFF5F6368),
+                                  color: const Color(0xFF5F6368))),
                         );
                       },
                     ),
                   ),
                   rightTitles:
-                      AxisTitles(sideTitles: const SideTitles(showTitles: false),
+                      AxisTitles(sideTitles: const SideTitles(showTitles: false)),
                   topTitles:
                       const AxisTitles(sideTitles: SideTitles(showTitles: false),
                 ),
@@ -211,7 +211,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                         color: _barColor(i),
                         width: 28,
                         borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(6),
+                            top: Radius.circular(6))),
                       ),
                     ],
                   ),
