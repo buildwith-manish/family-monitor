@@ -120,10 +120,9 @@ class WebRTCService {
   }
 
 
-  /// Stub: silent screen monitoring entry point
+
+
   Future<void> startSilentScreen(String roomId, String userId,
-      {bool audioEnabled = false}) async {
-    // no-op: override in subclass or call initialize separately
-  }
+      {bool audioEnabled = false}) async {}
 
 }
