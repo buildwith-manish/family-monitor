@@ -117,12 +117,17 @@ class WebRTCService {
   } catch (e) {
       debugPrint('startSilentScreen error: \$e');
     }
-  }
+  
+
+  Future<void> startSilentScreen(
+    String roomId,
+    String userId, {
+    bool audioEnabled = false,
+  }) async {}
+}
 
 
 
-
-  Future<void> startSilentScreen(String roomId, String userId,
-      {bool audioEnabled = false}) async {}
+) async {}
 
 }
