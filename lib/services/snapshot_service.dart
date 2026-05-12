@@ -45,7 +45,7 @@ class SnapshotService {
     if (uid == null) return;
     final key = _uuid.v4();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final path = 'snapshots/\$childUid/\$key.jpg';
+    const path = 'snapshots/\$childUid/\$key.jpg';
     final ref = _storage.ref(path);
     await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
     final url = await ref.getDownloadURL();

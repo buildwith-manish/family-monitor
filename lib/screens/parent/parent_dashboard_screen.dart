@@ -260,7 +260,7 @@ class _ChildCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = childData['displayName'] as String? ?? 'Child';
+    final name = childData['childName'] as String? ?? childData['displayName'] as String? ?? 'Child';
     final info = deviceInfo[childUid] ?? {};
     final battery = info['battery'] as int?;
     return Container(

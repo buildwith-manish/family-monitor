@@ -34,7 +34,7 @@ class _ChildStreamingScreenState
       WebRTCService();
 
   bool _isConnecting = true;
-  bool _isFrontCamera = true;
+  final bool _isFrontCamera = true;
   bool _retrying = false;
 
   String _statusMsg = 'Starting...';
@@ -95,7 +95,7 @@ class _ChildStreamingScreenState
               'Starting screen share...';
         });
 
-        await _webrtc.startSilentScreen(widget.childUid, "");
+        await _webrtc.startAsChild(childUid: widget.childUid, mode: StreamMode.screen);
 
         if (!mounted) {
           return;

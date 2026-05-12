@@ -20,7 +20,9 @@ class SosService {
     final payload = {'childUid': uid, 'childName': childName, 'timestamp': timestamp,
       'lat': loc?.lat, 'lng': loc?.lng, 'acknowledged': false};
     final updates = <String, dynamic>{};
-    for (final p in parentUids) updates['alerts/\$p/sos/\$timestamp'] = payload;
+    for (final p in parentUids) {
+      updates['alerts/\$p/sos/\$timestamp'] = payload;
+    }
     await _db.update(updates);
   }
 

@@ -139,7 +139,7 @@ class _ScanOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final scanSize = 240.0;
+    const scanSize = 240.0;
     final scanLeft = (size.width - scanSize) / 2;
     final scanTop = (size.height - scanSize) / 2 - 40;
 
@@ -155,7 +155,7 @@ class _ScanOverlay extends StatelessWidget {
         Positioned(
           left: scanLeft,
           top: scanTop,
-          child: _ScanCorners(size: scanSize),
+          child: const _ScanCorners(size: scanSize),
         ),
         Positioned(
           left: 0,
@@ -201,15 +201,15 @@ class _ScanCorners extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cornerLen = 28.0;
-    final strokeW = 3.5;
+    const cornerLen = 28.0;
+    const strokeW = 3.5;
     const color = Color(0xFF1A73E8);
 
     Widget corner({bool flipX = false, bool flipY = false}) {
       return Transform.scale(
         scaleX: flipX ? -1 : 1,
         scaleY: flipY ? -1 : 1,
-        child: SizedBox(
+        child: const SizedBox(
           width: cornerLen,
           height: cornerLen,
           child: CustomPaint(

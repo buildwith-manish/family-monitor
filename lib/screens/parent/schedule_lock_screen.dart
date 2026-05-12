@@ -20,88 +20,88 @@ class ScheduleLockScreen extends StatefulWidget {
 }
 
 class _ScheduleLockScreenState extends State<ScheduleLockScreen> { {
-  final _svc = RemoteLockService();
-  bool _lockState = false;
-  LockSchedule _schedule = LockSchedule.defaultBedtime();
-  bool _saving = false;
+  final svc = RemoteLockService();
+  bool lockState = false;
+  LockSchedule schedule = LockSchedule.defaultBedtime();
+  bool saving = false;
 
-  static const _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  static const _dayNames = [
+  const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const dayNames = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
   ];
 
   @override
   void initState() {
     super.initState();
-    _svc.watchLockState(widget.childUid).listen((state) {
+    svc.watchLockState(widget.childUid).listen((state) {
       if (!mounted) return;
     if (mounted) {
         setState(() {
-          _lockState = state.locked;
-          if (state.schedule != null) _schedule = state.schedule!;
+          lockState = state.locked;
+          if (state.schedule != null) schedule = state.schedule!;
         });
       }
     });
   }
 
-  Future<void> _toggleLock() async {
-    if (_lockState) {
-      await _svc.unlockDevice(widget.childUid);
+  Future<void> toggleLock() async {
+    if (lockState) {
+      await svc.unlockDevice(widget.childUid);
     } else {
-      await _svc.lockDevice(widget.childUid);
+      await svc.lockDevice(widget.childUid);
     }
   }
 
-  Future<void> _saveSchedule() async {
-    setState(() => _saving = true);
-    await _svc.saveSchedule(widget.childUid, _schedule);
+  Future<void> saveSchedule() async {
+    setState(() => saving = true);
+    await svc.saveSchedule(widget.childUid, schedule);
     if (!mounted) return;
     if (mounted) {
-      setState(() => _saving = false);
+      setState(() => saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Bedtime schedule saved')),
       );
     }
   }
 
-  Future<void> _pickTime(bool isStart) async {
+  Future<void> pickTime(bool isStart) async {
     final initial = isStart
-        ? TimeOfDay(hour: _schedule.startHour, minute: _schedule.startMinute)
-        : TimeOfDay(hour: _schedule.endHour, minute: _schedule.endMinute);
+        ? TimeOfDay(hour: schedule.startHour, minute: schedule.startMinute)
+        : TimeOfDay(hour: schedule.endHour, minute: schedule.endMinute);
 
     final picked = await showTimePicker(context: context, initialTime: initial);
     if (picked == null) return;
 
     setState(() {
       if (isStart) {
-        _schedule = LockSchedule(
+        schedule = LockSchedule(
           startHour: picked.hour,
           startMinute: picked.minute,
-          endHour: _schedule.endHour,
-          endMinute: _schedule.endMinute,
-          activeDays: _schedule.activeDays,
+          endHour: schedule.endHour,
+          endMinute: schedule.endMinute,
+          activeDays: schedule.activeDays,
         );
       } else {
-        _schedule = LockSchedule(
-          startHour: _schedule.startHour,
-          startMinute: _schedule.startMinute,
+        schedule = LockSchedule(
+          startHour: schedule.startHour,
+          startMinute: schedule.startMinute,
           endHour: picked.hour,
           endMinute: picked.minute,
-          activeDays: _schedule.activeDays,
+          activeDays: schedule.activeDays,
         );
       }
     });
   }
 
-  void _toggleDay(int index) {
-    final days = List<bool>.from(_schedule.activeDays);
+  void toggleDay(int index) {
+    final days = List<bool>.from(schedule.activeDays);
     days[index] = !days[index];
     setState(() {
-      _schedule = LockSchedule(
-        startHour: _schedule.startHour,
-        startMinute: _schedule.startMinute,
-        endHour: _schedule.endHour,
-        endMinute: _schedule.endMinute,
+      schedule = LockSchedule(
+        startHour: schedule.startHour,
+        startMinute: schedule.startMinute,
+        endHour: schedule.endHour,
+        endMinute: schedule.endMinute,
         activeDays: days,
       );
     });
@@ -109,7 +109,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> { {
 
   @override
   Widget build(BuildContext context) {
-    final locked = _lockState;
+    final locked = lockState;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFB),
@@ -130,7 +130,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> { {
           // Manual lock card
           _LockCard(
             locked: locked,
-            onToggle: _toggleLock,
+            onToggle: toggleLock,
           ).animate().fadeIn(duration: 300.ms),
 
           const SizedBox(height: 20),
@@ -162,14 +162,14 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> { {
                   children: [
                     Expanded(child: _TimePicker(
                       label: 'Locks at',
-                      time: _schedule.startLabel,
-                      onTap: () => _pickTime(true),
+                      time: schedule.startLabel,
+                      onTap: () => pickTime(true),
                     )),
                     const SizedBox(width: 12),
                     Expanded(child: _TimePicker(
                       label: 'Unlocks at',
-                      time: _schedule.endLabel,
-                      onTap: () => _pickTime(false),
+                      time: schedule.endLabel,
+                      onTap: () => pickTime(false),
                     )),
                   ],
                 ),
@@ -187,11 +187,11 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> { {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: List.generate(7, (i) {
-                    final active = _schedule.activeDays[i];
+                    final active = schedule.activeDays[i];
                     return GestureDetector(
-                      onTap: () => _toggleDay(i),
+                      onTap: () => toggleDay(i),
                       child: Tooltip(
-                        message: _dayNames[i],
+                        message: dayNames[i],
                         child: AnimatedContainer(
                           duration: 200.ms,
                           width: 38,
@@ -208,7 +208,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> { {
                             ),
                           ),
                           child: Center(
-                            child: Text(_dayLabels[i],
+                            child: Text(dayLabels[i],
                                 style: GoogleFonts.inter(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
@@ -229,8 +229,8 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> { {
           SizedBox(
             height: 52,
             child: ElevatedButton(
-              onPressed: _saving ? null : _saveSchedule,
-              child: _saving
+              onPressed: saving ? null : saveSchedule,
+              child: saving
                   ? const SizedBox(
                       width: 20, height: 20,
                       child: CircularProgressIndicator(
@@ -377,4 +377,5 @@ class _TimePicker extends StatelessWidget {
       ),
     );
   }
+}
 }

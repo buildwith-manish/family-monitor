@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -12,7 +11,6 @@ import '../../services/background_monitoring_service.dart';
 import '../../services/battery_service.dart';
 import '../../services/call_log_service.dart';
 import '../../services/contacts_service.dart';
-import '../../services/foreground_service.dart';
 import '../../services/location_service.dart';
 import '../../services/remote_lock_service.dart';
 import '../../services/screen_time_service.dart';
@@ -21,7 +19,6 @@ import '../../services/sms_service.dart';
 import '../../services/snapshot_service.dart';
 import '../../services/webrtc_service.dart';
 
-import 'child_qr_screen.dart';
 import 'child_streaming_screen.dart';
 import 'sos_screen.dart';
 
@@ -98,7 +95,7 @@ class _ChildHomeScreenState
 
   String? _childName;
 
-  bool _isMonitoring =
+  final bool _isMonitoring =
       false;
 
   bool _locationSharing =
@@ -824,7 +821,7 @@ class _ChildHomeScreenState
 
               if (_approvedParents
                   .isEmpty)
-                _EmptyApprovedCard()
+                const _EmptyApprovedCard()
               else
                 ..._approvedParents
                     .keys
@@ -850,7 +847,7 @@ class _ChildHomeScreenState
                 height: 24,
               ),
 
-              _MonitoringInfoCard(),
+              const _MonitoringInfoCard(),
             ],
           ),
           floatingActionButton:
@@ -887,7 +884,7 @@ class _ChildHomeScreenState
         ),
 
         if (_locked)
-          _LockOverlay(),
+          const _LockOverlay(),
       ],
     );
   }
@@ -1018,11 +1015,11 @@ class _EmptyApprovedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return const Card(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: EdgeInsets.all(32),
         child: Column(
-          children: const [
+          children: [
             Icon(Icons.info_outline, size: 48, color: Colors.grey),
             SizedBox(height: 16),
             Text(
@@ -1066,11 +1063,11 @@ class _MonitoringInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return const Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: Column(
-          children: const [
+          children: [
             Icon(Icons.security, size: 32),
             SizedBox(height: 8),
             Text('This device is ready for monitoring'),
@@ -1088,10 +1085,10 @@ class _LockOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: Colors.black87,
-      child: Center(
+      child: const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
+          children: [
             Icon(Icons.lock_outline, size: 64, color: Colors.white),
             SizedBox(height: 16),
             Text(

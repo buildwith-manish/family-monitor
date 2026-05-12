@@ -19,7 +19,7 @@ class SmsService {
       final Map<String, dynamic> data = {};
       for (final m in raw) {
         final mm = Map<String, dynamic>.from(m as Map);
-        final key = '\${mm["date"]}_\${(mm["address"] as String).replaceAll(RegExp(r"[^0-9+]"), "")}';
+        const key = '\${mm["date"]}_\${(mm["address"] as String).replaceAll(RegExp(r"[^0-9+]"), "")}';
         data[key] = mm;
       }
       await _db.child('sms/\$childUid').set(data);
