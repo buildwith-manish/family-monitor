@@ -18,7 +18,7 @@ workflows:
     scripts:
       - name: Write google-services.json
         script: |
-          echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
 
       - name: Flutter clean
         script: flutter clean
