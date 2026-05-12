@@ -371,7 +371,7 @@ class _ChildHomeScreenState
           state.locked ||
               (state.schedule !=
                       null &&
-                  RemoteLockService
+                  RemoteLockService()
                       .shouldBeLocked(
                     state.schedule!,
                   ));

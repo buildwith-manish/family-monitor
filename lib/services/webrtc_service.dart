@@ -112,4 +112,8 @@ class WebRTCService {
   Future<void> sendFlipCommand(String childUid) async {}
   Future<void> sendMuteCommand(String childUid, bool mute) async {}
   Future<void> endCall(String childUid) async {}
+  Future<void> startScreenShareAsChild(String childUid, VoidCallback onEnded) async {
+    await startAsChild(childUid: childUid, mode: StreamMode.screen);
+  }
+
 }

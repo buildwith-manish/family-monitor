@@ -123,8 +123,10 @@ class _ChildStreamingScreenState
         });
 
         await _webrtc.startAsChild(
-          widget.childUid,
-          () {
+          childUid: widget.childUid,
+          mode: StreamMode.camera,
+        );
+        () {
             if (mounted) {
               Navigator.pop(
                 context,

@@ -257,7 +257,6 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> { {
                     'Locking restricts the device to calls and emergency functions only. The child can always call emergency services.',
                     style: GoogleFonts.inter(
                         fontSize: 12, color: const Color(0xFF5F3800))),
-                  ),
                 ),
               ],
             ),

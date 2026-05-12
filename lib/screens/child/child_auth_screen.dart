@@ -399,7 +399,7 @@ class _ChildAuthScreenState
                   },
                   child: Text(
                     _isLogin
-                        ? 'Don\\'t have an account? Sign Up'
+                        ? 'Don\'t have an account? Sign Up'
                         : 'Already have an account? Sign In',
                     style:
                         GoogleFonts.inter(

@@ -65,7 +65,7 @@ class RoleSelectionScreen extends StatelessWidget {
                   const SizedBox(height: 8),
 
                   Text(
-                    'Choose how you\\'re using this app',
+                    'Choose how you\'re using this app',
                     style: GoogleFonts.inter(
                       fontSize: 15,
                       color:
@@ -86,13 +86,13 @@ class RoleSelectionScreen extends StatelessWidget {
                     const Color(0xFF1A73E8),
                 iconBg:
                     const Color(0xFFE8F0FE),
-                title: 'I\\'m a Parent',
+                title: 'I\'m a Parent',
                 subtitle:
-                    'Monitor your child\\'s device remotely',
+                    'Monitor your child\'s device remotely',
                 features: const [
                   'View live camera feed',
                   'Listen to audio',
-                  'See child\\'s screen',
+                  'See child\'s screen',
                   'Check online status',
                 ],
                 onTap: () {
@@ -112,7 +112,7 @@ class RoleSelectionScreen extends StatelessWidget {
                     const Color(0xFF34A853),
                 iconBg:
                     const Color(0xFFE6F4EA),
-                title: 'I\\'m a Child',
+                title: 'I\'m a Child',
                 subtitle:
                     'Set up monitoring on this device',
                 features: const [
