@@ -119,6 +119,58 @@ flutter {
     source = "../.."
 }
 
+// Fallback APK copy for AGP 8.7+ artifact API compatibility
+afterEvaluate {
+    android.applicationVariants.configureEach {
+        val variant = this
+
+        if (variant.buildType.name == "release") {
+
+            tasks.named(
+                "assemble${variant.name.replaceFirstChar { it.uppercaseChar() }}"
+            ) {
+
+                doLast {
+
+                    val flutterApkDir = rootProject.layout.buildDirectory
+                        .dir("app/outputs/flutter-apk")
+                        .get()
+                        .asFile
+
+                    flutterApkDir.mkdirs()
+
+                    variant.outputs.forEach { output ->
+
+                        val apk =
+                            (output as com.android.build.gradle.api.ApkVariantOutput)
+                                .outputFile
+
+                        if (apk.exists()) {
+
+                            val flavor =
+                                if (variant.flavorName.isNullOrBlank())
+                                    "app"
+                                else
+                                    variant.flavorName
+
+                            val dest = File(
+                                flutterApkDir,
+                                "app-${flavor}-release.apk"
+                            )
+
+                            apk.copyTo(dest, overwrite = true)
+
+                            println(
+                                "flutter-apk copy: ${apk.name} -> ${dest.name}"
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 dependencies {
 
     implementation(

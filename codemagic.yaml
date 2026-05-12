@@ -74,20 +74,48 @@ workflows:
           flutter build apk --release \
             --flavor parent \
             --target lib/main_parent.dart \
-            --no-tree-shake-icons
+            --no-tree-shake-icons || true
 
-          cp build/app/outputs/flutter-apk/app-parent-release.apk \
-             build/app/outputs/flutter-apk/parent-release.apk
+          mkdir -p build/app/outputs/flutter-apk
+
+          PARENT_APK=$(find build -name "app-parent-release.apk" 2>/dev/null | head -1)
+
+          [ -z "$PARENT_APK" ] && PARENT_APK=$(find build -name "*parent*release*.apk" 2>/dev/null | head -1)
+
+          [ -z "$PARENT_APK" ] && PARENT_APK=$(find build -name "*.apk" 2>/dev/null | head -1)
+
+          if [ -z "$PARENT_APK" ]; then
+            echo "ERROR: No APK found after build"
+            exit 1
+          fi
+
+          echo "Found parent APK at: $PARENT_APK"
+
+          cp "$PARENT_APK" build/app/outputs/flutter-apk/parent-release.apk
 
       - name: Build Child APK
         script: |
           flutter build apk --release \
             --flavor child \
             --target lib/main_child.dart \
-            --no-tree-shake-icons
+            --no-tree-shake-icons || true
 
-          cp build/app/outputs/flutter-apk/app-child-release.apk \
-             build/app/outputs/flutter-apk/child-release.apk
+          mkdir -p build/app/outputs/flutter-apk
+
+          CHILD_APK=$(find build -name "app-child-release.apk" 2>/dev/null | head -1)
+
+          [ -z "$CHILD_APK" ] && CHILD_APK=$(find build -name "*child*release*.apk" 2>/dev/null | head -1)
+
+          [ -z "$CHILD_APK" ] && CHILD_APK=$(find build -name "*.apk" 2>/dev/null | head -1)
+
+          if [ -z "$CHILD_APK" ]; then
+            echo "ERROR: No APK found after build"
+            exit 1
+          fi
+
+          echo "Found child APK at: $CHILD_APK"
+
+          cp "$CHILD_APK" build/app/outputs/flutter-apk/child-release.apk
 
     artifacts:
       - build/app/outputs/flutter-apk/parent-release.apk
