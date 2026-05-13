@@ -17,7 +17,6 @@ import '../../services/sms_service.dart';
 import '../../services/snapshot_service.dart';
 import '../../services/webrtc_service.dart';
 
-import 'child_streaming_screen.dart';
 
 class ChildHomeScreen extends StatefulWidget {
   const ChildHomeScreen({super.key});
@@ -295,20 +294,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         .remove();
   }
 
-  void _startMonitoring(String parentUid) {
-    final String? uid = _auth.currentUser?.uid;
-    if (uid == null) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ChildStreamingScreen(
-          childUid: uid,
-          parentUid: parentUid,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final String uid = _auth.currentUser?.uid ?? '';
@@ -434,8 +419,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
                       (entry) => _ApprovedParentCard(
                         parentUid: entry.value,
                         delay: entry.key * 100,
-                        onStartMonitoring: () =>
-                            _startMonitoring(entry.value),
                       ),
                     ),
 
@@ -589,26 +572,23 @@ class _EmptyApprovedCard extends StatelessWidget {
 class _ApprovedParentCard extends StatelessWidget {
   final String parentUid;
   final int delay;
-  final VoidCallback onStartMonitoring;
 
   const _ApprovedParentCard({
     required this.parentUid,
     required this.delay,
-    required this.onStartMonitoring,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        title: Text(parentUid),
-        trailing: SizedBox(
-          height: 48,
-          child: ElevatedButton(
-            onPressed: onStartMonitoring,
-            child: const Text('Monitor'),
-          ),
+        leading: const Icon(Icons.verified_user_outlined, color: Color(0xFF34A853)),
+        title: Text(
+          parentUid,
+          style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+          overflow: TextOverflow.ellipsis,
         ),
+        subtitle: const Text('Monitoring access granted', style: TextStyle(fontSize: 11)),
       ),
     );
   }
