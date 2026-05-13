@@ -156,14 +156,17 @@ class ScreenCaptureService : Service() {
     private fun startFgWithoutCapture() {
         createChannel()
         val n = buildNotification()
+        // Do NOT use FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION here — Android 14+ throws
+        // RemoteServiceException asynchronously (uncatchable) if called without an active
+        // MediaProjection token. Use DATA_SYNC type instead, which is always safe.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             try {
                 startForeground(
                     NOTIFICATION_ID, n,
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
                 )
             } catch (e: Exception) {
-                Log.w(TAG, "startFgWithoutCapture typed failed: $e")
+                Log.w(TAG, "startFgWithoutCapture DATA_SYNC failed, untyped fallback: $e")
                 try { startForeground(NOTIFICATION_ID, n) } catch (_: Exception) {}
             }
         } else {

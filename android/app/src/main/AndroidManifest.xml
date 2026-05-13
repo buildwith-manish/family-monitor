@@ -128,7 +128,7 @@
         <service
             android:name=".ScreenCaptureService"
             android:exported="false"
-            android:foregroundServiceType="mediaProjection"/>
+            android:foregroundServiceType="mediaProjection|dataSync"/>
 
         <!-- ── Boot Receiver ─────────────────────────────── -->
         <receiver
