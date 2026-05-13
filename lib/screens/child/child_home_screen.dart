@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../services/auth_service.dart';
+import 'child_qr_screen.dart';
 import '../../services/background_monitoring_service.dart';
 import '../../services/battery_service.dart';
 import '../../services/call_log_service.dart';
@@ -289,6 +290,10 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
                 const SizedBox(height: 16),
 
                 const _MonitoringInfoCard(),
+
+                const SizedBox(height: 16),
+
+                _ShowQrButton(uid: uid, childName: childName),
               ],
             ),
           ),
@@ -390,6 +395,43 @@ class _LockOverlay extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShowQrButton extends StatelessWidget {
+  final String uid;
+  final String childName;
+  const _ShowQrButton({required this.uid, required this.childName});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  ChildQrScreen(uid: uid, childName: childName),
+            ),
+          );
+        },
+        icon: const Icon(Icons.qr_code_2, color: Color(0xFF34A853)),
+        label: Text(
+          'Show QR Code',
+          style: GoogleFonts.inter(
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF34A853)),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: Color(0xFF34A853)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14)),
         ),
       ),
     );

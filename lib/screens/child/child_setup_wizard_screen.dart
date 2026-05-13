@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/background_monitoring_service.dart';
@@ -11,36 +15,53 @@ import '../../services/screen_capture_channel.dart';
 
 class ChildSetupWizardScreen extends StatefulWidget {
   final String? childUid;
-  const ChildSetupWizardScreen({super.key, this.childUid});
+
+  const ChildSetupWizardScreen({
+    super.key,
+    this.childUid,
+  });
 
   @override
-  State<ChildSetupWizardScreen> createState() => _ChildSetupWizardScreenState();
+  State<ChildSetupWizardScreen> createState() =>
+      _ChildSetupWizardScreenState();
 }
 
-class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
+class _ChildSetupWizardScreenState
+    extends State<ChildSetupWizardScreen> {
   late final PageController _pageCtrl;
+
   int _currentPage = 0;
   bool _loading = false;
   String? _error;
 
-  final _nameCtrl   = TextEditingController();
+  final _nameCtrl = TextEditingController();
   final _deviceCtrl = TextEditingController();
-  final _auth       = AuthService();
+
+  final _auth = AuthService();
   final _batterySvc = BatteryService();
 
-  static const int _totalPages = 5;
+  static const int _totalPages = 7;
 
-  bool _cameraGranted   = false;
-  bool _micGranted      = false;
-  bool _notifGranted    = false;
-  bool _batteryExempt   = false;
+  bool _cameraGranted = false;
+  bool _micGranted = false;
+  bool _notifGranted = false;
+  bool _batteryExempt = false;
   bool _screenConsented = false;
+
   ManufacturerGuide? _guide;
+
+  Map<String, dynamic> _pendingRequests = {};
+
+  StreamSubscription? _requestSub;
+
+  bool _approvalDone = false;
 
   @override
   void initState() {
     super.initState();
+
     _pageCtrl = PageController();
+
     _refreshStatus();
     _loadGuide();
   }
@@ -50,42 +71,66 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
     _pageCtrl.dispose();
     _nameCtrl.dispose();
     _deviceCtrl.dispose();
+    _requestSub?.cancel();
+
     super.dispose();
   }
 
   Future<void> _loadGuide() async {
     final g = await _batterySvc.getManufacturerGuide();
+
     if (!mounted) return;
+
     setState(() => _guide = g);
   }
 
   Future<void> _refreshStatus() async {
-    final cam   = await Permission.camera.isGranted;
-    final mic   = await Permission.microphone.isGranted;
+    final cam = await Permission.camera.isGranted;
+    final mic = await Permission.microphone.isGranted;
     final notif = await Permission.notification.isGranted;
-    final batt  = await ScreenCaptureChannel.isBatteryOptimizationExempt();
+
+    final batt =
+        await ScreenCaptureChannel.isBatteryOptimizationExempt();
+
     if (!mounted) return;
+
     setState(() {
-      _cameraGranted  = cam;
-      _micGranted     = mic;
-      _notifGranted   = notif;
-      _batteryExempt  = batt;
+      _cameraGranted = cam;
+      _micGranted = mic;
+      _notifGranted = notif;
+      _batteryExempt = batt;
     });
   }
 
   Future<void> _requestCorePermissions() async {
-    await _requestSinglePermission(Permission.camera, 'Camera');
-    await _requestSinglePermission(Permission.microphone, 'Microphone');
-    // Notification is optional — request silently, no dialog on permanent deny
-    final notifStatus = await Permission.notification.request();
-    if (mounted) setState(() => _notifGranted = notifStatus.isGranted);
+    await _requestSinglePermission(
+      Permission.camera,
+      'Camera',
+    );
+
+    await _requestSinglePermission(
+      Permission.microphone,
+      'Microphone',
+    );
+
+    final notifStatus =
+        await Permission.notification.request();
+
+    if (mounted) {
+      setState(() => _notifGranted = notifStatus.isGranted);
+    }
+
     await _refreshStatus();
   }
 
   Future<void> _requestSinglePermission(
-      Permission permission, String label) async {
+    Permission permission,
+    String label,
+  ) async {
     final status = await permission.request();
+
     if (!mounted) return;
+
     if (status.isPermanentlyDenied) {
       await showDialog<void>(
         context: context,
@@ -93,7 +138,7 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
           title: Text('$label Permission Required'),
           content: Text(
             '$label permission was permanently denied. '
-            'Please enable it in device Settings to continue.',
+            'Please enable it in Settings.',
           ),
           actions: [
             TextButton(
@@ -103,9 +148,16 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
             TextButton(
               onPressed: () async {
                 Navigator.pop(ctx);
+
                 await openAppSettings();
-                await Future.delayed(const Duration(milliseconds: 500));
-                if (mounted) await _refreshStatus();
+
+                await Future.delayed(
+                  const Duration(milliseconds: 500),
+                );
+
+                if (mounted) {
+                  await _refreshStatus();
+                }
               },
               child: const Text('Open Settings'),
             ),
@@ -113,32 +165,150 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
         ),
       );
     }
+
     await _refreshStatus();
   }
 
   Future<void> _requestBattery() async {
-    await ScreenCaptureChannel.requestBatteryOptimizationExemption();
-    await Future.delayed(const Duration(milliseconds: 800));
+    await ScreenCaptureChannel
+        .requestBatteryOptimizationExemption();
+
+    await Future.delayed(
+      const Duration(milliseconds: 800),
+    );
+
     if (!mounted) return;
+
     await _refreshStatus();
-    if (_batteryExempt) await _batterySvc.setOptimizationDone();
+
+    if (_batteryExempt) {
+      await _batterySvc.setOptimizationDone();
+    }
   }
 
   Future<void> _requestScreenCapture() async {
-    final result = await ScreenCaptureChannel.requestScreenCapture();
+    final result =
+        await ScreenCaptureChannel.requestScreenCapture();
+
     if (!mounted) return;
+
     setState(() => _screenConsented = result);
   }
 
   bool get _canProceedFromPermissions =>
       _cameraGranted && _micGranted;
 
+  String get _childUidForQr =>
+      _auth.currentUser?.uid ??
+      widget.childUid ??
+      '';
+
+  void _enterQrPage() {
+    final uid = _childUidForQr;
+
+    if (uid.isEmpty) return;
+
+    _requestSub?.cancel();
+
+    _requestSub = FirebaseDatabase.instance
+        .ref('users/$uid/pendingParentRequests')
+        .onValue
+        .listen((event) {
+      if (!mounted) return;
+
+      final raw = event.snapshot.value;
+
+      if (raw == null) {
+        setState(() => _pendingRequests = {});
+        return;
+      }
+
+      final map =
+          Map<String, dynamic>.from(raw as Map);
+
+      setState(() => _pendingRequests = map);
+    });
+  }
+
+  Future<void> _approveRequest(
+    String parentUid,
+  ) async {
+    setState(() => _loading = true);
+
+    try {
+      final result =
+          await _auth.approveParentRequest(parentUid);
+
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        setState(() => _approvalDone = true);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Parent connected successfully!',
+            ),
+            backgroundColor: Color(0xFF34A853),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        setState(
+          () => _error =
+              result['error'] ?? 'Approval failed.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = 'Approval failed.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _declineRequest(
+    String parentUid,
+  ) async {
+    await _auth.declineParentRequest(parentUid);
+
+    if (!mounted) return;
+
+    setState(() {
+      _pendingRequests.remove(parentUid);
+    });
+  }
+
   void _next() {
-    if (_currentPage == 2 && !_canProceedFromPermissions) {
-      setState(() => _error = 'Camera and microphone are required to continue.');
+    if (_currentPage == 2 &&
+        !_canProceedFromPermissions) {
+      setState(() {
+        _error =
+            'Camera and microphone are required.';
+      });
+
       return;
     }
+
     setState(() => _error = null);
+
+    if (_currentPage == 4) {
+      _saveProfileFirst();
+      return;
+    }
+
+    if (_currentPage == 5) {
+      _pageCtrl.nextPage(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+
+      return;
+    }
+
     if (_currentPage == _totalPages - 1) {
       _finish();
     } else {
@@ -149,9 +319,86 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
     }
   }
 
+  Future<void> _saveProfileFirst() async {
+    if (_nameCtrl.text.trim().isEmpty) {
+      setState(() {
+        _error = 'Please enter your name.';
+      });
+
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final uid =
+          _auth.currentUser?.uid ??
+          widget.childUid;
+
+      if (uid == null || uid.isEmpty) {
+        setState(() {
+          _error =
+              'Session expired. Please sign in again.';
+          _loading = false;
+        });
+
+        return;
+      }
+
+      final deviceName =
+          _deviceCtrl.text.trim().isEmpty
+              ? 'My Phone'
+              : _deviceCtrl.text.trim();
+
+      await FirebaseDatabase.instance
+          .ref('users/$uid')
+          .update({
+        'childName': _nameCtrl.text.trim(),
+        'deviceName': deviceName,
+        'role': 'child',
+        'isOnline': false,
+        'pendingParentRequests':
+            await _existingRequests(uid),
+        'approvedParents': {},
+      });
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    setState(() => _loading = false);
+
+    _enterQrPage();
+
+    _pageCtrl.nextPage(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  Future<Map<String, dynamic>>
+      _existingRequests(String uid) async {
+    try {
+      final snap = await FirebaseDatabase.instance
+          .ref('users/$uid/pendingParentRequests')
+          .get();
+
+      if (snap.value != null) {
+        return Map<String, dynamic>.from(
+          snap.value as Map,
+        );
+      }
+    } catch (_) {}
+
+    return {};
+  }
+
   void _prev() {
     if (_currentPage > 0) {
       setState(() => _error = null);
+
       _pageCtrl.previousPage(
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOut,
@@ -160,43 +407,70 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
   }
 
   Future<void> _finish() async {
-    if (_nameCtrl.text.trim().isEmpty) {
-      setState(() => _error = 'Please enter your name.');
-      return;
-    }
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     try {
-      final uid = _auth.currentUser?.uid ?? widget.childUid;
+      final uid =
+          _auth.currentUser?.uid ??
+          widget.childUid;
+
       if (uid == null || uid.isEmpty) {
-        setState(() { _error = 'Session expired. Please sign in again.'; _loading = false; });
+        setState(() {
+          _error =
+              'Session expired. Please sign in again.';
+          _loading = false;
+        });
+
         return;
       }
-      final deviceName = _deviceCtrl.text.trim().isEmpty ? 'My Phone' : _deviceCtrl.text.trim();
-      await FirebaseDatabase.instance.ref('users/$uid').update({
-        'childName':  _nameCtrl.text.trim(),
-        'deviceName': deviceName,
-        'role':       'child',
-        'isOnline':   false,
-      });
-      await BackgroundMonitoringService.saveChildUid(uid);
-      await BackgroundMonitoringService.setWizardDone(true);
-      await BackgroundMonitoringService.savePermissionsGranted(true);
-      try { await FirebaseDatabase.instance.ref('calls/$uid').remove(); } catch (_) {}
+
+      await BackgroundMonitoringService
+          .saveChildUid(uid);
+
+      await BackgroundMonitoringService
+          .setWizardDone(true);
+
+      await BackgroundMonitoringService
+          .savePermissionsGranted(true);
+
+      try {
+        await FirebaseDatabase.instance
+            .ref('calls/$uid')
+            .remove();
+      } catch (_) {}
+
+      _requestSub?.cancel();
+
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/child/home');
-      Future.delayed(const Duration(seconds: 1), () async {
-        try {
-          await BackgroundMonitoringService.startService();
-        } catch (e, st) {
-          debugPrint('BackgroundMonitoringService.startService failed: \$e');
-          debugPrintStack(stackTrace: st);
-        }
-      });
+
+      Navigator.pushReplacementNamed(
+        context,
+        '/child/home',
+      );
+
+      Future.delayed(
+        const Duration(seconds: 1),
+        () async {
+          try {
+            await BackgroundMonitoringService
+                .startService();
+          } catch (_) {}
+        },
+      );
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Setup failed. Please try again.');
+
+      setState(() {
+        _error =
+            'Setup failed. Please try again.';
+      });
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -208,36 +482,90 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
         child: Column(
           children: [
             _buildProgressBar(),
+
             Expanded(
               child: PageView(
                 controller: _pageCtrl,
-                physics: const NeverScrollableScrollPhysics(),
-                onPageChanged: (i) => setState(() { _currentPage = i; _error = null; }),
+                physics:
+                    const NeverScrollableScrollPhysics(),
+                onPageChanged: (i) {
+                  setState(() {
+                    _currentPage = i;
+                    _error = null;
+                  });
+                },
                 children: [
                   const _PageWelcome(),
+
                   const _PageFeatures(),
+
                   _PagePermissions(
-                    cameraGranted: _cameraGranted,
-                    micGranted:    _micGranted,
-                    notifGranted:  _notifGranted,
-                    onRequest:     _requestCorePermissions,
-                    error:         _currentPage == 2 ? _error : null,
+                    cameraGranted:
+                        _cameraGranted,
+                    micGranted: _micGranted,
+                    notifGranted:
+                        _notifGranted,
+                    onRequest:
+                        _requestCorePermissions,
+                    error:
+                        _currentPage == 2
+                            ? _error
+                            : null,
                   ),
+
                   _PageBatteryScreen(
-                    batteryExempt:   _batteryExempt,
-                    screenConsented: _screenConsented,
-                    onBattery:       _requestBattery,
-                    onScreen:        _requestScreenCapture,
-                    guide:           _guide,
+                    batteryExempt:
+                        _batteryExempt,
+                    screenConsented:
+                        _screenConsented,
+                    onBattery:
+                        _requestBattery,
+                    onScreen:
+                        _requestScreenCapture,
+                    guide: _guide,
                   ),
+
                   _PageProfile(
-                    nameCtrl:   _nameCtrl,
-                    deviceCtrl: _deviceCtrl,
-                    error:      _currentPage == 4 ? _error : null,
+                    nameCtrl: _nameCtrl,
+                    deviceCtrl:
+                        _deviceCtrl,
+                    error:
+                        _currentPage == 4
+                            ? _error
+                            : null,
+                  ),
+
+                  _PageQrCode(
+                    uid: _childUidForQr,
+                    childName:
+                        _nameCtrl
+                                .text
+                                .trim()
+                                .isEmpty
+                            ? 'Child'
+                            : _nameCtrl.text
+                                .trim(),
+                  ),
+
+                  _PageApproval(
+                    pendingRequests:
+                        _pendingRequests,
+                    approvalDone:
+                        _approvalDone,
+                    loading: _loading,
+                    error:
+                        _currentPage == 6
+                            ? _error
+                            : null,
+                    onApprove:
+                        _approveRequest,
+                    onDecline:
+                        _declineRequest,
                   ),
                 ],
               ),
             ),
+
             _buildNavButtons(),
           ],
         ),
@@ -247,64 +575,164 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
 
   Widget _buildProgressBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-      child: Column(children: [
-        Row(children: [
-          GestureDetector(
-            onTap: _currentPage > 0 ? _prev : () => Navigator.pop(context),
-            child: Icon(
-              _currentPage > 0 ? Icons.arrow_back_ios : Icons.close,
-              size: 20, color: const Color(0xFF5F6368),
+      padding: const EdgeInsets.fromLTRB(
+        24,
+        16,
+        24,
+        0,
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap:
+                    _currentPage > 0
+                        ? _prev
+                        : () => Navigator.pop(
+                            context,
+                          ),
+                child: Icon(
+                  _currentPage > 0
+                      ? Icons.arrow_back_ios
+                      : Icons.close,
+                  size: 20,
+                  color:
+                      const Color(0xFF5F6368),
+                ),
+              ),
+
+              const Spacer(),
+
+              Text(
+                'Step ${_currentPage + 1} of $_totalPages',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color:
+                      const Color(0xFF5F6368),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          ClipRRect(
+            borderRadius:
+                BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value:
+                  (_currentPage + 1) /
+                  _totalPages,
+              backgroundColor:
+                  Colors.grey.shade200,
+              color:
+                  const Color(0xFF34A853),
+              minHeight: 6,
             ),
           ),
-          const Spacer(),
-          Text('Step ${_currentPage + 1} of $_totalPages',
-              style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF5F6368))),
-        ]),
-        const SizedBox(height: 12),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: (_currentPage + 1) / _totalPages,
-            backgroundColor: Colors.grey.shade200,
-            color: const Color(0xFF34A853),
-            minHeight: 6,
-          ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 
   Widget _buildNavButtons() {
     final isPermPage = _currentPage == 2;
-    final blocked = isPermPage && !_canProceedFromPermissions;
+
+    final blocked =
+        isPermPage &&
+        !_canProceedFromPermissions;
+
+    String label;
+
+    if (_currentPage == 4) {
+      label = 'Continue to QR Code';
+    } else if (_currentPage == 5) {
+      label = 'I\'m Waiting for Parent';
+    } else if (_currentPage ==
+        _totalPages - 1) {
+      label = 'Complete Setup';
+    } else {
+      label = 'Continue';
+    }
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      padding: const EdgeInsets.fromLTRB(
+        24,
+        16,
+        24,
+        24,
+      ),
       child: Column(
         children: [
-          if (_error != null && _currentPage != 2)
+          if (_error != null &&
+              _currentPage != 2)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(_error!,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(fontSize: 13, color: Colors.red)),
-            ),
-          SizedBox(
-            width: double.infinity, height: 52,
-            child: ElevatedButton(
-              onPressed: (_loading || blocked) ? null : _next,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF34A853),
-                disabledBackgroundColor: Colors.grey.shade300,
+              padding:
+                  const EdgeInsets.only(
+                bottom: 8,
               ),
-              child: _loading
-                  ? const SizedBox(width: 22, height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                  : Text(
-                      _currentPage == _totalPages - 1 ? 'Complete Setup' : 'Continue',
-                      style: GoogleFonts.inter(
-                          fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
-                    ),
+              child: Text(
+                _error!,
+                textAlign:
+                    TextAlign.center,
+                style:
+                    GoogleFonts.inter(
+                  fontSize: 13,
+                  color: Colors.red,
+                ),
+              ),
+            ),
+
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed:
+                  (_loading || blocked)
+                      ? null
+                      : _next,
+              style:
+                  ElevatedButton.styleFrom(
+                backgroundColor:
+                    const Color(
+                  0xFF34A853,
+                ),
+                disabledBackgroundColor:
+                    Colors.grey.shade300,
+                shape:
+                    RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(
+                    14,
+                  ),
+                ),
+              ),
+              child:
+                  _loading
+                      ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child:
+                            CircularProgressIndicator(
+                          strokeWidth:
+                              2.5,
+                          color:
+                              Colors.white,
+                        ),
+                      )
+                      : Text(
+                        label,
+                        style:
+                            GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight:
+                              FontWeight
+                                  .w600,
+                          color:
+                              Colors.white,
+                        ),
+                      ),
             ),
           ),
         ],
@@ -313,77 +741,150 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Page 1 — Welcome
-// ─────────────────────────────────────────────────────────────
 class _PageWelcome extends StatelessWidget {
   const _PageWelcome();
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(32),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const SizedBox(height: 40),
-        Container(
-          width: 100, height: 100,
-          decoration: BoxDecoration(
-            color: const Color(0xFFE6F4EA),
-            borderRadius: BorderRadius.circular(28),
+      child: Column(
+        mainAxisAlignment:
+            MainAxisAlignment.center,
+        children: [
+          const SizedBox(height: 40),
+
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              color:
+                  const Color(0xFFE6F4EA),
+              borderRadius:
+                  BorderRadius.circular(
+                28,
+              ),
+            ),
+            child: const Icon(
+              Icons.security,
+              size: 56,
+              color: Color(0xFF34A853),
+            ),
+          ).animate().scale(
+            duration: 600.ms,
+            curve: Curves.elasticOut,
           ),
-          child: const Icon(Icons.security, size: 56, color: Color(0xFF34A853)),
-        ).animate().scale(duration: 600.ms, curve: Curves.elasticOut),
-        const SizedBox(height: 32),
-        Text('Family Monitor',
-            style: GoogleFonts.plusJakartaSans(
-                fontSize: 28, fontWeight: FontWeight.w800, color: const Color(0xFF202124)))
-            .animate().fadeIn(delay: 200.ms),
-        const SizedBox(height: 12),
-        Text('This app lets your parent keep you safe by monitoring this device transparently.',
+
+          const SizedBox(height: 32),
+
+          Text(
+            'Family Monitor',
+            style:
+                GoogleFonts.plusJakartaSans(
+              fontSize: 28,
+              fontWeight:
+                  FontWeight.w800,
+              color:
+                  const Color(0xFF202124),
+            ),
+          ).animate().fadeIn(
+            delay: 200.ms,
+          ),
+
+          const SizedBox(height: 12),
+
+          Text(
+            'This app lets your parent keep you safe by monitoring this device transparently.',
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(fontSize: 15, color: const Color(0xFF5F6368), height: 1.6))
-            .animate().fadeIn(delay: 300.ms),
-        const SizedBox(height: 32),
-        const _InfoRow(icon: Icons.visibility, text: 'Your parent can see live camera & screen'),
-        const _InfoRow(icon: Icons.mic,        text: 'Audio monitoring when active'),
-        const _InfoRow(icon: Icons.lock,       text: 'Device can be locked remotely'),
-        const _InfoRow(icon: Icons.camera_alt, text: 'Periodic snapshots may be taken'),
-      ]),
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              color:
+                  const Color(0xFF5F6368),
+              height: 1.6,
+            ),
+          ).animate().fadeIn(
+            delay: 300.ms,
+          ),
+        ],
+      ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Page 2 — Features
-// ─────────────────────────────────────────────────────────────
 class _PageFeatures extends StatelessWidget {
   const _PageFeatures();
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(32),
-      child: Column(children: [
-        const SizedBox(height: 32),
-        Text('What your parent can do',
-            style: GoogleFonts.plusJakartaSans(
-                fontSize: 22, fontWeight: FontWeight.w700, color: const Color(0xFF202124))),
-        const SizedBox(height: 24),
-        const _InfoRow(icon: Icons.videocam,      text: 'Live camera streaming'),
-        const _InfoRow(icon: Icons.screen_share,  text: 'Live screen viewing'),
-        const _InfoRow(icon: Icons.record_voice_over, text: 'Microphone monitoring'),
-        const _InfoRow(icon: Icons.lock_clock,    text: 'Screen time limits'),
-        const _InfoRow(icon: Icons.location_on,   text: 'Location tracking'),
-        const _InfoRow(icon: Icons.block,         text: 'App and content filtering'),
-      ]),
+      child: Column(
+        children: [
+          const SizedBox(height: 32),
+
+          Text(
+            'What your parent can do',
+            style:
+                GoogleFonts.plusJakartaSans(
+              fontSize: 22,
+              fontWeight:
+                  FontWeight.w700,
+              color:
+                  const Color(0xFF202124),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          const _InfoRow(
+            icon: Icons.videocam,
+            text:
+                'Live camera streaming',
+          ),
+
+          const _InfoRow(
+            icon: Icons.screen_share,
+            text: 'Live screen viewing',
+          ),
+
+          const _InfoRow(
+            icon:
+                Icons.record_voice_over,
+            text:
+                'Microphone monitoring',
+          ),
+
+          const _InfoRow(
+            icon: Icons.lock_clock,
+            text:
+                'Screen time limits',
+          ),
+
+          const _InfoRow(
+            icon: Icons.location_on,
+            text:
+                'Location tracking',
+          ),
+
+          const _InfoRow(
+            icon: Icons.block,
+            text:
+                'App and content filtering',
+          ),
+        ],
+      ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Page 3 — Permissions
-// ─────────────────────────────────────────────────────────────
-class _PagePermissions extends StatelessWidget {
-  final bool cameraGranted, micGranted, notifGranted;
+class _PagePermissions
+    extends StatelessWidget {
+  final bool cameraGranted;
+  final bool micGranted;
+  final bool notifGranted;
+
   final VoidCallback onRequest;
+
   final String? error;
 
   const _PagePermissions({
@@ -398,75 +899,234 @@ class _PagePermissions extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const SizedBox(height: 16),
-        Text('Permissions Required',
-            style: GoogleFonts.plusJakartaSans(
-                fontSize: 22, fontWeight: FontWeight.w700, color: const Color(0xFF202124))),
-        const SizedBox(height: 8),
-        Text('These permissions are needed for monitoring to work.',
-            style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF5F6368))),
-        const SizedBox(height: 24),
-        _PermRow(label: 'Camera',        granted: cameraGranted,  required: true),
-        _PermRow(label: 'Microphone',    granted: micGranted,     required: true),
-        _PermRow(label: 'Notifications', granted: notifGranted,   required: false),
-        if (error != null) ...[
-          const SizedBox(height: 12),
-          Text(error!, style: GoogleFonts.inter(fontSize: 13, color: Colors.red)),
-        ],
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity, height: 48,
-          child: OutlinedButton.icon(
-            onPressed: onRequest,
-            icon: const Icon(Icons.security, size: 18),
-            label: Text('Grant Permissions',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 16),
+
+          Text(
+            'Permissions Required',
+            style:
+                GoogleFonts.plusJakartaSans(
+              fontSize: 22,
+              fontWeight:
+                  FontWeight.w700,
+              color:
+                  const Color(0xFF202124),
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        Text('If a permission is denied, tap "Grant" then open Settings to enable it manually.',
-            style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF9AA0A6))),
-      ]),
+
+          const SizedBox(height: 8),
+
+          Text(
+            'These permissions are needed for monitoring.',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color:
+                  const Color(0xFF5F6368),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          _PermRow(
+            label: 'Camera',
+            granted: cameraGranted,
+            required: true,
+          ),
+
+          _PermRow(
+            label: 'Microphone',
+            granted: micGranted,
+            required: true,
+          ),
+
+          _PermRow(
+            label: 'Notifications',
+            granted: notifGranted,
+            required: false,
+          ),
+
+          if (error != null) ...[
+            const SizedBox(height: 12),
+
+            Text(
+              error!,
+              style:
+                  GoogleFonts.inter(
+                fontSize: 13,
+                color: Colors.red,
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 24),
+
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child:
+                OutlinedButton.icon(
+              onPressed: onRequest,
+              icon: const Icon(
+                Icons.security,
+                size: 18,
+              ),
+              label: Text(
+                'Grant Permissions',
+                style:
+                    GoogleFonts.inter(
+                  fontWeight:
+                      FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _PermRow extends StatelessWidget {
   final String label;
-  final bool granted, required;
-  const _PermRow({required this.label, required this.granted, required this.required});
+  final bool granted;
+  final bool required;
+
+  const _PermRow({
+    required this.label,
+    required this.granted,
+    required this.required,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(children: [
-        Icon(granted ? Icons.check_circle : Icons.radio_button_unchecked,
-            color: granted ? const Color(0xFF34A853) : (required ? Colors.red : Colors.grey),
-            size: 22),
-        const SizedBox(width: 12),
-        Text(label, style: GoogleFonts.inter(fontSize: 15, color: const Color(0xFF3C4043))),
-        if (required) ...[
-          const SizedBox(width: 4),
-          Text('*', style: GoogleFonts.inter(color: Colors.red, fontWeight: FontWeight.bold)),
-        ],
-        const Spacer(),
-        Text(granted ? 'Granted' : (required ? 'Required' : 'Optional'),
+      padding:
+          const EdgeInsets.symmetric(
+        vertical: 6,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            granted
+                ? Icons.check_circle
+                : Icons
+                    .radio_button_unchecked,
+            color:
+                granted
+                    ? const Color(
+                      0xFF34A853,
+                    )
+                    : required
+                    ? Colors.red
+                    : Colors.grey,
+            size: 22,
+          ),
+
+          const SizedBox(width: 12),
+
+          Text(
+            label,
             style: GoogleFonts.inter(
-                fontSize: 12,
-                color: granted ? const Color(0xFF34A853) : (required ? Colors.red : Colors.grey))),
-      ]),
+              fontSize: 15,
+              color:
+                  const Color(0xFF3C4043),
+            ),
+          ),
+
+          const Spacer(),
+
+          Text(
+            granted
+                ? 'Granted'
+                : required
+                ? 'Required'
+                : 'Optional',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color:
+                  granted
+                      ? const Color(
+                        0xFF34A853,
+                      )
+                      : required
+                      ? Colors.red
+                      : Colors.grey,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Page 4 — Battery & Screen
-// ─────────────────────────────────────────────────────────────
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _InfoRow({
+    required this.icon,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          const EdgeInsets.symmetric(
+        vertical: 6,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color:
+                  const Color(0xFFE6F4EA),
+              borderRadius:
+                  BorderRadius.circular(
+                10,
+              ),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color:
+                  const Color(0xFF34A853),
+            ),
+          ),
+
+          const SizedBox(width: 14),
+
+          Expanded(
+            child: Text(
+              text,
+              style:
+                  GoogleFonts.inter(
+                fontSize: 14,
+                color:
+                    const Color(
+                  0xFF3C4043,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PageBatteryScreen extends StatelessWidget {
-  final bool batteryExempt, screenConsented;
-  final VoidCallback onBattery, onScreen;
+  final bool batteryExempt;
+  final bool screenConsented;
+
+  final VoidCallback onBattery;
+  final VoidCallback onScreen;
+
   final ManufacturerGuide? guide;
 
   const _PageBatteryScreen({
@@ -481,159 +1141,695 @@ class _PageBatteryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const SizedBox(height: 16),
-        Text('Battery & Screen',
-            style: GoogleFonts.plusJakartaSans(
-                fontSize: 22, fontWeight: FontWeight.w700, color: const Color(0xFF202124))),
-        const SizedBox(height: 16),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 16),
 
-        // Battery optimization
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Icon(batteryExempt ? Icons.battery_full : Icons.battery_alert,
-                    color: batteryExempt ? const Color(0xFF34A853) : Colors.orange),
-                const SizedBox(width: 8),
-                Text('Battery Optimization',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15)),
-                const Spacer(),
-                if (batteryExempt)
-                  const Icon(Icons.check_circle, color: Color(0xFF34A853), size: 18),
-              ]),
-              if (!batteryExempt) ...[
-                const SizedBox(height: 8),
-                if (guide != null) ...[
-                  Text('${guide!.name} instructions:',
-                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 4),
-                  ...guide!.steps.asMap().entries.map((e) => Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text('${e.key + 1}. ${e.value}',
-                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF5F6368))),
-                  )),
-                  const SizedBox(height: 8),
+          Text(
+            'Battery & Screen',
+            style:
+                GoogleFonts.plusJakartaSans(
+              fontSize: 22,
+              fontWeight:
+                  FontWeight.w700,
+              color:
+                  const Color(0xFF202124),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          Card(
+            child: Padding(
+              padding:
+                  const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment
+                        .start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        batteryExempt
+                            ? Icons
+                                .battery_full
+                            : Icons
+                                .battery_alert,
+                        color:
+                            batteryExempt
+                                ? const Color(
+                                  0xFF34A853,
+                                )
+                                : Colors
+                                    .orange,
+                      ),
+
+                      const SizedBox(
+                        width: 8,
+                      ),
+
+                      Text(
+                        'Battery Optimization',
+                        style:
+                            GoogleFonts.inter(
+                          fontWeight:
+                              FontWeight
+                                  .w600,
+                          fontSize: 15,
+                        ),
+                      ),
+
+                      const Spacer(),
+
+                      if (batteryExempt)
+                        const Icon(
+                          Icons
+                              .check_circle,
+                          color: Color(
+                            0xFF34A853,
+                          ),
+                          size: 18,
+                        ),
+                    ],
+                  ),
+
+                  if (!batteryExempt) ...[
+                    const SizedBox(
+                      height: 8,
+                    ),
+
+                    if (guide != null) ...[
+                      Text(
+                        '${guide!.name} instructions:',
+                        style:
+                            GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight:
+                              FontWeight
+                                  .w500,
+                        ),
+                      ),
+
+                      const SizedBox(
+                        height: 4,
+                      ),
+
+                      ...guide!.steps
+                          .asMap()
+                          .entries
+                          .map(
+                        (e) => Padding(
+                          padding:
+                              const EdgeInsets.only(
+                            top: 4,
+                          ),
+                          child: Text(
+                            '${e.key + 1}. ${e.value}',
+                            style:
+                                GoogleFonts.inter(
+                              fontSize:
+                                  12,
+                              color:
+                                  const Color(
+                                0xFF5F6368,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(
+                        height: 8,
+                      ),
+                    ],
+
+                    ElevatedButton(
+                      onPressed:
+                          onBattery,
+                      style:
+                          ElevatedButton.styleFrom(
+                        backgroundColor:
+                            const Color(
+                          0xFF34A853,
+                        ),
+                      ),
+                      child: Text(
+                        'Disable Battery Optimization',
+                        style:
+                            GoogleFonts.inter(
+                          fontSize: 13,
+                          color:
+                              Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
-                ElevatedButton(
-                  onPressed: onBattery,
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF34A853)),
-                  child: Text('Disable Battery Optimization',
-                      style: GoogleFonts.inter(fontSize: 13, color: Colors.white)),
-                ),
-              ],
-            ]),
+              ),
+            ),
           ),
-        ),
 
-        const SizedBox(height: 12),
+          const SizedBox(height: 12),
 
-        // Screen capture consent
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Icon(screenConsented ? Icons.screen_share : Icons.screen_share_outlined,
-                    color: screenConsented ? const Color(0xFF34A853) : Colors.grey),
-                const SizedBox(width: 8),
-                Text('Screen Sharing',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15)),
-                const Spacer(),
-                if (screenConsented)
-                  const Icon(Icons.check_circle, color: Color(0xFF34A853), size: 18),
-              ]),
-              if (!screenConsented) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Your parent will be able to view your screen when monitoring is active. '
-                  'You\'ll see a notification whenever screen sharing is on.',
-                  style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF5F6368)),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: onScreen,
-                  child: Text('Allow Screen Sharing',
-                      style: GoogleFonts.inter(fontSize: 13)),
-                ),
-              ],
-            ]),
+          Card(
+            child: Padding(
+              padding:
+                  const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment
+                        .start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        screenConsented
+                            ? Icons
+                                .screen_share
+                            : Icons
+                                .screen_share_outlined,
+                        color:
+                            screenConsented
+                                ? const Color(
+                                  0xFF34A853,
+                                )
+                                : Colors
+                                    .grey,
+                      ),
+
+                      const SizedBox(
+                        width: 8,
+                      ),
+
+                      Text(
+                        'Screen Sharing',
+                        style:
+                            GoogleFonts.inter(
+                          fontWeight:
+                              FontWeight
+                                  .w600,
+                          fontSize: 15,
+                        ),
+                      ),
+
+                      const Spacer(),
+
+                      if (screenConsented)
+                        const Icon(
+                          Icons
+                              .check_circle,
+                          color: Color(
+                            0xFF34A853,
+                          ),
+                          size: 18,
+                        ),
+                    ],
+                  ),
+
+                  if (!screenConsented) ...[
+                    const SizedBox(
+                      height: 8,
+                    ),
+
+                    Text(
+                      'Your parent will be able to view your screen when monitoring is active.',
+                      style:
+                          GoogleFonts.inter(
+                        fontSize: 12,
+                        color:
+                            const Color(
+                          0xFF5F6368,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 8,
+                    ),
+
+                    OutlinedButton(
+                      onPressed:
+                          onScreen,
+                      child: Text(
+                        'Allow Screen Sharing',
+                        style:
+                            GoogleFonts.inter(
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Page 5 — Profile
-// ─────────────────────────────────────────────────────────────
 class _PageProfile extends StatelessWidget {
-  final TextEditingController nameCtrl, deviceCtrl;
+  final TextEditingController nameCtrl;
+  final TextEditingController deviceCtrl;
+
   final String? error;
-  const _PageProfile({required this.nameCtrl, required this.deviceCtrl, this.error});
+
+  const _PageProfile({
+    required this.nameCtrl,
+    required this.deviceCtrl,
+    this.error,
+  });
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const SizedBox(height: 16),
-        Text('Your Profile',
-            style: GoogleFonts.plusJakartaSans(
-                fontSize: 22, fontWeight: FontWeight.w700, color: const Color(0xFF202124))),
-        const SizedBox(height: 8),
-        Text('Let your parent know who\'s using this device.',
-            style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF5F6368))),
-        const SizedBox(height: 24),
-        TextField(
-          controller: nameCtrl,
-          decoration: const InputDecoration(
-            labelText: 'Your Name *',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.person_outline),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 16),
+
+          Text(
+            'Your Profile',
+            style:
+                GoogleFonts.plusJakartaSans(
+              fontSize: 22,
+              fontWeight:
+                  FontWeight.w700,
+              color:
+                  const Color(0xFF202124),
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: deviceCtrl,
-          decoration: const InputDecoration(
-            labelText: 'Device Name (optional)',
-            hintText: 'e.g. My Phone',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.phone_android),
+
+          const SizedBox(height: 8),
+
+          Text(
+            'Let your parent know who uses this device.',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color:
+                  const Color(0xFF5F6368),
+            ),
           ),
-        ),
-        if (error != null) ...[
-          const SizedBox(height: 12),
-          Text(error!, style: GoogleFonts.inter(fontSize: 13, color: Colors.red)),
+
+          const SizedBox(height: 24),
+
+          TextField(
+            controller: nameCtrl,
+            decoration: InputDecoration(
+              labelText:
+                  'Your Name *',
+              border:
+                  OutlineInputBorder(
+                borderRadius:
+                    BorderRadius.circular(
+                  12,
+                ),
+              ),
+              prefixIcon:
+                  const Icon(
+                Icons.person_outline,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          TextField(
+            controller: deviceCtrl,
+            decoration: InputDecoration(
+              labelText:
+                  'Device Name (optional)',
+              hintText:
+                  'e.g. My Phone',
+              border:
+                  OutlineInputBorder(
+                borderRadius:
+                    BorderRadius.circular(
+                  12,
+                ),
+              ),
+              prefixIcon:
+                  const Icon(
+                Icons.phone_android,
+              ),
+            ),
+          ),
+
+          if (error != null) ...[
+            const SizedBox(height: 12),
+
+            Text(
+              error!,
+              style:
+                  GoogleFonts.inter(
+                fontSize: 13,
+                color: Colors.red,
+              ),
+            ),
+          ],
         ],
-      ]),
+      ),
     );
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  const _InfoRow({required this.icon, required this.text});
+class _PageQrCode extends StatelessWidget {
+  final String uid;
+  final String childName;
+
+  const _PageQrCode({
+    required this.uid,
+    required this.childName,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(children: [
-        Container(
-          width: 36, height: 36,
-          decoration: BoxDecoration(
-            color: const Color(0xFFE6F4EA), borderRadius: BorderRadius.circular(10)),
-          child: Icon(icon, size: 18, color: const Color(0xFF34A853)),
-        ),
-        const SizedBox(width: 14),
-        Expanded(child: Text(text,
-            style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF3C4043)))),
-      ]),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.center,
+        children: [
+          const SizedBox(height: 8),
+
+          Text(
+            'Show QR to Parent',
+            style:
+                GoogleFonts.plusJakartaSans(
+              fontSize: 22,
+              fontWeight:
+                  FontWeight.w700,
+              color:
+                  const Color(0xFF202124),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          Text(
+            'Ask your parent to scan this QR code.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color:
+                  const Color(0xFF5F6368),
+              height: 1.5,
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          if (uid.isNotEmpty)
+            Container(
+              padding:
+                  const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius:
+                    BorderRadius.circular(
+                  24,
+                ),
+              ),
+              child: Column(
+                children: [
+                  QrImageView(
+                    data: uid,
+                    version:
+                        QrVersions.auto,
+                    size: 200,
+                    backgroundColor:
+                        Colors.white,
+                  ),
+
+                  const SizedBox(
+                    height: 10,
+                  ),
+
+                  Text(
+                    childName,
+                    style:
+                        GoogleFonts.plusJakartaSans(
+                      fontSize: 16,
+                      fontWeight:
+                          FontWeight
+                              .w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          const SizedBox(height: 20),
+
+          Container(
+            padding:
+                const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+            decoration: BoxDecoration(
+              color:
+                  const Color(0xFFF1F3F4),
+              borderRadius:
+                  BorderRadius.circular(
+                12,
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SelectableText(
+                    uid,
+                    style:
+                        GoogleFonts.robotoMono(
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+
+                IconButton(
+                  icon: const Icon(
+                    Icons.copy,
+                    size: 18,
+                  ),
+                  onPressed: () {
+                    Clipboard.setData(
+                      ClipboardData(
+                        text: uid,
+                      ),
+                    );
+
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Device ID copied',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PageApproval extends StatelessWidget {
+  final Map<String, dynamic>
+      pendingRequests;
+
+  final bool approvalDone;
+  final bool loading;
+
+  final String? error;
+
+  final Future<void> Function(String)
+      onApprove;
+
+  final Future<void> Function(String)
+      onDecline;
+
+  const _PageApproval({
+    required this.pendingRequests,
+    required this.approvalDone,
+    required this.loading,
+    required this.onApprove,
+    required this.onDecline,
+    this.error,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 16),
+
+          Text(
+            'Parent Approval',
+            style:
+                GoogleFonts.plusJakartaSans(
+              fontSize: 22,
+              fontWeight:
+                  FontWeight.w700,
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          if (pendingRequests.isEmpty)
+            Container(
+              padding:
+                  const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color:
+                    const Color(0xFFF1F3F4),
+                borderRadius:
+                    BorderRadius.circular(
+                  16,
+                ),
+              ),
+              child: Column(
+                children: [
+                  const CircularProgressIndicator(),
+
+                  const SizedBox(
+                    height: 16,
+                  ),
+
+                  Text(
+                    'Waiting for parent request...',
+                    style:
+                        GoogleFonts.inter(
+                      fontSize: 15,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Column(
+              children:
+                  pendingRequests.entries.map(
+                (entry) {
+                  final parentUid =
+                      entry.key;
+
+                  final data =
+                      Map<String, dynamic>.from(
+                    entry.value as Map,
+                  );
+
+                  final name =
+                      data['parentName']
+                              as String? ??
+                          'Unknown Parent';
+
+                  return Card(
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.all(
+                        16,
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.person,
+                              ),
+
+                              const SizedBox(
+                                width: 12,
+                              ),
+
+                              Expanded(
+                                child: Text(
+                                  name,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(
+                            height: 14,
+                          ),
+
+                          Row(
+                            children: [
+                              Expanded(
+                                child:
+                                    OutlinedButton(
+                                  onPressed:
+                                      loading
+                                          ? null
+                                          : () => onDecline(
+                                            parentUid,
+                                          ),
+                                  child:
+                                      const Text(
+                                    'Decline',
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(
+                                width: 12,
+                              ),
+
+                              Expanded(
+                                child:
+                                    ElevatedButton(
+                                  onPressed:
+                                      loading
+                                          ? null
+                                          : () => onApprove(
+                                            parentUid,
+                                          ),
+                                  child:
+                                      const Text(
+                                    'Approve',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ).toList(),
+            ),
+
+          if (error != null) ...[
+            const SizedBox(height: 12),
+
+            Text(
+              error!,
+              style:
+                  GoogleFonts.inter(
+                fontSize: 13,
+                color: Colors.red,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
