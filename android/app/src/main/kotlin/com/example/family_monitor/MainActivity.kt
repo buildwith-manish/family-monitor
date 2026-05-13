@@ -47,7 +47,7 @@ class MainActivity : FlutterActivity() {
                         )
 
                         putExtra(
-                            ScreenCaptureService.EXTRA_DATA,
+                            ScreenCaptureService.EXTRA_RESULT_DATA,
                             result.data
                         )
                     }
