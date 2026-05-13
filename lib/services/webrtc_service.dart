@@ -13,7 +13,7 @@ class WebRTCService {
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
 
-
+  VoidCallback? onRemoteStream;
 
   final RTCVideoRenderer localRenderer = RTCVideoRenderer();
   final RTCVideoRenderer remoteRenderer = RTCVideoRenderer();
@@ -84,9 +84,9 @@ class WebRTCService {
 
     _subscribeConnectivity(childUid: childUid, isChild: true, mode: mode);
 
+    await initialize();
     await _cancelSubs();
     await _closePC();
-    await initialize();
 
     try {
       await _db.child('calls/$childUid/offer').remove();
@@ -199,9 +199,9 @@ class WebRTCService {
 
     _subscribeConnectivity(childUid: childUid, isChild: false, mode: mode);
 
+    await initialize();
     await _cancelSubs();
     await _closePC();
-    await initialize();
 
     try {
       await _db.child('calls/$childUid/offer').remove();
@@ -386,6 +386,7 @@ class WebRTCService {
 
         remoteRenderer.srcObject = remoteStream;
         _connectionTimer?.cancel();
+        onRemoteStream?.call();
       }
     };
   }
@@ -476,8 +477,10 @@ class WebRTCService {
   }
 
   Future<void> _closePC() async {
-    remoteRenderer.srcObject = null;
-    localRenderer.srcObject = null;
+    if (_initialized) {
+      remoteRenderer.srcObject = null;
+      localRenderer.srcObject = null;
+    }
 
     try {
       for (final track in _localStream?.getTracks() ?? []) {

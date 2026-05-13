@@ -45,12 +45,21 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
+    _webrtc.onRemoteStream = () {
+      if (!mounted) return;
+      setState(() {
+        _hasStream = true;
+        _status = 'Connected';
+      });
+      _timeout?.cancel();
+      _startControlsTimer();
+    };
     _startMonitoring();
     _listenToPresence();
-    _timeout = Timer(const Duration(seconds: 20), () {
+    _timeout = Timer(const Duration(seconds: 30), () {
       if (mounted && !_hasStream) {
         setState(() {
-          _status = 'Child not responding.\nMake sure child app is running.';
+          _status = 'Waiting for child device...\nMake sure the child app has camera permission granted.';
         });
       }
     });
@@ -79,7 +88,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       if (!mounted) return;
       final status = e.snapshot.value as String?;
       setState(() {
-        _isChildOnline = status == 'online';
+        _isChildOnline = status == 'online' ||
+            status == 'calling' ||
+            status == 'streaming';
       });
     });
 
@@ -103,15 +114,12 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       await _webrtc.startAsParent(
           childUid: widget.childUid, mode: widget.mode);
       if (!mounted) return;
-      _timeout?.cancel();
       setState(() {
-        _hasStream = true;
-        _status = 'Connected';
+        _status = 'Waiting for child device to respond...';
       });
-      _startControlsTimer();
     } catch (e) {
       if (!mounted) return;
-      setState(() { _status = 'Error: $e'; });
+      setState(() { _status = 'Connection error. Retrying...'; });
     }
   }
 
@@ -156,6 +164,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     _statusSub?.cancel();
     _heartbeatSub?.cancel();
     _screenErrorSub?.cancel();
+    _webrtc.onRemoteStream = null;
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     _webrtc.dispose();
     super.dispose();
@@ -220,7 +229,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                 const SizedBox(height: 8),
                 Text(
                   isScreen
-                      ? 'Child needs to accept screen share permission'
+                      ? 'Requesting screen from child device silently...'
                       : 'Connecting to child device silently...',
                   style:
                       GoogleFonts.inter(color: Colors.white54, fontSize: 12),
