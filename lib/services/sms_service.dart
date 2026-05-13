@@ -19,18 +19,18 @@ class SmsService {
       final Map<String, dynamic> data = {};
       for (final m in raw) {
         final mm = Map<String, dynamic>.from(m as Map);
-        const key = '\${mm["date"]}_\${(mm["address"] as String).replaceAll(RegExp(r"[^0-9+]"), "")}';
+        final key = '${mm["date"]}_${(mm["address"] as String).replaceAll(RegExp(r"[^0-9+]"), "")}';
         data[key] = mm;
       }
-      await _db.child('sms/\$childUid').set(data);
+      await _db.child('sms/$childUid').set(data);
     } on PlatformException catch (_) {}
   }
 
   Stream<bool> watchSyncRequest(String childUid) =>
-      _db.child('commands/\$childUid/syncSms/requested').onValue.map((e) => e.snapshot.value == true);
+      _db.child('commands/$childUid/syncSms/requested').onValue.map((e) => e.snapshot.value == true);
 
   static Stream<List<SmsEntry>> watchMessages(String childUid) {
-    return FirebaseDatabase.instance.ref('sms/\$childUid').orderByChild('date').limitToLast(200)
+    return FirebaseDatabase.instance.ref('sms/$childUid').orderByChild('date').limitToLast(200)
         .onValue.map((e) {
       if (e.snapshot.value == null) return <SmsEntry>[];
       final map = Map<String, dynamic>.from(e.snapshot.value as Map);
@@ -41,7 +41,7 @@ class SmsService {
   }
 
   static Future<void> requestSync(String childUid) async {
-    await FirebaseDatabase.instance.ref('commands/\$childUid/syncSms')
+    await FirebaseDatabase.instance.ref('commands/$childUid/syncSms')
         .set({'requested': true, 'at': DateTime.now().millisecondsSinceEpoch});
   }
 }
@@ -55,5 +55,5 @@ class SmsEntry {
     date: (m['date'] as num?)?.toInt() ?? 0, type: (m['type'] as num?)?.toInt() ?? 1);
   bool get isIncoming => type == 1;
   DateTime get dateTime => DateTime.fromMillisecondsSinceEpoch(date);
-  String get timeLabel { final d=DateTime.now().difference(dateTime); if(d.inMinutes<1)return 'Just now'; if(d.inHours<1)return '\${d.inMinutes}m ago'; if(d.inDays<1)return '\${d.inHours}h ago'; return '\${d.inDays}d ago'; }
+  String get timeLabel { final d=DateTime.now().difference(dateTime); if(d.inMinutes<1)return 'Just now'; if(d.inHours<1)return '${d.inMinutes}m ago'; if(d.inDays<1)return '${d.inHours}h ago'; return '${d.inDays}d ago'; }
 }

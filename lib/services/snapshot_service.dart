@@ -37,12 +37,12 @@ class SnapshotService {
   }
 
   Future<void> requestSnapshot(String childUid) async {
-    await _db.child('commands/\$childUid/snapshot').set(
+    await _db.child('commands/$childUid/snapshot').set(
         {'requested': true, 'requestedAt': DateTime.now().millisecondsSinceEpoch});
   }
 
   Stream<bool> watchSnapshotRequest(String childUid) =>
-      _db.child('commands/\$childUid/snapshot/requested').onValue.map((e) => e.snapshot.value == true);
+      _db.child('commands/$childUid/snapshot/requested').onValue.map((e) => e.snapshot.value == true);
 
   /// Captures a photo and uploads it to Firebase Storage.
   ///
@@ -57,7 +57,7 @@ class SnapshotService {
   ///      is in the foreground and the native channel is unavailable.
   Future<void> captureAndUpload(String childUid) async {
     try {
-      await _db.child('commands/\$childUid/snapshot/requested').set(false);
+      await _db.child('commands/$childUid/snapshot/requested').set(false);
 
       // --- Path 1: native Camera2 (works in background) ---
       final nativeBytes = await _takeNativeSnapshot();
@@ -92,7 +92,7 @@ class SnapshotService {
     if (uid == null) return;
     final key = _uuid.v4();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final path = 'snapshots/\$childUid/\$key.jpg'; // ignore: prefer_const_declarations
+    final path = 'snapshots/$childUid/$key.jpg';
     final ref = _storage.ref(path);
     await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
     final url = await ref.getDownloadURL();
@@ -100,7 +100,7 @@ class SnapshotService {
   }
 
   Stream<List<SnapshotEntry>> watchSnapshots(String childUid) {
-    return _db.child('snapshots/\$childUid').orderByChild('timestamp').limitToLast(50).onValue.map((event) {
+    return _db.child('snapshots/$childUid').orderByChild('timestamp').limitToLast(50).onValue.map((event) {
       final raw = event.snapshot.value;
       if (raw == null) return <SnapshotEntry>[];
       final map = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
@@ -110,7 +110,7 @@ class SnapshotService {
   }
 
   Future<void> deleteSnapshot(String childUid, SnapshotEntry entry) async {
-    await _db.child('snapshots/\$childUid/\${entry.key}').remove();
+    await _db.child('snapshots/$childUid/${entry.key}').remove();
     try { await _storage.ref(entry.storagePath).delete(); } catch (_) {}
   }
 }
@@ -122,5 +122,5 @@ class SnapshotEntry {
   factory SnapshotEntry.fromMap(String key, Map<String, dynamic> m) => SnapshotEntry(
     key: key, url: m['url'] as String, storagePath: m['path'] as String? ?? '',
     timestamp: DateTime.fromMillisecondsSinceEpoch((m['timestamp'] as num?)?.toInt() ?? 0));
-  String get timeLabel { final d=DateTime.now().difference(timestamp); if(d.inMinutes<1)return 'Just now'; if(d.inHours<1)return '\${d.inMinutes}m ago'; if(d.inDays<1)return '\${d.inHours}h ago'; return '\${timestamp.day}/\${timestamp.month}'; }
+  String get timeLabel { final d=DateTime.now().difference(timestamp); if(d.inMinutes<1)return 'Just now'; if(d.inHours<1)return '${d.inMinutes}m ago'; if(d.inDays<1)return '${d.inHours}h ago'; return '${timestamp.day}/${timestamp.month}'; }
 }
