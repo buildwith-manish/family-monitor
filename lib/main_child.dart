@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -55,34 +56,13 @@ Future<void> main() async {
   FlutterForegroundTask
       .initCommunicationPort();
 
+  // Route all Flutter framework errors to Crashlytics
   FlutterError.onError =
-      (FlutterErrorDetails details) {
-    FlutterError.presentError(
-      details,
-    );
+      FirebaseCrashlytics.instance.recordFlutterFatalError;
 
-    debugPrint(
-      'FLUTTER ERROR: ${details.exception}',
-    );
-
-    debugPrintStack(
-      stackTrace: details.stack,
-    );
-  };
-
-  PlatformDispatcher.instance
-      .onError = (
-    Object error,
-    StackTrace stack,
-  ) {
-    debugPrint(
-      'DART ERROR: $error',
-    );
-
-    debugPrintStack(
-      stackTrace: stack,
-    );
-
+  // Catch async errors outside the Flutter framework
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
     return true;
   };
 

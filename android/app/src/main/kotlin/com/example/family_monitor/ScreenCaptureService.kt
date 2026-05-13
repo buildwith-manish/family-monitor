@@ -26,7 +26,7 @@ class ScreenCaptureService : Service() {
         const val ACTION_PERMISSION_REQUIRED = "com.example.family_monitor.PROJECTION_PERMISSION_REQUIRED"
         const val EXTRA_RESULT_CODE          = "RESULT_CODE"
         const val EXTRA_RESULT_DATA          = "RESULT_DATA"
-        const val CHANNEL_ID                 = "fm_bg_sync"
+        const val CHANNEL_ID                 = "fm_screen_capture_v2"   // new ID forces fresh channel
         const val NOTIFICATION_ID            = 1001
 
         @Volatile var instance: ScreenCaptureService? = null
@@ -76,15 +76,9 @@ class ScreenCaptureService : Service() {
                 return START_NOT_STICKY
             }
             null -> {
-                // OS restart via START_STICKY
-                if (savedResultCode != 0 && savedResultData != null) {
-                    resultCode = savedResultCode
-                    resultData = savedResultData
-                    startCaptureSafe()
-                } else {
-                    // Cannot silently re-acquire — notify app so UI can ask user
-                    requestPermissionViaUi()
-                }
+                // OS restart via START_STICKY — token is invalid after process death
+                // Do not attempt capture; surface UI so user can re-grant
+                requestPermissionViaUi()
             }
         }
         return START_STICKY
@@ -96,7 +90,6 @@ class ScreenCaptureService : Service() {
         sendBroadcast(Intent(ACTION_PERMISSION_REQUIRED).apply {
             setPackage(packageName)
         })
-        // Also try to surface the main activity
         try {
             startActivity(
                 packageManager.getLaunchIntentForPackage(packageName)?.apply {
@@ -133,28 +126,42 @@ class ScreenCaptureService : Service() {
     }
 
     private fun startFg() {
+        // createChannel() is idempotent — call here too in case this runs in a fresh process
+        // where onCreate was skipped (e.g. system re-delivery of a sticky intent)
+        createChannel()
         val n = buildNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             try {
-                startForeground(NOTIFICATION_ID, n,
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+                startForeground(
+                    NOTIFICATION_ID, n,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                )
             } catch (e: Exception) {
-                Log.w(TAG, "Typed startForeground failed, falling back: $e")
-                try { startForeground(NOTIFICATION_ID, n) } catch (e2: Exception) {
+                Log.w(TAG, "Typed startForeground failed, using untyped fallback: $e")
+                try {
+                    startForeground(NOTIFICATION_ID, n)
+                } catch (e2: Exception) {
                     Log.e(TAG, "Untyped startForeground also failed: $e2")
                 }
             }
         } else {
-            startForeground(NOTIFICATION_ID, n)
+            try {
+                startForeground(NOTIFICATION_ID, n)
+            } catch (e: Exception) {
+                Log.e(TAG, "startForeground failed on pre-Q: $e")
+            }
         }
     }
 
     private fun startFgWithoutCapture() {
+        createChannel()
         val n = buildNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             try {
-                startForeground(NOTIFICATION_ID, n,
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+                startForeground(
+                    NOTIFICATION_ID, n,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                )
             } catch (e: Exception) {
                 Log.w(TAG, "startFgWithoutCapture typed failed: $e")
                 try { startForeground(NOTIFICATION_ID, n) } catch (_: Exception) {}
@@ -170,7 +177,6 @@ class ScreenCaptureService : Service() {
         mediaProjection = null
     }
 
-    /** Reinitialise the virtual display after a peer reconnect. */
     fun reinitAfterReconnect() {
         if (resultCode != 0 && resultData != null) {
             teardownProjection()
@@ -201,16 +207,28 @@ class ScreenCaptureService : Service() {
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(NotificationManager::class.java)
-            if (nm.getNotificationChannel(CHANNEL_ID) != null) return   // already exists
-            val ch = NotificationChannel(CHANNEL_ID, "Background Services",
-                NotificationManager.IMPORTANCE_LOW).apply {
-                description    = "Required background service"
+            // Delete the old stale channel (was IMPORTANCE_NONE — Android caches channel
+            // settings across installs; deleting forces recreation with correct importance)
+            if (nm.getNotificationChannel("fm_bg_sync") != null) {
+                nm.deleteNotificationChannel("fm_bg_sync")
+            }
+            // Skip if new channel already exists with correct importance
+            val existing = nm.getNotificationChannel(CHANNEL_ID)
+            if (existing != null && existing.importance >= NotificationManager.IMPORTANCE_LOW) return
+            if (existing != null) nm.deleteNotificationChannel(CHANNEL_ID)
+            val ch = NotificationChannel(
+                CHANNEL_ID,
+                "Family Monitor Service",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description    = "Required for screen monitoring service"
                 setShowBadge(false)
                 enableLights(false)
                 enableVibration(false)
                 setSound(null, null)
             }
             nm.createNotificationChannel(ch)
+            Log.d(TAG, "Notification channel created: $CHANNEL_ID importance=LOW")
         }
     }
 
@@ -218,11 +236,12 @@ class ScreenCaptureService : Service() {
         val openIntent = PendingIntent.getActivity(
             this, 0,
             packageManager.getLaunchIntentForPackage(packageName),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Family Monitor — Active")
             .setContentText("Screen monitoring is running.")
-            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
