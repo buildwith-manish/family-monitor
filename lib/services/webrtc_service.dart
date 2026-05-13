@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -20,6 +21,7 @@ class WebRTCService {
   StreamSubscription? _offerSub;
   StreamSubscription? _answerSub;
   StreamSubscription? _candidateSub;
+  StreamSubscription? _connectivitySub;
 
   bool _initialized = false;
   bool _answerSet = false;
@@ -31,6 +33,9 @@ class WebRTCService {
   Timer? _connectionTimer;
 
   StreamMode? _lastMode;
+  DateTime? _lastReconnectTime;
+  String? _lastChildUid;
+  bool _lastIsChild = false;
 
   static const Map<String, dynamic> _iceConfig = {
     'iceServers': [
@@ -75,7 +80,11 @@ class WebRTCService {
     if (_disposed) return;
 
     _lastMode = mode;
+    _lastChildUid = childUid;
+    _lastIsChild = true;
     _reconnectAttempts = 0;
+
+    _subscribeConnectivity(childUid: childUid, isChild: true, mode: mode);
 
     await _cancelSubs();
     await _closePC();
@@ -124,10 +133,8 @@ class WebRTCService {
         'type': offer.type,
       });
 
-      _answerSub = _db
-          .child('calls/$childUid/answer')
-          .onValue
-          .listen((event) async {
+      _answerSub =
+          _db.child('calls/$childUid/answer').onValue.listen((event) async {
         if (_disposed || _answerSet) return;
 
         final value = event.snapshot.value;
@@ -190,7 +197,11 @@ class WebRTCService {
     if (_disposed) return;
 
     _lastMode = mode;
+    _lastChildUid = childUid;
+    _lastIsChild = false;
     _reconnectAttempts = 0;
+
+    _subscribeConnectivity(childUid: childUid, isChild: false, mode: mode);
 
     await _cancelSubs();
     await _closePC();
@@ -225,10 +236,8 @@ class WebRTCService {
         },
       );
 
-      _offerSub = _db
-          .child('calls/$childUid/offer')
-          .onValue
-          .listen((event) async {
+      _offerSub =
+          _db.child('calls/$childUid/offer').onValue.listen((event) async {
         if (_disposed) return;
 
         final value = event.snapshot.value;
@@ -302,22 +311,14 @@ class WebRTCService {
     _peerConnection?.onIceConnectionState = (state) {
       debugPrint('[WebRTC] ICE State: $state');
 
-      if (state ==
-              RTCIceConnectionState
-                  .RTCIceConnectionStateConnected ||
-          state ==
-              RTCIceConnectionState
-                  .RTCIceConnectionStateCompleted) {
+      if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
+          state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
         _reconnectAttempts = 0;
         _connectionTimer?.cancel();
       }
 
-      if (state ==
-              RTCIceConnectionState
-                  .RTCIceConnectionStateFailed ||
-          state ==
-              RTCIceConnectionState
-                  .RTCIceConnectionStateDisconnected) {
+      if (state == RTCIceConnectionState.RTCIceConnectionStateFailed ||
+          state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
         try {
           _peerConnection?.restartIce();
         } catch (_) {}
@@ -368,7 +369,20 @@ class WebRTCService {
 
     _peerConnection?.onTrack = (event) {
       if (event.streams.isNotEmpty) {
-        remoteRenderer.srcObject = event.streams.first;
+        final remoteStream = event.streams.first;
+
+        final existingTracks = remoteStream.getTracks();
+        for (final t in existingTracks) {
+          if (t.kind == event.track.kind && t.id != event.track.id) {
+            try {
+              t.stop();
+            } catch (_) {}
+
+            remoteStream.removeTrack(t);
+          }
+        }
+
+        remoteRenderer.srcObject = remoteStream;
         _connectionTimer?.cancel();
       }
     };
@@ -385,8 +399,7 @@ class WebRTCService {
 
     _reconnectAttempts++;
 
-    final seconds =
-        _reconnectAttempts > 5 ? 60 : (1 << _reconnectAttempts);
+    final seconds = _reconnectAttempts > 5 ? 60 : (1 << _reconnectAttempts);
 
     final delay = Duration(seconds: seconds);
 
@@ -425,8 +438,7 @@ class WebRTCService {
     }
 
     try {
-      final granted =
-          await ScreenCaptureChannel.requestScreenCapture();
+      final granted = await ScreenCaptureChannel.requestScreenCapture();
 
       if (!granted) {
         throw Exception('Screen capture permission denied');
@@ -489,6 +501,9 @@ class WebRTCService {
     _reconnectTimer?.cancel();
     _connectionTimer?.cancel();
 
+    _connectivitySub?.cancel();
+    _connectivitySub = null;
+
     await _cancelSubs();
     await _closePC();
 
@@ -511,9 +526,7 @@ class WebRTCService {
     String childUid,
     bool mute,
   ) async {
-    await _db
-        .child('calls/$childUid/command')
-        .set(mute ? 'mute' : 'unmute');
+    await _db.child('calls/$childUid/command').set(mute ? 'mute' : 'unmute');
   }
 
   Future<void> endCall(String childUid) async {
@@ -538,6 +551,58 @@ class WebRTCService {
     await startAsChild(
       childUid: userId,
       mode: StreamMode.screen,
+    );
+  }
+
+  void _subscribeConnectivity({
+    required String childUid,
+    required bool isChild,
+    required StreamMode mode,
+  }) {
+    _connectivitySub?.cancel();
+
+    _connectivitySub = Connectivity().onConnectivityChanged.listen(
+      (List<ConnectivityResult> results) async {
+        final connected = results.any((r) => r != ConnectivityResult.none);
+
+        if (!connected || _disposed) {
+          return;
+        }
+
+        final now = DateTime.now();
+
+        if (_lastReconnectTime != null &&
+            now.difference(_lastReconnectTime!).inSeconds < 10) {
+          return;
+        }
+
+        debugPrint(
+          '[WebRTC] Connectivity restored — checking connection',
+        );
+
+        final pcState = _peerConnection?.iceConnectionState;
+
+        if (_peerConnection == null ||
+            pcState == RTCIceConnectionState.RTCIceConnectionStateFailed ||
+            pcState ==
+                RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+          _lastReconnectTime = now;
+
+          _reconnectTimer?.cancel();
+
+          if (isChild) {
+            await startAsChild(
+              childUid: childUid,
+              mode: mode,
+            );
+          } else {
+            await startAsParent(
+              childUid: childUid,
+              mode: mode,
+            );
+          }
+        }
+      },
     );
   }
 }

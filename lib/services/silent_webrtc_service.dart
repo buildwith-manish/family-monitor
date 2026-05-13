@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:flutter/foundation.dart';
@@ -27,10 +28,14 @@ class SilentWebRTCService {
   StreamSubscription? _candidateSub;
   StreamSubscription? _statusSub;
   StreamSubscription? _commandSub;
+  StreamSubscription? _connectivitySub;
 
   bool _answerSet = false;
+  bool _handlingOffer = false;
 
   int _reconnectAttempts = 0;
+
+  DateTime? _lastReconnectTime;
 
   Timer? _reconnectTimer;
   Timer? _watchdogTimer;
@@ -69,9 +74,7 @@ class SilentWebRTCService {
   bool get isActive => _active;
 
   Future<void> startSilentCamera(String childUid) async {
-    if (_active &&
-        _activeUid == childUid &&
-        _activeMode == 'camera') {
+    if (_active && _activeUid == childUid && _activeMode == 'camera') {
       return;
     }
 
@@ -83,9 +86,7 @@ class SilentWebRTCService {
   }
 
   Future<void> startSilentScreen(String childUid) async {
-    if (_active &&
-        _activeUid == childUid &&
-        _activeMode == 'screen') {
+    if (_active && _activeUid == childUid && _activeMode == 'screen') {
       return;
     }
 
@@ -102,9 +103,13 @@ class SilentWebRTCService {
     _answerSet = false;
     _reconnectAttempts = 0;
 
+    _subscribeConnectivity(childUid);
+
     _activeStreams++;
     if (_activeStreams == 1) {
-      try { await WakelockPlus.enable(); } catch (_) {}
+      try {
+        await WakelockPlus.enable();
+      } catch (_) {}
     }
 
     await _connect(childUid);
@@ -114,6 +119,7 @@ class SilentWebRTCService {
     if (_connecting) return;
 
     _connecting = true;
+    _handlingOffer = true;
 
     try {
       await _cleanupPcOnly();
@@ -127,22 +133,14 @@ class SilentWebRTCService {
 
         _lastIceActivity = DateTime.now();
 
-        if (state ==
-                RTCIceConnectionState
-                    .RTCIceConnectionStateConnected ||
-            state ==
-                RTCIceConnectionState
-                    .RTCIceConnectionStateCompleted) {
+        if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
+            state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
           _reconnectAttempts = 0;
           _connectionTimer?.cancel();
         }
 
-        if (state ==
-                RTCIceConnectionState
-                    .RTCIceConnectionStateFailed ||
-            state ==
-                RTCIceConnectionState
-                    .RTCIceConnectionStateDisconnected) {
+        if (state == RTCIceConnectionState.RTCIceConnectionStateFailed ||
+            state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
           try {
             _pc?.restartIce();
           } catch (_) {}
@@ -155,18 +153,14 @@ class SilentWebRTCService {
         debugPrint('[SilentWebRTC] Connection: $state');
 
         switch (state) {
-          case RTCPeerConnectionState
-              .RTCPeerConnectionStateConnected:
+          case RTCPeerConnectionState.RTCPeerConnectionStateConnected:
             _reconnectAttempts = 0;
             _connectionTimer?.cancel();
             break;
 
-          case RTCPeerConnectionState
-              .RTCPeerConnectionStateFailed:
-          case RTCPeerConnectionState
-              .RTCPeerConnectionStateDisconnected:
-          case RTCPeerConnectionState
-              .RTCPeerConnectionStateClosed:
+          case RTCPeerConnectionState.RTCPeerConnectionStateFailed:
+          case RTCPeerConnectionState.RTCPeerConnectionStateDisconnected:
+          case RTCPeerConnectionState.RTCPeerConnectionStateClosed:
             if (_active) {
               _scheduleReconnect(childUid);
             }
@@ -222,20 +216,19 @@ class SilentWebRTCService {
       await db.child('calls/$childUid/childCandidates').remove();
       await db.child('calls/$childUid/answer').remove();
 
-      _offerSub = db
-          .child('calls/$childUid/offer')
-          .onValue
-          .listen((event) async {
+      _handlingOffer = false;
+      _offerSub =
+          db.child('calls/$childUid/offer').onValue.listen((event) async {
         if (!_active ||
             _pc == null ||
             _answerSet ||
+            _handlingOffer ||
             event.snapshot.value == null) {
           return;
         }
 
         try {
-          final data =
-              Map<String, dynamic>.from(event.snapshot.value as Map);
+          final data = Map<String, dynamic>.from(event.snapshot.value as Map);
 
           await _pc!.setRemoteDescription(
             RTCSessionDescription(
@@ -268,9 +261,7 @@ class SilentWebRTCService {
           .child('calls/$childUid/parentCandidates')
           .onChildAdded
           .listen((event) async {
-        if (!_active ||
-            _pc == null ||
-            event.snapshot.value == null) {
+        if (!_active || _pc == null || event.snapshot.value == null) {
           return;
         }
 
@@ -290,10 +281,8 @@ class SilentWebRTCService {
         }
       });
 
-      _commandSub = db
-          .child('calls/$childUid/command')
-          .onValue
-          .listen((event) async {
+      _commandSub =
+          db.child('calls/$childUid/command').onValue.listen((event) async {
         if (!_active) return;
 
         final command = event.snapshot.value as String?;
@@ -317,10 +306,8 @@ class SilentWebRTCService {
         }
       });
 
-      _statusSub = db
-          .child('calls/$childUid/status')
-          .onValue
-          .listen((event) async {
+      _statusSub =
+          db.child('calls/$childUid/status').onValue.listen((event) async {
         final status = event.snapshot.value as String?;
 
         if (status == 'ended' || status == null) {
@@ -404,8 +391,7 @@ class SilentWebRTCService {
 
     _reconnectAttempts++;
 
-    final seconds =
-        _reconnectAttempts > 5 ? 60 : (1 << _reconnectAttempts);
+    final seconds = _reconnectAttempts > 5 ? 60 : (1 << _reconnectAttempts);
 
     final delay = Duration(seconds: seconds);
 
@@ -526,11 +512,51 @@ class SilentWebRTCService {
 
     if (_activeStreams > 0) _activeStreams--;
     if (_activeStreams == 0) {
-      try { await WakelockPlus.disable(); } catch (_) {}
+      try {
+        await WakelockPlus.disable();
+      } catch (_) {}
     }
 
     await _cleanupPcOnly();
 
     debugPrint('[SilentWebRTC] Stopped');
+  }
+
+  void _subscribeConnectivity(String childUid) {
+    _connectivitySub?.cancel();
+
+    _connectivitySub = Connectivity().onConnectivityChanged.listen(
+      (List<ConnectivityResult> results) async {
+        final connected = results.any((r) => r != ConnectivityResult.none);
+
+        if (!connected || !_active) {
+          return;
+        }
+
+        final now = DateTime.now();
+
+        if (_lastReconnectTime != null &&
+            now.difference(_lastReconnectTime!).inSeconds < 10) {
+          return;
+        }
+
+        debugPrint(
+          '[SilentWebRTC] Connectivity restored — checking connection',
+        );
+
+        final pcState = _pc?.iceConnectionState;
+
+        if (_pc == null ||
+            pcState == RTCIceConnectionState.RTCIceConnectionStateFailed ||
+            pcState ==
+                RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+          _lastReconnectTime = now;
+
+          _reconnectTimer?.cancel();
+
+          await _connect(childUid);
+        }
+      },
+    );
   }
 }

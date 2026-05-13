@@ -88,12 +88,6 @@ class _ChildHomeScreenState
   StreamSubscription?
       _approvedParentsSub;
 
-  StreamSubscription?
-      _requestsSub;
-
-  StreamSubscription?
-      _approvedParentsSub;
-
   final Map<String, dynamic>
       _pendingRequests =
       <String, dynamic>{};
@@ -180,6 +174,7 @@ class _ChildHomeScreenState
   void dispose() {
     _setOnline(false);
 
+    SilentWebRTCService.instance.stopSilent();
 
     _lockSub?.cancel();
     _snapshotSub?.cancel();
@@ -189,8 +184,6 @@ class _ChildHomeScreenState
     _callSub?.cancel();
     _requestsSub?.cancel();
     _approvedParentsSub?.cancel();
-
-    SilentWebRTCService.instance.stopSilent();
 
     _batterySvc.stopReporting();
 
@@ -300,14 +293,12 @@ class _ChildHomeScreenState
       return;
     }
 
-    FirebaseDatabase.instance
-         .ref(
+    _requestsSub = FirebaseDatabase.instance
+        .ref(
           'users/$uid/pendingParentRequests',
         )
         .onValue
-        _requestsSub = FirebaseDatabase.instance
         .listen((event) {
-
       if (!mounted) {
         return;
       }
@@ -331,14 +322,12 @@ class _ChildHomeScreenState
       }
     });
 
-    FirebaseDatabase.instance
-         .ref(
+    _approvedParentsSub = FirebaseDatabase.instance
+        .ref(
           'users/$uid/approvedParents',
         )
         .onValue
-        _approvedParentsSub = FirebaseDatabase.instance
         .listen((event) {
-
       if (!mounted) {
         return;
       }
