@@ -14,135 +14,59 @@ import 'schedule_lock_screen.dart';
 import 'snapshots_screen.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
-  const ParentDashboardScreen({super.key
-            );
-          },
-        );
-      });
+  const ParentDashboardScreen({super.key});
 
   @override
   State<ParentDashboardScreen> createState() => _ParentDashboardScreenState();
-
-            );
-          },
-        );
-      }
+}
 
 class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   final _auth = AuthService();
 
-  final Map<String, dynamic> _children = {
-            );
-          },
-        );
-      };
-  final Map<String, Map<String, dynamic>> _deviceInfo = {
-            );
-          },
-        );
-      };
-  final Map<String, StreamSubscription> _batterySubs = {
-            );
-          },
-        );
-      };
+  final Map<String, dynamic> _children = {};
+  final Map<String, Map<String, dynamic>> _deviceInfo = {};
+  final Map<String, StreamSubscription> _batterySubs = {};
 
   @override
   void initState() {
     super.initState();
     _listenForChildren();
-  
-            );
-          },
-        );
-      }
+  }
 
   @override
   void dispose() {
     for (final s in _batterySubs.values) {
       s.cancel();
-    
-            );
-          },
-        );
-      }
+    }
     super.dispose();
-  
-            );
-          },
-        );
-      }
+  }
 
   void _listenForChildren() {
     _auth.getChildrenStream().listen((event) {
       if (!mounted) return;
-      final newChildren = <String, dynamic>{
-            );
-          },
-        );
-      };
+      final newChildren = <String, dynamic>{};
       final raw = event.snapshot.value;
       if (raw is Map) {
         for (final entry in raw.entries) {
           newChildren[entry.key as String] = entry.value;
-        
-            );
-          },
-        );
-      }
-      
-            );
-          },
-        );
+        }
       }
       setState(() {
         _children.clear();
         _children.addAll(newChildren);
-      
-            );
-          },
-        );
       });
       for (final uid in newChildren.keys) {
         if (_batterySubs.containsKey(uid)) continue;
         _batterySubs[uid] = BatteryService.watchDeviceInfo(uid).listen((info) {
           if (!mounted) return;
           setState(() => _deviceInfo[uid] = info);
-        
-            );
-          },
-        );
-      });
-      
-            );
-          },
-        );
+        });
       }
-    
-            );
-          },
-        );
-      });
-  
-            );
-          },
-        );
-      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     final user = _auth.currentUser;
 
     return Scaffold(
@@ -165,21 +89,9 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                 if (mounted) {
                   // ignore: use_build_context_synchronously
                   Navigator.pushReplacementNamed(context, '/role-select');
-                
-            );
-          },
-        );
-      }
-              
-            );
-          },
-        );
-      }
-            
-            );
-          },
-        );
-      },
+                }
+              }
+            },
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'account',
@@ -212,11 +124,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
         ],
       ),
     );
-  
-            );
-          },
-        );
-      }
+  }
 
   Widget _buildEmptyState() {
     return Center(
@@ -251,11 +159,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
         ],
       ),
     );
-  
-            );
-          },
-        );
-      }
+  }
 
   Widget _buildChildrenList() {
     return ListView(
@@ -282,11 +186,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               deviceInfo: _deviceInfo,
             ),
           );
-        
-            );
-          },
-        );
-      }).values,
+        }).values,
         const SizedBox(height: 16),
         OutlinedButton.icon(
           onPressed: () => Navigator.push(context,
@@ -296,16 +196,8 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
         ).animate(delay: 300.ms).fadeIn(),
       ],
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}
 
 class _ChildCard extends StatelessWidget {
   final String childUid;
@@ -318,34 +210,14 @@ class _ChildCard extends StatelessWidget {
     required this.childData,
     required this.delay,
     required this.deviceInfo,
-  
-            );
-          },
-        );
-      });
+  });
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     final name = childData['childName'] as String? ??
         childData['displayName'] as String? ??
         'Child';
-    final info = deviceInfo[childUid] ?? {
-            );
-          },
-        );
-      };
+    final info = deviceInfo[childUid] ?? {};
     final battery = info['battery'] as int?;
 
     return Container(
@@ -377,11 +249,7 @@ class _ChildCard extends StatelessWidget {
         onTap: () => _showFeatureSheet(context, name),
       ),
     ).animate(delay: Duration(milliseconds: delay)).fadeIn();
-  
-            );
-          },
-        );
-      }
+  }
 
   void _showFeatureSheet(BuildContext context, String name) {
     showModalBottomSheet(
@@ -446,11 +314,7 @@ class _ChildCard extends StatelessWidget {
                               ),
                             ),
                           );
-                        
-            );
-          },
-        );
-      },
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -471,11 +335,7 @@ class _ChildCard extends StatelessWidget {
                               ),
                             ),
                           );
-                        
-            );
-          },
-        );
-      },
+                        },
                       ),
                     ),
                   ],
@@ -503,11 +363,7 @@ class _ChildCard extends StatelessWidget {
                         ),
                       ),
                     );
-                  
-            );
-          },
-        );
-      },
+                  },
                 ),
 
                 _FeatureRow(
@@ -526,11 +382,7 @@ class _ChildCard extends StatelessWidget {
                         ),
                       ),
                     );
-                  
-            );
-          },
-        );
-      },
+                  },
                 ),
 
                 _FeatureRow(
@@ -549,11 +401,7 @@ class _ChildCard extends StatelessWidget {
                         ),
                       ),
                     );
-                  
-            );
-          },
-        );
-      },
+                  },
                 ),
 
                 _FeatureRow(
@@ -572,27 +420,15 @@ class _ChildCard extends StatelessWidget {
                         ),
                       ),
                     );
-                  
-            );
-          },
-        );
-      },
+                  },
                 ),
               ],
             ),
           ),
         );
-      
-            );
-          },
-        );
       },
     );
-  
-            );
-          },
-        );
-      }
+  }
 
   Widget _sectionLabel(String text) => Text(
         text,
@@ -603,11 +439,7 @@ class _ChildCard extends StatelessWidget {
           letterSpacing: 0.5,
         ),
       );
-
-            );
-          },
-        );
-      }
+}
 
 class _FeatureTile extends StatelessWidget {
   final IconData icon;
@@ -620,26 +452,10 @@ class _FeatureTile extends StatelessWidget {
     required this.label,
     required this.color,
     required this.onTap,
-  
-            );
-          },
-        );
-      });
+  });
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -666,16 +482,8 @@ class _FeatureTile extends StatelessWidget {
         ),
       ),
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}
 
 class _FeatureRow extends StatelessWidget {
   final IconData icon;
@@ -690,26 +498,10 @@ class _FeatureRow extends StatelessWidget {
     required this.subtitle,
     required this.color,
     required this.onTap,
-  
-            );
-          },
-        );
-      });
+  });
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       leading: Container(
@@ -733,13 +525,5 @@ class _FeatureRow extends StatelessWidget {
       trailing: const Icon(Icons.chevron_right, color: Colors.grey),
       onTap: onTap,
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}

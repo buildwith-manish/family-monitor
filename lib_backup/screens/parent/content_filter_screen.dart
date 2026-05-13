@@ -12,29 +12,17 @@ class ContentFilterScreen extends StatefulWidget {
     super.key,
     required this.childUid,
     required this.childName,
-  
-            );
-          },
-        );
-      });
+  });
 
   @override
   State<ContentFilterScreen> createState() => _ContentFilterScreenState();
-
-            );
-          },
-        );
-      }
+}
 
 class _ContentFilterScreenState extends State<ContentFilterScreen>
     with SingleTickerProviderStateMixin {
   final _svc = ContentFilterService();
   List<BlockedDomain> _blocked = [];
-  Set<String> _blockedCategories = {
-            );
-          },
-        );
-      };
+  Set<String> _blockedCategories = {};
   late TabController _tabs;
   final _domainCtrl = TextEditingController();
 
@@ -44,11 +32,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
     'Social Media': (Icons.group, Color(0xFF1A73E8)),
     'Gaming': (Icons.sports_esports, Color(0xFF9334E6)),
     'Violent Content': (Icons.warning_amber, Color(0xFFEA4335)),
-  
-            );
-          },
-        );
-      };
+  };
 
   @override
   void initState() {
@@ -56,89 +40,37 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
     _tabs = TabController(length: 2, vsync: this);
     _svc.watchBlockedDomains(widget.childUid).listen((data) {
       if (!mounted) return;
-    setState(() { _blocked = data; 
-            );
-          },
-        );
-      });
-    
-            );
-          },
-        );
-      });
+    setState(() { _blocked = data; });
+    });
     _svc.watchBlockedCategories(widget.childUid).listen((data) {
       if (!mounted) return;
-    setState(() { _blockedCategories = data; 
-            );
-          },
-        );
-      });    
-            );
-          },
-        );
-      });
-  
-            );
-          },
-        );
-      }
+    setState(() { _blockedCategories = data; });    });
+  }
 
   @override
   void dispose() {
     _tabs.dispose();
     _domainCtrl.dispose();
     super.dispose();
-  
-            );
-          },
-        );
-      }
+  }
 
   Future<void> _addDomain() async {
     final domain = _domainCtrl.text.trim();
     if (domain.isEmpty) return;
     await _svc.blockDomain(widget.childUid, domain);
     _domainCtrl.clear();
-  
-            );
-          },
-        );
-      }
+  }
 
   Future<void> _toggleCategory(String category) async {
     if (_blockedCategories.contains(category)) {
       await _svc.unblockCategory(widget.childUid, category);
-    
-            );
-          },
-        );
-      } else {
+    } else {
       await _svc.blockCategory(widget.childUid, category);
-    
-            );
-          },
-        );
-      }
-  
-            );
-          },
-        );
-      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFB),
       appBar: AppBar(
@@ -169,11 +101,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
         ],
       ),
     );
-  
-            );
-          },
-        );
-      }
+  }
 
   Widget _buildCategories() {
     return ListView(
@@ -232,11 +160,7 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                   style: GoogleFonts.inter(
                       fontSize: 14, fontWeight: FontWeight.w600)),
               subtitle: Text(
-                '${ContentFilterService.categoryDomains[category]?.length ?? 0
-            );
-          },
-        );
-      } domains',
+                '${ContentFilterService.categoryDomains[category]?.length ?? 0} domains',
                 style: GoogleFonts.inter(fontSize: 11, color: Colors.grey),
               ),
               trailing: Switch(
@@ -246,18 +170,10 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
               ),
             ),
           ).animate(delay: Duration(milliseconds: e.key * 60)).fadeIn();
-        
-            );
-          },
-        );
-      }),
+        }),
       ],
     );
-  
-            );
-          },
-        );
-      }
+  }
 
   Widget _buildDomains() {
     return Column(
@@ -342,22 +258,10 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
                         ),
                       ),
                     ).animate(delay: Duration(milliseconds: i * 30)).fadeIn();
-                  
-            );
-          },
-        );
-      },
+                  },
                 ),
         ),
       ],
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}

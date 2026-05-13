@@ -17,18 +17,10 @@ class MonitoringScreen extends StatefulWidget {
     required this.childUid,
     required this.childData,
     this.mode = StreamMode.camera,
-  
-            );
-          },
-        );
-      });
+  });
   @override
   State<MonitoringScreen> createState() => _MonitoringScreenState();
-
-            );
-          },
-        );
-      }
+}
 
 class _MonitoringScreenState extends State<MonitoringScreen> {
   final _webrtc = WebRTCService();
@@ -56,36 +48,16 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     _listenToPresence();
     _timeout = Timer(const Duration(seconds: 20), () {
       if (mounted && !_hasStream) {
-        setState(() { _status = 'Child not responding.\nMake sure child app is running.'; 
-            );
-          },
-        );
-      });
-      
-            );
-          },
-        );
+        setState(() { _status = 'Child not responding.\nMake sure child app is running.'; });
       }
-    
-            );
-          },
-        );
-      });
-  
-            );
-          },
-        );
-      }
+    });
+  }
 
   void _listenToPresence() {
     final db = FirebaseDatabase.instance.ref();
 
     _screenErrorSub =
-        db.child('calls/\${widget.childUid
-            );
-          },
-        );
-      }/screenError')
+        db.child('calls/\${widget.childUid}/screenError')
             .onValue
             .listen((e) {
       if (!mounted) return;
@@ -95,28 +67,12 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       if (msg != null) {
         setState(() {
           _screenError = msg;
-        
-            );
-          },
-        );
-      });
-      
-            );
-          },
-        );
+        });
       }
-    
-            );
-          },
-        );
-      });
+    });
 
     _statusSub = db
-        .child('calls/${widget.childUid
-            );
-          },
-        );
-      }/status')
+        .child('calls/${widget.childUid}/status')
         .onValue
         .listen((e) {
       if (!mounted) return;
@@ -125,23 +81,11 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
       setState(() {
         _isChildOnline = status == 'online';
-      
-            );
-          },
-        );
       });
-    
-            );
-          },
-        );
-      });
+    });
 
     _heartbeatSub = db
-        .child('calls/${widget.childUid
-            );
-          },
-        );
-      }/heartbeat')
+        .child('calls/${widget.childUid}/heartbeat')
         .onValue
         .listen((e) {
       if (!mounted) return;
@@ -154,114 +98,46 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
         setState(() {
           _isChildOnline = !stale;
-        
-            );
-          },
-        );
-      });
-      
-            );
-          },
-        );
+        });
       }
-    
-            );
-          },
-        );
-      });
-  
-            );
-          },
-        );
-      }
+    });
+  }
 
   Future<void> _startMonitoring() async {
     try {
       await _webrtc.startAsParent(childUid: widget.childUid, mode: widget.mode);
       if (!mounted) return;
       _timeout?.cancel();
-      setState(() { _hasStream = true; _status = 'Connected'; 
-            );
-          },
-        );
-      });
+      setState(() { _hasStream = true; _status = 'Connected'; });
       _startControlsTimer();
-    
-            );
-          },
-        );
-      } catch (e) {
+    } catch (e) {
       if (!mounted) return;
-    setState(() { _status = 'Error: $e'; 
-            );
-          },
-        );
-      });
-    
-            );
-          },
-        );
-      }
-  
-            );
-          },
-        );
-      }
+    setState(() { _status = 'Error: $e'; });
+    }
+  }
 
   void _startControlsTimer() {
     _controlsTimer?.cancel();
     _controlsTimer = Timer(const Duration(seconds: 4), () {
       if (!mounted) return;
     setState(() => _showControls = false);
-    
-            );
-          },
-        );
-      });
-  
-            );
-          },
-        );
-      }
+    });
+  }
 
   void _toggleControls() {
-    setState(() { _showControls = !_showControls; 
-            );
-          },
-        );
-      });
+    setState(() { _showControls = !_showControls; });
     if (_showControls) {
       _startControlsTimer();
-    
-            );
-          },
-        );
-      }
-            );
-          },
-        );
-      }
+    }}
 
   Future<void> _flipCamera() async {
     await _webrtc.sendFlipCommand(widget.childUid);
-  
-            );
-          },
-        );
-      }
+  }
   Future<void> _toggleMic() async {
     await _webrtc.sendMuteCommand(widget.childUid, !_isMuted);
     if (!mounted) return;
-    setState(() { _isMuted = !_isMuted; 
-            );
-          },
-        );
-      });
-  
-            );
-          },
-        );
-      }
+    setState(() { _isMuted = !_isMuted; });
+  }
 
   Future<void> _endSession() async {
     _timeout?.cancel();
@@ -269,15 +145,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     await _webrtc.endCall(widget.childUid);
     if (mounted) {
       Navigator.pop(context);
-    
-            );
-          },
-        );
-      }
-            );
-          },
-        );
-      }
+    }}
 
   @override
   void dispose() {
@@ -289,26 +157,10 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     _webrtc.dispose();
     super.dispose();
-  
-            );
-          },
-        );
-      }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     final childName = widget.childData['childName'] as String? ?? 'Child';
     final isScreen = widget.mode == StreamMode.screen;
 
@@ -494,11 +346,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         ]),
       ),
     );
-  
-            );
-          },
-        );
-      }
+  }
 
   Widget _liveBadge() => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -518,11 +366,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     required VoidCallback onTap,
     required Color color,
     double size = 56,
-  
-            );
-          },
-        );
-      }) => GestureDetector(
+  }) => GestureDetector(
     onTap: onTap,
     child: Column(mainAxisSize: MainAxisSize.min, children: [
       Container(
@@ -534,8 +378,4 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       Text(label, style: GoogleFonts.inter(color: Colors.white70, fontSize: 11)),
     ]),
   );
-
-            );
-          },
-        );
-      }
+}

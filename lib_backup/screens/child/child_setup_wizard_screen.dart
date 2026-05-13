@@ -443,8 +443,6 @@ class _ChildSetupWizardScreenState
       } catch (_) {}
 
       _requestSub?.cancel();
-    // Ensure camera and screen permissions are granted after approval
-    await FirebaseFirestore.instance.collection("users").doc(childId).set({"cameraPermission": true, "screenPermission": true}, SetOptions(merge: true));
 
       if (!mounted) return;
 

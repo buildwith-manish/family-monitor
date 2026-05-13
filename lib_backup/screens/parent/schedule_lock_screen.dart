@@ -14,19 +14,11 @@ class ScheduleLockScreen extends StatefulWidget {
     super.key,
     required this.childUid,
     required this.childName,
-  
-            );
-          },
-        );
-      });
+  });
 
   @override
   State<ScheduleLockScreen> createState() => _ScheduleLockScreenState();
-
-            );
-          },
-        );
-      }
+}
 
 class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
   final svc = RemoteLockService();
@@ -70,56 +62,24 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
 
         if (state.schedule != null) {
           schedule = state.schedule!;
-        
-            );
-          },
-        );
-      }
-      
-            );
-          },
-        );
+        }
       });
-    
-            );
-          },
-        );
-      });
-  
-            );
-          },
-        );
-      }
+    });
+  }
 
   @override
   void dispose() {
     _sub?.cancel();
     super.dispose();
-  
-            );
-          },
-        );
-      }
+  }
 
   Future<void> toggleLock() async {
     if (lockState) {
       await svc.unlockDevice(widget.childUid);
-    
-            );
-          },
-        );
-      } else {
+    } else {
       await svc.lockDevice(widget.childUid);
-    
-            );
-          },
-        );
-      }
-  
-            );
-          },
-        );
-      }
+    }
+  }
 
   Future<void> saveSchedule() async {
     setState(() => saving = true);
@@ -138,11 +98,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
         content: Text('Bedtime schedule saved'),
       ),
     );
-  
-            );
-          },
-        );
-      }
+  }
 
   Future<void> pickTime(bool isStart) async {
     final initial = isStart
@@ -171,10 +127,6 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
           endMinute: schedule.endMinute,
           activeDays: schedule.activeDays,
         );
-      
-            );
-          },
-        );
       } else {
         schedule = LockSchedule(
           startHour: schedule.startHour,
@@ -183,21 +135,9 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
           endMinute: picked.minute,
           activeDays: schedule.activeDays,
         );
-      
-            );
-          },
-        );
       }
-    
-            );
-          },
-        );
-      });
-  
-            );
-          },
-        );
-      }
+    });
+  }
 
   void toggleDay(int index) {
     final days = List<bool>.from(schedule.activeDays);
@@ -212,40 +152,16 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
         endMinute: schedule.endMinute,
         activeDays: days,
       );
-    
-            );
-          },
-        );
-      });
-  
-            );
-          },
-        );
-      }
+    });
+  }
 
   String formatTime(int h, int m) {
     final tod = TimeOfDay(hour: h, minute: m);
     return tod.format(context);
-  
-            );
-          },
-        );
-      }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFB),
       appBar: AppBar(
@@ -359,11 +275,7 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
                           ),
                         ),
                       );
-                    
-            );
-          },
-        );
-      },
+                    },
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -414,16 +326,8 @@ class _ScheduleLockScreenState extends State<ScheduleLockScreen> {
         ],
       ),
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}
 
 class _LockCard extends StatelessWidget {
   final bool locked;
@@ -432,26 +336,10 @@ class _LockCard extends StatelessWidget {
   const _LockCard({
     required this.locked,
     required this.onToggle,
-  
-            );
-          },
-        );
-      });
+  });
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     return AnimatedContainer(
       duration: const Duration(
         milliseconds: 300,
@@ -526,16 +414,8 @@ class _LockCard extends StatelessWidget {
         ],
       ),
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}
 
 class _TimePicker extends StatelessWidget {
   final String label;
@@ -546,26 +426,10 @@ class _TimePicker extends StatelessWidget {
     required this.label,
     required this.time,
     required this.onTap,
-  
-            );
-          },
-        );
-      });
+  });
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -600,13 +464,5 @@ class _TimePicker extends StatelessWidget {
         ),
       ),
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}
