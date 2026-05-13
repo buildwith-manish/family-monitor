@@ -27,7 +27,8 @@ class ChildSetupWizardScreen extends StatefulWidget {
 }
 
 class _ChildSetupWizardScreenState
-    extends State<ChildSetupWizardScreen> {
+    extends State<ChildSetupWizardScreen>
+    with WidgetsBindingObserver {
   late final PageController _pageCtrl;
 
   int _currentPage = 0;
@@ -40,13 +41,14 @@ class _ChildSetupWizardScreenState
   final _auth = AuthService();
   final _batterySvc = BatteryService();
 
-  static const int _totalPages = 7;
+  static const int _totalPages = 8;
 
   bool _cameraGranted = false;
   bool _micGranted = false;
   bool _notifGranted = false;
   bool _batteryExempt = false;
   bool _screenConsented = false;
+  bool _notifDisabled = false;
 
   ManufacturerGuide? _guide;
 
@@ -59,20 +61,26 @@ class _ChildSetupWizardScreenState
   @override
   void initState() {
     super.initState();
-
+    WidgetsBinding.instance.addObserver(this);
     _pageCtrl = PageController();
-
     _refreshStatus();
     _loadGuide();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _currentPage == 7) {
+      _checkNotifDisabled();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pageCtrl.dispose();
     _nameCtrl.dispose();
     _deviceCtrl.dispose();
     _requestSub?.cancel();
-
     super.dispose();
   }
 
@@ -100,6 +108,20 @@ class _ChildSetupWizardScreenState
       _notifGranted = notif;
       _batteryExempt = batt;
     });
+  }
+
+  Future<void> _checkNotifDisabled() async {
+    final notif = await Permission.notification.isGranted;
+    if (!mounted) return;
+    setState(() {
+      _notifDisabled = !notif;
+    });
+  }
+
+  Future<void> _openNotifSettings() async {
+    await openAppSettings();
+    await Future.delayed(const Duration(milliseconds: 600));
+    await _checkNotifDisabled();
   }
 
   Future<void> _requestCorePermissions() async {
@@ -562,6 +584,11 @@ class _ChildSetupWizardScreenState
                     onDecline:
                         _declineRequest,
                   ),
+
+                  _PageDisableNotifications(
+                    notifDisabled: _notifDisabled,
+                    onOpenSettings: _openNotifSettings,
+                  ),
                 ],
               ),
             ),
@@ -638,10 +665,11 @@ class _ChildSetupWizardScreenState
 
   Widget _buildNavButtons() {
     final isPermPage = _currentPage == 2;
+    final isNotifPage = _currentPage == 7;
 
     final blocked =
-        isPermPage &&
-        !_canProceedFromPermissions;
+        (isPermPage && !_canProceedFromPermissions) ||
+        (isNotifPage && !_notifDisabled);
 
     String label;
 
@@ -1828,6 +1856,179 @@ class _PageApproval extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PageDisableNotifications extends StatelessWidget {
+  final bool notifDisabled;
+  final VoidCallback onOpenSettings;
+
+  const _PageDisableNotifications({
+    required this.notifDisabled,
+    required this.onOpenSettings,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        children: [
+          const SizedBox(height: 32),
+
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              color: notifDisabled
+                  ? const Color(0xFFE6F4EA)
+                  : const Color(0xFFFEF3CD),
+              borderRadius: BorderRadius.circular(28),
+            ),
+            child: Icon(
+              notifDisabled
+                  ? Icons.notifications_off
+                  : Icons.notifications_active,
+              size: 52,
+              color: notifDisabled
+                  ? const Color(0xFF34A853)
+                  : const Color(0xFFF59E0B),
+            ),
+          ).animate().scale(
+                duration: 600.ms,
+                curve: Curves.elasticOut,
+              ),
+
+          const SizedBox(height: 32),
+
+          Text(
+            'Turn Off Notifications',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF202124),
+            ),
+            textAlign: TextAlign.center,
+          ).animate().fadeIn(delay: 200.ms),
+
+          const SizedBox(height: 16),
+
+          Text(
+            'To keep monitoring quiet and private, you must turn off notifications for this app. This prevents any alerts or banners from appearing on the screen.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              color: const Color(0xFF5F6368),
+              height: 1.6,
+            ),
+          ).animate().fadeIn(delay: 300.ms),
+
+          const SizedBox(height: 32),
+
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: notifDisabled
+                  ? const Color(0xFFE6F4EA)
+                  : const Color(0xFFFFF8E1),
+              border: Border.all(
+                color: notifDisabled
+                    ? const Color(0xFF34A853)
+                    : const Color(0xFFFFD54F),
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  notifDisabled
+                      ? Icons.check_circle
+                      : Icons.warning_amber_rounded,
+                  color: notifDisabled
+                      ? const Color(0xFF34A853)
+                      : const Color(0xFFF59E0B),
+                  size: 28,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        notifDisabled
+                            ? 'Notifications are OFF'
+                            : 'Notifications are still ON',
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: notifDisabled
+                              ? const Color(0xFF34A853)
+                              : const Color(0xFF92400E),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        notifDisabled
+                            ? 'All set! Tap Complete Setup below.'
+                            : 'Tap the button below to open settings and turn them off.',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: notifDisabled
+                              ? const Color(0xFF34A853)
+                              : const Color(0xFF92400E),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ).animate().fadeIn(delay: 400.ms),
+
+          const SizedBox(height: 28),
+
+          if (!notifDisabled)
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton.icon(
+                onPressed: onOpenSettings,
+                icon: const Icon(Icons.settings, size: 18),
+                label: Text(
+                  'Open Notification Settings',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(
+                    color: Color(0xFF1A73E8),
+                    width: 1.5,
+                  ),
+                  foregroundColor: const Color(0xFF1A73E8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ).animate().fadeIn(delay: 500.ms),
+
+          const SizedBox(height: 16),
+
+          Text(
+            'Steps: Settings → Notifications → Turn off all',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: const Color(0xFF9AA0A6),
+              height: 1.5,
+            ),
+          ).animate().fadeIn(delay: 600.ms),
         ],
       ),
     );
