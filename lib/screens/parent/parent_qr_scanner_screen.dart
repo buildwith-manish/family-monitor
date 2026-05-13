@@ -14,7 +14,6 @@ class ParentQrScannerScreen extends StatefulWidget {
 class _ParentQrScannerScreenState extends State<ParentQrScannerScreen> {
   final MobileScannerController _ctrl = MobileScannerController(
     facing: CameraFacing.back,
-    torchEnabled: false,
   );
 
   bool _scanned = false;

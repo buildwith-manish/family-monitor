@@ -11,7 +11,6 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import 'screens/child/child_auth_screen.dart';
 import 'screens/child/child_home_screen.dart';
-import 'screens/child/child_qr_screen.dart';
 import 'screens/child/child_setup_wizard_screen.dart';
 
 import 'services/auth_service.dart';
@@ -174,7 +173,6 @@ class _ChildAppState extends State<ChildApp> {
           '/child/auth': (_) => const ChildAuthScreen(),
           '/child/setup': (_) => const ChildSetupWizardScreen(),
           '/child/home': (_) => const ChildHomeScreen(),
-          '/child/qr': (_) => const ChildQrScreen(uid: '', childName: ''),
         },
       ),
     );
