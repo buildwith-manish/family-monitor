@@ -7,9 +7,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const String _kUidKey    = 'child_uid';
-const String _kWizardKey = 'wizard_done';
-const String _kPermKey   = 'permissions_granted';
+const String _kUidKey              = 'child_uid';
+const String _kWizardKey           = 'wizard_done';
+const String _kPermKey             = 'permissions_granted';
+const String _kMonitoringActiveKey = 'monitoring_active';
 
 class BackgroundMonitoringService {
   static final FlutterBackgroundService _svc = FlutterBackgroundService();
@@ -39,6 +40,25 @@ class BackgroundMonitoringService {
       if (!running) await _svc.startService();
     } catch (e) {
       debugPrint('[BackgroundService] startService error: $e');
+    }
+  }
+
+  /// Re-starts monitoring on app launch if the service was previously active
+  /// but the process was killed (crash recovery).
+  static Future<void> restoreIfNeeded() async {
+    try {
+      final wasActive    = await isMonitoringActive();
+      final wizardDone   = await isWizardDone();
+      final permsGranted = await arePermissionsGranted();
+      if (wasActive && wizardDone && permsGranted) {
+        final running = await _svc.isRunning();
+        if (!running) {
+          debugPrint('[BackgroundService] Restoring monitoring after crash…');
+          await _svc.startService();
+        }
+      }
+    } catch (e) {
+      debugPrint('[BackgroundService] restoreIfNeeded error: $e');
     }
   }
 
@@ -77,13 +97,27 @@ class BackgroundMonitoringService {
     final p = await SharedPreferences.getInstance();
     return p.getBool(_kPermKey) ?? false;
   }
+
+  static Future<void> setMonitoringActive(bool value) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_kMonitoringActiveKey, value);
+  }
+
+  static Future<bool> isMonitoringActive() async {
+    final p = await SharedPreferences.getInstance();
+    return p.getBool(_kMonitoringActiveKey) ?? false;
+  }
 }
+
+// ─────────────────────────────────────────────────────────────
+// Background isolate entry point
+// ─────────────────────────────────────────────────────────────
 
 @pragma('vm:entry-point')
 void _onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
 
-  // Init Firebase if not already done
+  // ── Firebase init ──────────────────────────────────────
   if (Firebase.apps.isEmpty) {
     try {
       await Firebase.initializeApp();
@@ -94,10 +128,16 @@ void _onStart(ServiceInstance service) async {
     }
   }
 
+  // ── UID guard ──────────────────────────────────────────
   final prefs = await SharedPreferences.getInstance();
   final uid   = prefs.getString(_kUidKey);
-  if (uid == null) { service.stopSelf(); return; }
+  if (uid == null) {
+    debugPrint('[BgService] No UID stored — stopping.');
+    service.stopSelf();
+    return;
+  }
 
+  // ── Foreground notification ────────────────────────────
   if (service is AndroidServiceInstance) {
     service.setAsForegroundService();
     service.setForegroundNotificationInfo(
@@ -106,33 +146,79 @@ void _onStart(ServiceInstance service) async {
     );
   }
 
-  // Restore online status after potential process death
-  try {
-    await FirebaseDatabase.instance.ref('users/$uid/isOnline').set(true);
-    await FirebaseDatabase.instance.ref('users/$uid/lastSeen').set(ServerValue.timestamp);
-  } catch (_) {}
+  // Persist that monitoring is intentionally active so we can detect an
+  // unclean exit on next startup and automatically re-join the session.
+  await prefs.setBool(_kMonitoringActiveKey, true);
 
-  // Firebase Presence: mark child online/offline via .info/connected
+  // ── Stop command listener ──────────────────────────────
+  // Registered before session setup so the service is always stoppable.
+  service.on('stop').listen((_) async {
+    await prefs.setBool(_kMonitoringActiveKey, false);
+    service.stopSelf();
+  });
+
+  // ── Session setup with single-retry crash recovery ─────
+  bool setupOk = false;
+  for (int attempt = 0; attempt < 2; attempt++) {
+    try {
+      await _setupMonitoringSession(service, uid);
+      setupOk = true;
+      break;
+    } catch (e, st) {
+      debugPrint('[BgService] _setupMonitoringSession attempt ${attempt + 1} failed: $e');
+      debugPrintStack(stackTrace: st);
+
+      if (attempt == 0) {
+        // Single recovery attempt: tear down and re-initialise Firebase.
+        try {
+          for (final app in Firebase.apps) {
+            await app.delete();
+          }
+          await Firebase.initializeApp();
+          debugPrint('[BgService] Firebase re-initialised for retry');
+        } catch (reinitErr) {
+          debugPrint('[BgService] Firebase re-init also failed: $reinitErr');
+          break;
+        }
+      }
+    }
+  }
+
+  if (!setupOk) {
+    debugPrint('[BgService] Monitoring setup failed after recovery — stopping.');
+    await prefs.setBool(_kMonitoringActiveKey, false);
+    service.stopSelf();
+  }
+}
+
+/// Sets up all Firebase listeners and periodic timers for a monitoring session.
+/// Extracted so it can be retried independently of the [_onStart] scaffolding.
+Future<void> _setupMonitoringSession(
+  ServiceInstance service,
+  String uid,
+) async {
+  // Restore online presence after potential process death
+  await FirebaseDatabase.instance.ref('users/$uid/isOnline').set(true);
+  await FirebaseDatabase.instance.ref('users/$uid/lastSeen').set(ServerValue.timestamp);
+
+  // Mark online / offline via .info/connected
   FirebaseDatabase.instance.ref('.info/connected').onValue.listen((event) async {
     final connected = event.snapshot.value as bool? ?? false;
-
     if (connected) {
       try {
-        final statusRef =
-            FirebaseDatabase.instance.ref('calls/$uid/status');
-
+        final statusRef = FirebaseDatabase.instance.ref('calls/$uid/status');
         await statusRef.onDisconnect().set('offline');
         await statusRef.set('online');
       } catch (_) {}
     }
   });
 
-  // Clean up any stale call session from previous death
+  // Clean up any stale call session left from a previous crash
   try {
     final callSnap = await FirebaseDatabase.instance.ref('calls/$uid').get();
     if (callSnap.value != null) {
-      final data = Map<String, dynamic>.from(callSnap.value as Map);
-      final status = data['status'] as String?;
+      final data      = Map<String, dynamic>.from(callSnap.value as Map);
+      final status    = data['status']    as String?;
       final startedAt = data['startedAt'] as int?;
       if (status == 'calling' && startedAt != null) {
         final age = DateTime.now().millisecondsSinceEpoch - startedAt;
@@ -144,16 +230,15 @@ void _onStart(ServiceInstance service) async {
     }
   } catch (_) {}
 
-  // Handle stop command
-  service.on('stop').listen((_) => service.stopSelf());
-
   bool streamActive = false;
   String? activeMode;
 
   // Heartbeat — every 30 s
   Timer.periodic(const Duration(seconds: 30), (_) async {
     try {
-      await FirebaseDatabase.instance.ref('users/$uid/lastSeen').set(ServerValue.timestamp);
+      await FirebaseDatabase.instance
+          .ref('users/$uid/lastSeen')
+          .set(ServerValue.timestamp);
     } catch (_) {}
   });
 
@@ -161,17 +246,26 @@ void _onStart(ServiceInstance service) async {
   FirebaseDatabase.instance.ref('calls/$uid').onValue.listen((event) {
     final data = event.snapshot.value;
     if (data == null || data is! Map) {
-      if (streamActive) { service.invoke('silent_stop'); streamActive = false; activeMode = null; }
+      if (streamActive) {
+        service.invoke('silent_stop');
+        streamActive = false;
+        activeMode   = null;
+      }
       return;
     }
+
     final map    = Map<String, dynamic>.from(data);
     final status = map['status'] as String?;
-    final mode   = map['mode'] as String? ?? 'camera';
+    final mode   = map['mode']   as String? ?? 'camera';
 
     if (service is AndroidServiceInstance) {
       service.setForegroundNotificationInfo(
-        title:   status == 'calling' ? 'Family Monitor — Active Session' : 'Family Monitor Active',
-        content: status == 'calling' ? 'Parent is viewing this device.' : 'Monitoring running.',
+        title: status == 'calling'
+            ? 'Family Monitor — Active Session'
+            : 'Family Monitor Active',
+        content: status == 'calling'
+            ? 'Parent is viewing this device.'
+            : 'Monitoring running.',
       );
     }
 

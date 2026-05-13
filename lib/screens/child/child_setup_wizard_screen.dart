@@ -74,11 +74,45 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
   }
 
   Future<void> _requestCorePermissions() async {
-    await [
-      Permission.camera,
-      Permission.microphone,
-      Permission.notification,
-    ].request();
+    await _requestSinglePermission(Permission.camera, 'Camera');
+    await _requestSinglePermission(Permission.microphone, 'Microphone');
+    // Notification is optional — request silently, no dialog on permanent deny
+    final notifStatus = await Permission.notification.request();
+    if (mounted) setState(() => _notifGranted = notifStatus.isGranted);
+    await _refreshStatus();
+  }
+
+  Future<void> _requestSinglePermission(
+      Permission permission, String label) async {
+    final status = await permission.request();
+    if (!mounted) return;
+    if (status.isPermanentlyDenied) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('$label Permission Required'),
+          content: Text(
+            '$label permission was permanently denied. '
+            'Please enable it in device Settings to continue.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await openAppSettings();
+                await Future.delayed(const Duration(milliseconds: 500));
+                if (mounted) await _refreshStatus();
+              },
+              child: const Text('Open Settings'),
+            ),
+          ],
+        ),
+      );
+    }
     await _refreshStatus();
   }
 
@@ -150,8 +184,13 @@ class _ChildSetupWizardScreenState extends State<ChildSetupWizardScreen> {
       try { await FirebaseDatabase.instance.ref('calls/$uid').remove(); } catch (_) {}
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/child/home');
-      Future.microtask(() async {
-        try { await BackgroundMonitoringService.startService(); } catch (_) {}
+      Future.delayed(const Duration(seconds: 1), () async {
+        try {
+          await BackgroundMonitoringService.startService();
+        } catch (e, st) {
+          debugPrint('BackgroundMonitoringService.startService failed: \$e');
+          debugPrintStack(stackTrace: st);
+        }
       });
     } catch (e) {
       if (!mounted) return;

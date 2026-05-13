@@ -25,23 +25,26 @@ final GlobalKey<NavigatorState> childNavKey =
 Future<void> firebaseMessagingBackgroundHandler(
   RemoteMessage message,
 ) async {
-  if (Firebase.apps.isEmpty) {
-    try {
-      await Firebase.initializeApp();
-    } catch (e, st) {
-      debugPrint('Firebase init error in background handler: $e');
-      debugPrintStack(stackTrace: st);
-      return;
+  try {
+    if (Firebase.apps.isEmpty) {
+      try {
+        await Firebase.initializeApp();
+      } catch (e, st) {
+        debugPrint('Firebase init error in background handler: $e');
+        debugPrintStack(stackTrace: st);
+        return;
+      }
     }
-  }
 
-  if (message.data['type'] == 'call') {
-    final service =
-        FlutterBackgroundService();
-
-    if (!await service.isRunning()) {
-      await service.startService();
+    if (message.data['type'] == 'call') {
+      final service = FlutterBackgroundService();
+      if (!await service.isRunning()) {
+        await service.startService();
+      }
     }
+  } catch (e, st) {
+    debugPrint('[FCM Background] Unhandled error: $e');
+    debugPrintStack(stackTrace: st);
   }
 }
 
@@ -102,6 +105,9 @@ Future<void> main() async {
 
   await BackgroundMonitoringService
       .initialize();
+
+  await BackgroundMonitoringService
+      .restoreIfNeeded();
 
   MonitoringForegroundService
       .initForegroundTask();
@@ -301,6 +307,12 @@ class _ChildAppState
         ),
 
         routes: {
+          '/child/auth': (_) =>
+              const ChildAuthScreen(),
+
+          '/child/setup': (_) =>
+              const ChildSetupWizardScreen(),
+
           '/child/home': (_) =>
               const ChildHomeScreen(),
 
