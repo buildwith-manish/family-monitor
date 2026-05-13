@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -93,8 +92,7 @@ class SnapshotService {
     if (uid == null) return;
     final key = _uuid.v4();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    const pathPrefix = 'snapshots';
-    final path = '\$pathPrefix/\$childUid/\$key.jpg';
+    final path = 'snapshots/\$childUid/\$key.jpg'; // ignore: prefer_const_declarations
     final ref = _storage.ref(path);
     await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
     final url = await ref.getDownloadURL();

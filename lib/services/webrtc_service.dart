@@ -13,10 +13,7 @@ class WebRTCService {
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
 
-  String? _lastChildUid;
-  String? _lastParentUid;
 
-  bool _lastIsChild = false;
 
   final RTCVideoRenderer localRenderer = RTCVideoRenderer();
   final RTCVideoRenderer remoteRenderer = RTCVideoRenderer();
@@ -83,8 +80,6 @@ class WebRTCService {
     if (_disposed) return;
 
     _lastMode = mode;
-    _lastChildUid = childUid;
-    _lastIsChild = true;
     _reconnectAttempts = 0;
 
     _subscribeConnectivity(childUid: childUid, isChild: true, mode: mode);
@@ -200,8 +195,6 @@ class WebRTCService {
     if (_disposed) return;
 
     _lastMode = mode;
-    _lastChildUid = childUid;
-    _lastIsChild = false;
     _reconnectAttempts = 0;
 
     _subscribeConnectivity(childUid: childUid, isChild: false, mode: mode);
