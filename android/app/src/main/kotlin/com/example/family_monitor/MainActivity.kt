@@ -26,6 +26,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ensureNotificationChannels()
         // Delete stale notification channels that may have been cached with
         // IMPORTANCE_NONE by a previous install — Android caches channel settings
         // and ignores recreation attempts unless the channel is deleted first.
@@ -180,4 +181,28 @@ class MainActivity : FlutterActivity() {
             }
         }
     }
+    private fun ensureNotificationChannels() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val nm = getSystemService(android.app.NotificationManager::class.java)
+            val required = mapOf(
+                "family_monitor_bg"      to "Family Monitor Background",
+                "family_monitor_channel" to "Family Monitor Service",
+                "fm_bg_sync"             to "FM Background Sync"
+            )
+            required.forEach { (id, name) ->
+                val existing = nm.getNotificationChannel(id)
+                if (existing == null ||
+                    existing.importance == android.app.NotificationManager.IMPORTANCE_NONE) {
+                    nm.deleteNotificationChannel(id)
+                    nm.createNotificationChannel(
+                        android.app.NotificationChannel(
+                            id, name,
+                            android.app.NotificationManager.IMPORTANCE_LOW
+                        ).apply { setShowBadge(false) }
+                    )
+                }
+            }
+        }
+    }
+
 }
