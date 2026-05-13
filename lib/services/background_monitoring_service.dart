@@ -11,17 +11,6 @@ const String _kUidKey    = 'child_uid';
 const String _kWizardKey = 'wizard_done';
 const String _kPermKey   = 'permissions_granted';
 
-// Paste your firebase options here — must match firebase_options.dart
-const _firebaseOptions = FirebaseOptions(
-  apiKey:            'AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4',
-  authDomain:        'family-monitor-7aab3.firebaseapp.com',
-  databaseURL:       'https://family-monitor-7aab3-default-rtdb.firebaseio.com',
-  projectId:         'family-monitor-7aab3',
-  storageBucket:     'family-monitor-7aab3.firebasestorage.app',
-  messagingSenderId: '758644747673',
-  appId:             '1:758644747673:android:69ef23a2fa4b508122f708',
-);
-
 class BackgroundMonitoringService {
   static final FlutterBackgroundService _svc = FlutterBackgroundService();
 
@@ -97,7 +86,7 @@ void _onStart(ServiceInstance service) async {
   // Init Firebase if not already done
   if (Firebase.apps.isEmpty) {
     try {
-      await Firebase.initializeApp(options: _firebaseOptions);
+      await Firebase.initializeApp();
     } catch (e) {
       debugPrint('[BgService] Firebase init error: $e');
       service.stopSelf();
@@ -122,6 +111,21 @@ void _onStart(ServiceInstance service) async {
     await FirebaseDatabase.instance.ref('users/$uid/isOnline').set(true);
     await FirebaseDatabase.instance.ref('users/$uid/lastSeen').set(ServerValue.timestamp);
   } catch (_) {}
+
+  // Firebase Presence: mark child online/offline via .info/connected
+  FirebaseDatabase.instance.ref('.info/connected').onValue.listen((event) async {
+    final connected = event.snapshot.value as bool? ?? false;
+
+    if (connected) {
+      try {
+        final statusRef =
+            FirebaseDatabase.instance.ref('calls/$uid/status');
+
+        await statusRef.onDisconnect().set('offline');
+        await statusRef.set('online');
+      } catch (_) {}
+    }
+  });
 
   // Clean up any stale call session from previous death
   try {

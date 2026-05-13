@@ -1,5 +1,6 @@
 import '../../services/webrtc_service.dart';
 import 'dart:async';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -27,8 +28,13 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
   bool _isMuted = false;
   bool _showControls = true;
   String _status = 'Connecting...';
+  bool _isChildOnline = false;
+  String? _screenError;
+  StreamSubscription? _screenErrorSub;
   Timer? _timeout;
   Timer? _controlsTimer;
+  StreamSubscription? _statusSub;
+  StreamSubscription? _heartbeatSub;
 
   @override
   void initState() {
@@ -39,9 +45,60 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       DeviceOrientation.landscapeRight,
     ]);
     _startMonitoring();
+    _listenToPresence();
     _timeout = Timer(const Duration(seconds: 20), () {
       if (mounted && !_hasStream) {
         setState(() { _status = 'Child not responding.\nMake sure child app is running.'; });
+      }
+    });
+  }
+
+  void _listenToPresence() {
+    final db = FirebaseDatabase.instance.ref();
+
+    _screenErrorSub =
+        db.child('calls/\${widget.childUid}/screenError')
+            .onValue
+            .listen((e) {
+      if (!mounted) return;
+
+      final msg = e.snapshot.value as String?;
+
+      if (msg != null) {
+        setState(() {
+          _screenError = msg;
+        });
+      }
+    });
+
+    _statusSub = db
+        .child('calls/${widget.childUid}/status')
+        .onValue
+        .listen((e) {
+      if (!mounted) return;
+
+      final status = e.snapshot.value as String?;
+
+      setState(() {
+        _isChildOnline = status == 'online';
+      });
+    });
+
+    _heartbeatSub = db
+        .child('calls/${widget.childUid}/heartbeat')
+        .onValue
+        .listen((e) {
+      if (!mounted) return;
+
+      final ts = e.snapshot.value;
+
+      if (ts is int) {
+        final stale =
+            DateTime.now().millisecondsSinceEpoch - ts > 30000;
+
+        setState(() {
+          _isChildOnline = !stale;
+        });
       }
     });
   }
@@ -94,6 +151,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
   void dispose() {
     _timeout?.cancel();
     _controlsTimer?.cancel();
+    _statusSub?.cancel();
+    _heartbeatSub?.cancel();
+    _screenErrorSub?.cancel();
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     _webrtc.dispose();
     super.dispose();
@@ -114,6 +174,32 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
             RTCVideoView(
               _webrtc.remoteRenderer,
               objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+            ),
+
+          // Screen error banner
+          if (_screenError != null)
+            Positioned(
+              top: 80,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade800.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _screenError!,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
             ),
 
           // Waiting state
@@ -159,11 +245,50 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                     ),
                     const SizedBox(width: 4),
                     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(childName,
+                      Text(
+                        childName,
                         style: GoogleFonts.plusJakartaSans(
-                          color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
-                      Text(isScreen ? '📱 Screen' : '📷 Camera',
-                        style: GoogleFonts.inter(color: Colors.white60, fontSize: 11)),
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+
+                      Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            margin: const EdgeInsets.only(right: 4),
+                            decoration: BoxDecoration(
+                              color: _isChildOnline
+                                  ? Colors.greenAccent
+                                  : Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+
+                          Text(
+                            _isChildOnline ? 'Online' : 'Offline',
+                            style: GoogleFonts.inter(
+                              color: _isChildOnline
+                                  ? Colors.greenAccent
+                                  : Colors.red,
+                              fontSize: 11,
+                            ),
+                          ),
+
+                          const SizedBox(width: 6),
+
+                          Text(
+                            isScreen ? '📱 Screen' : '📷 Camera',
+                            style: GoogleFonts.inter(
+                              color: Colors.white60,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
                     ]),
                     const Spacer(),
                     if (_hasStream) _liveBadge(),

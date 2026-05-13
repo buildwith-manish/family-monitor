@@ -34,24 +34,13 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  await Firebase.initializeApp(
-    options: const FirebaseOptions(
-      apiKey:
-          'AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4',
-      authDomain:
-          'family-monitor-7aab3.firebaseapp.com',
-      databaseURL:
-          'https://family-monitor-7aab3-default-rtdb.firebaseio.com',
-      projectId:
-          'family-monitor-7aab3',
-      storageBucket:
-          'family-monitor-7aab3.firebasestorage.app',
-      messagingSenderId:
-          '758644747673',
-      appId:
-          '1:758644747673:android:69ef23a2fa4b508122f708',
-    ),
-  );
+  try {
+    await Firebase.initializeApp();
+  } catch (e, st) {
+    debugPrint('Firebase init error: $e');
+    debugPrintStack(stackTrace: st);
+    return;
+  }
 
   runApp(
     const FamilyMonitorApp(),
