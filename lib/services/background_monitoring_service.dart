@@ -28,6 +28,7 @@ class BackgroundMonitoringService {
         foregroundServiceTypes: [
           AndroidForegroundType.camera,
           AndroidForegroundType.microphone,
+          AndroidForegroundType.dataSync,
         ],
       ),
       iosConfiguration: IosConfiguration(autoStart: false),
@@ -285,4 +286,37 @@ Future<void> _setupMonitoringSession(
 
   // Ping Flutter layer every 20 s
   Timer.periodic(const Duration(seconds: 20), (_) => service.invoke('ping', {}));
+
+  // ── Health-check watchdog ──────────────────────────────
+  int healthFailures = 0;
+
+  Timer.periodic(const Duration(seconds: 30), (_) async {
+    try {
+      final connected = (await FirebaseDatabase.instance
+          .ref('.info/connected')
+          .get()
+          .timeout(const Duration(seconds: 5)))
+          .value as bool? ?? false;
+
+      if (!connected) {
+        healthFailures++;
+
+        debugPrint('[BgService] Health check fail #$healthFailures');
+
+        if (healthFailures >= 3) {
+          healthFailures = 0;
+
+          debugPrint(
+            '[BgService] Restarting session after repeated failures',
+          );
+
+          await _setupMonitoringSession(service, uid);
+        }
+      } else {
+        healthFailures = 0;
+      }
+    } catch (e) {
+      debugPrint('[BgService] Watchdog error: $e');
+    }
+  });
 }

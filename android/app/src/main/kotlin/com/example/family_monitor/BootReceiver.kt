@@ -14,6 +14,7 @@ class BootReceiver : BroadcastReceiver() {
         val valid = listOf(
             Intent.ACTION_BOOT_COMPLETED,
             "android.intent.action.QUICKBOOT_POWERON",
+            "android.intent.action.LOCKED_BOOT_COMPLETED",
             Intent.ACTION_MY_PACKAGE_REPLACED
         )
         if (intent.action !in valid) return

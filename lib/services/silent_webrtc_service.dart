@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_database/firebase_database.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
@@ -17,6 +18,7 @@ class SilentWebRTCService {
 
   bool _active = false;
   bool _connecting = false;
+  int _activeStreams = 0;
 
   String? _activeUid;
   String? _activeMode;
@@ -99,6 +101,11 @@ class SilentWebRTCService {
     _activeUid = childUid;
     _answerSet = false;
     _reconnectAttempts = 0;
+
+    _activeStreams++;
+    if (_activeStreams == 1) {
+      try { await WakelockPlus.enable(); } catch (_) {}
+    }
 
     await _connect(childUid);
   }
@@ -516,6 +523,11 @@ class SilentWebRTCService {
 
     _connectionTimer?.cancel();
     _connectionTimer = null;
+
+    if (_activeStreams > 0) _activeStreams--;
+    if (_activeStreams == 0) {
+      try { await WakelockPlus.disable(); } catch (_) {}
+    }
 
     await _cleanupPcOnly();
 

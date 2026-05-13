@@ -59,6 +59,8 @@ class _ChildHomeScreenState
       _batterySvc =
       BatteryService();
 
+  bool _showBatteryHint = false;
+
   final SmsService _smsSvc =
       SmsService();
 
@@ -216,6 +218,7 @@ class _ChildHomeScreenState
     _batterySvc.startReporting(
       uid,
     );
+    _checkBatteryHint();
 
     try {
       _smsSub = _smsSvc
@@ -671,6 +674,40 @@ class _ChildHomeScreenState
                 height: 12,
               ),
 
+              if (_showBatteryHint)
+                Card(
+                  color: const Color(0xFFFFF8E1),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.battery_alert,
+                          color: Color(0xFFF9A825),
+                        ),
+
+                        const SizedBox(width: 12),
+
+                        const Expanded(
+                          child: Text(
+                            'Monitoring may have been interrupted. '
+                            'Check battery optimisation settings.',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ),
+
+                        TextButton(
+                          onPressed: _openBatteryGuide,
+                          child: const Text('Fix'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
               const SizedBox(
                 height: 16,
               ),
@@ -810,6 +847,30 @@ class _DeviceIdCard extends StatelessWidget {
   final String uid;
 
   const _DeviceIdCard({required this.uid});
+
+  Future<void> _checkBatteryHint() async {
+    final exempt = await _batterySvc.isExempt();
+
+    if (exempt) {
+      await _batterySvc.resetFailureCount();
+
+      if (mounted) {
+        setState(() => _showBatteryHint = false);
+      }
+
+      return;
+    }
+
+    final show = await _batterySvc.recordMonitoringFailure();
+
+    if (show && mounted) {
+      setState(() => _showBatteryHint = true);
+    }
+  }
+
+  void _openBatteryGuide() {
+    Navigator.pushNamed(context, '/child/battery-guide');
+  }
 
   @override
   Widget build(BuildContext context) {
