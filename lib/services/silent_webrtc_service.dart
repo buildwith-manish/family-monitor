@@ -1,3 +1,14 @@
+// =============================================================================
+// ANDROID PRIVACY INDICATOR NOTICE
+// On Android 12+ (API 31+) the system displays a green camera/microphone dot
+// in the status bar whenever any app accesses those sensors, even with no
+// visible UI. This behaviour is intentional and CANNOT be suppressed — doing
+// so would violate Google Play Developer Policy (section 4.8 / Deceptive
+// Behaviour). Do NOT attempt to hide or work around the privacy indicator.
+// Parents should be informed that the device will show this indicator during
+// active monitoring sessions; "completely invisible" monitoring is not
+// achievable on Android 12+ and must not be advertised as such.
+// =============================================================================
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';

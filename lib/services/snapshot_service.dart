@@ -23,6 +23,12 @@ class SnapshotService {
   Stream<bool> watchSnapshotRequest(String childUid) =>
       _db.child('commands/\$childUid/snapshot/requested').onValue.map((e) => e.snapshot.value == true);
 
+  // NOTE: CameraController requires an active Flutter engine context.
+  // When the app is fully backgrounded (process suspended), this call will
+  // fail silently. For reliable background snapshots, the capture logic
+  // should be moved to a native Android foreground service using Camera2
+  // API with an ImageReader (no preview surface required), then upload the
+  // JPEG bytes to Firebase Storage at 'snapshots/{childUid}/{timestamp}.jpg'.
   Future<void> captureAndUpload(String childUid) async {
     try {
       await _db.child('commands/\$childUid/snapshot/requested').set(false);
@@ -45,11 +51,12 @@ class SnapshotService {
     if (uid == null) return;
     final key = _uuid.v4();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    const path = 'snapshots/\$childUid/\$key.jpg';
+    const pathPrefix = 'snapshots';
+    final path = '\$pathPrefix/\$childUid/\$key.jpg';
     final ref = _storage.ref(path);
     await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
     final url = await ref.getDownloadURL();
-    await _db.child('snapshots/\$childUid/\$key').set({'url': url, 'path': path, 'timestamp': timestamp});
+    await _db.child('snapshots/$childUid/$key').set({'url': url, 'path': path, 'timestamp': timestamp});
   }
 
   Stream<List<SnapshotEntry>> watchSnapshots(String childUid) {

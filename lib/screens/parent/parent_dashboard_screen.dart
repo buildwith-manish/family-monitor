@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:firebase_database/firebase_database.dart';
 
 import '../../services/auth_service.dart';
 import 'add_child_screen.dart';
@@ -19,7 +18,6 @@ class ParentDashboardScreen extends StatefulWidget {
 
 class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   final _auth = AuthService();
-  final _db = FirebaseDatabase.instance.ref();
 
   final Map<String, dynamic> _children = {};
   final Map<String, Map<String, dynamic>> _deviceInfo = {};
@@ -59,28 +57,6 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
 
 
 
-  Widget _batteryBadge(String childUid) {
-    final info = _deviceInfo[childUid] ?? {};
-    if (info.isEmpty) return const SizedBox.shrink();
-    final level = (info['batteryLevel'] as num?)?.toInt() ?? 0;
-    final charging = info['isCharging'] as bool? ?? false;
-    final color = level <= 20
-        ? Colors.red
-        : level <= 50
-            ? Colors.orange
-            : Colors.green;
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(charging ? Icons.battery_charging_full : Icons.battery_std,
-          color: color, size: 14),
-      const SizedBox(width: 2),
-      Text('$level%',
-          style: TextStyle(
-              fontSize: 11, color: color, fontWeight: FontWeight.w600)),
-      const SizedBox(width: 6),
-      Text(info['deviceModel'] as String? ?? '',
-          style: const TextStyle(fontSize: 11, color: Colors.grey)),
-    ]);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,6 +70,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
           IconButton(
             icon: const Icon(Icons.person_add_outlined),
             tooltip: 'Add child device',
+            // ignore: use_build_context_synchronously
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const AddChildScreen()),
@@ -104,6 +81,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               if (v == 'signout') {
                 await _auth.signOut();
                 if (mounted) {
+                  // ignore: use_build_context_synchronously
                   Navigator.pushReplacementNamed(context, '/role-select');
                 }
               }
@@ -167,6 +145,7 @@ Widget _buildEmptyState() {
                   fontSize: 14, color: const Color(0xFF5F6368))),
           const SizedBox(height: 32),
           ElevatedButton.icon(
+            // ignore: use_build_context_synchronously
             onPressed: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const AddChildScreen())),
             icon: const Icon(Icons.add),
@@ -205,6 +184,7 @@ Widget _buildEmptyState() {
         }).values,
         const SizedBox(height: 16),
         OutlinedButton.icon(
+          // ignore: use_build_context_synchronously
           onPressed: () => Navigator.push(context,
               MaterialPageRoute(builder: (_) => const AddChildScreen())),
           icon: const Icon(Icons.add),
@@ -279,8 +259,10 @@ class _ChildCard extends StatelessWidget {
                           icon: const Icon(Icons.videocam),
                           label: const Text('Live Camera'),
                           onPressed: () {
+                            // ignore: use_build_context_synchronously
                             Navigator.pop(context);
 
+                            // ignore: use_build_context_synchronously
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -304,8 +286,10 @@ class _ChildCard extends StatelessWidget {
                           icon: const Icon(Icons.screen_share),
                           label: const Text('Live Screen'),
                           onPressed: () {
+                            // ignore: use_build_context_synchronously
                             Navigator.pop(context);
 
+                            // ignore: use_build_context_synchronously
                             Navigator.push(
                               context,
                               MaterialPageRoute(

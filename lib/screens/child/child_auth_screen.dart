@@ -172,13 +172,11 @@ class _ChildAuthScreenState
             );
       });
     } finally {
-      if (!mounted) {
-        return;
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
       }
-
-      setState(() {
-        _loading = false;
-      });
     }
   }
 

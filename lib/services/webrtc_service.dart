@@ -13,6 +13,11 @@ class WebRTCService {
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
 
+  String? _lastChildUid;
+  String? _lastParentUid;
+
+  bool _lastIsChild = false;
+
   final RTCVideoRenderer localRenderer = RTCVideoRenderer();
   final RTCVideoRenderer remoteRenderer = RTCVideoRenderer();
 
@@ -34,8 +39,6 @@ class WebRTCService {
 
   StreamMode? _lastMode;
   DateTime? _lastReconnectTime;
-  String? _lastChildUid;
-  bool _lastIsChild = false;
 
   static const Map<String, dynamic> _iceConfig = {
     'iceServers': [

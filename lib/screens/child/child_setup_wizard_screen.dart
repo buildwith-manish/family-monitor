@@ -589,20 +589,20 @@ class _PageProfile extends StatelessWidget {
         const SizedBox(height: 24),
         TextField(
           controller: nameCtrl,
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             labelText: 'Your Name *',
-            border: const OutlineInputBorder(),
-            prefixIcon: const Icon(Icons.person_outline),
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.person_outline),
           ),
         ),
         const SizedBox(height: 16),
         TextField(
           controller: deviceCtrl,
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             labelText: 'Device Name (optional)',
             hintText: 'e.g. My Phone',
-            border: const OutlineInputBorder(),
-            prefixIcon: const Icon(Icons.phone_android),
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.phone_android),
           ),
         ),
         if (error != null) ...[

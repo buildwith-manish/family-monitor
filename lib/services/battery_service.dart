@@ -133,7 +133,7 @@ class BatteryService {
   Future<ManufacturerGuide> getManufacturerGuide() async {
     final mfr = await getManufacturer();
     if (mfr.contains('xiaomi') || mfr.contains('redmi') || mfr.contains('poco')) {
-      return ManufacturerGuide(
+      return const ManufacturerGuide(
         name: 'Xiaomi / MIUI',
         steps: [
           'Open the "Security" app',
@@ -160,7 +160,7 @@ class BatteryService {
       );
     }
     if (mfr.contains('vivo')) {
-      return ManufacturerGuide(
+      return const ManufacturerGuide(
         name: 'Vivo / FuntouchOS',
         steps: [
           'Open "i Manager" → "App Manager" → "Autostart"',
@@ -172,7 +172,7 @@ class BatteryService {
       );
     }
     if (mfr.contains('oneplus')) {
-      return ManufacturerGuide(
+      return const ManufacturerGuide(
         name: 'OnePlus / OxygenOS',
         steps: [
           'Open "Settings" → "Battery" → "Battery optimization"',
@@ -183,7 +183,7 @@ class BatteryService {
       );
     }
     if (mfr.contains('samsung')) {
-      return ManufacturerGuide(
+      return const ManufacturerGuide(
         name: 'Samsung / One UI',
         steps: [
           'Open "Settings" → "Device care" → "Battery"',
@@ -196,7 +196,7 @@ class BatteryService {
       );
     }
     if (mfr.contains('huawei') || mfr.contains('honor')) {
-      return ManufacturerGuide(
+      return const ManufacturerGuide(
         name: 'Huawei / EMUI',
         steps: [
           'Open "Phone Manager" → "App launch"',
@@ -209,7 +209,7 @@ class BatteryService {
       );
     }
     // Generic Android
-    return ManufacturerGuide(
+    return const ManufacturerGuide(
       name: 'Android',
       steps: [
         'Open Settings → Battery → Battery Optimization',

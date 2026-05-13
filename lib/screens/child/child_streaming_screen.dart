@@ -34,7 +34,7 @@ class _ChildStreamingScreenState
       WebRTCService();
 
   bool _isConnecting = true;
-  final bool _isFrontCamera = true;
+  bool _isFrontCamera = true;
   bool _retrying = false;
 
   String _statusMsg = 'Starting...';
@@ -117,7 +117,17 @@ class _ChildStreamingScreenState
           mode: StreamMode.camera,
         );
         if (!mounted) return;
+        // Determine actual camera facing from the video track label/settings.
+        final tracks = _webrtc.localRenderer.srcObject?.getVideoTracks() ?? [];
+        bool detectedFront = true;
+        if (tracks.isNotEmpty) {
+          final label = tracks.first.label?.toLowerCase() ?? '';
+          // On Android the label contains 'front'/'back'; on iOS 'Front'/'Back'.
+          detectedFront = !label.contains('back') && !label.contains('rear') &&
+              !label.contains('environment');
+        }
         setState(() {
+          _isFrontCamera = detectedFront;
           _isConnecting = false;
           _statusMsg = 'Camera streaming active';
         });
@@ -155,8 +165,7 @@ class _ChildStreamingScreenState
 
     if (widget.mode ==
         StreamMode.screen) {
-      await ScreenCaptureChannel
-          .stopScreenCaptureService();
+      await ScreenCaptureChannel.releaseProjection();
     }
 
     if (!mounted) {
