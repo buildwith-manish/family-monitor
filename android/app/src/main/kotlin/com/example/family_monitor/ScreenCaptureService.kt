@@ -6,10 +6,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
-import android.graphics.PixelFormat
-import android.hardware.display.DisplayManager
-import android.hardware.display.VirtualDisplay
-import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Binder
@@ -17,9 +13,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.util.DisplayMetrics
 import android.util.Log
-import android.view.WindowManager
 import androidx.core.app.NotificationCompat
 
 class ScreenCaptureService : Service() {
@@ -38,6 +32,7 @@ class ScreenCaptureService : Service() {
         @Volatile var instance: ScreenCaptureService? = null
         @Volatile var savedResultCode: Int             = 0
         @Volatile var savedResultData: Intent?         = null
+        @Volatile var projectionToken: MediaProjection? = null
         @Volatile private var starting: Boolean        = false
     }
 
@@ -45,8 +40,6 @@ class ScreenCaptureService : Service() {
     private val binder            = LocalBinder()
     private val mainHandler       = Handler(Looper.getMainLooper())
     private var mediaProjection: MediaProjection? = null
-    private var virtualDisplay: VirtualDisplay?   = null
-    private var imageReader: ImageReader?          = null
     var resultCode: Int     = 0
     var resultData: Intent? = null
 
@@ -130,7 +123,7 @@ class ScreenCaptureService : Service() {
                     }
                 }, mainHandler)
             }
-            setupVirtualDisplay()
+            projectionToken = mediaProjection
         } catch (e: Exception) {
             Log.e(TAG, "startCaptureSafe failed: $e")
             requestPermissionViaUi()
@@ -151,36 +144,9 @@ class ScreenCaptureService : Service() {
         try { startForeground(NOTIFICATION_ID, buildNotification()) } catch (_: Exception) {}
     }
 
-    private fun setupVirtualDisplay() {
-        val mp = mediaProjection ?: return
-        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
-        val w: Int; val h: Int; val d: Int
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val b = wm.currentWindowMetrics.bounds
-            w = b.width(); h = b.height(); d = resources.configuration.densityDpi
-        } else {
-            val m = DisplayMetrics()
-            @Suppress("DEPRECATION") wm.defaultDisplay.getMetrics(m)
-            w = m.widthPixels; h = m.heightPixels; d = m.densityDpi
-        }
-        try {
-            imageReader    = ImageReader.newInstance(w, h, PixelFormat.RGBA_8888, 2)
-            virtualDisplay = mp.createVirtualDisplay(
-                "FamilyMonitorCapture", w, h, d,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                imageReader!!.surface, null, mainHandler)
-            Log.d(TAG, "VirtualDisplay created ${w}x${h}")
-        } catch (e: Exception) {
-            Log.e(TAG, "setupVirtualDisplay failed: $e")
-        }
-    }
-
     private fun teardownProjection() {
-        try { virtualDisplay?.release() } catch (_: Exception) {}
-        try { imageReader?.close() }      catch (_: Exception) {}
         try { mediaProjection?.stop() }   catch (_: Exception) {}
-        virtualDisplay  = null
-        imageReader     = null
+        projectionToken = null
         mediaProjection = null
     }
 

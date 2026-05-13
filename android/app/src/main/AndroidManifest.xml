@@ -115,7 +115,7 @@
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:exported="false"
-            android:foregroundServiceType="camera|microphone|location"/>
+            android:foregroundServiceType="camera|microphone|dataSync"/>
 
         <!-- ── Flutter Background Service ───────────────── -->
         <service
