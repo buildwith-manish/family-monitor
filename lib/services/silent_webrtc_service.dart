@@ -224,22 +224,32 @@ class SilentWebRTCService {
         });
       };
 
+      await db.child('calls/$childUid/offer').remove();
       await db.child('calls/$childUid/childCandidates').remove();
-      await db.child('calls/$childUid/answer').remove();
+
+      final offer = await _pc!.createOffer();
+      await _pc!.setLocalDescription(offer);
+      await db.child('calls/$childUid/offer').set({
+        'sdp': offer.sdp,
+        'type': offer.type,
+      });
+
+      debugPrint('[SilentWebRTC] Offer sent');
 
       _handlingOffer = false;
       _offerSub =
-          db.child('calls/$childUid/offer').onValue.listen((event) async {
+          db.child('calls/$childUid/answer').onValue.listen((event) async {
         if (!_active ||
             _pc == null ||
             _answerSet ||
-            _handlingOffer ||
             event.snapshot.value == null) {
           return;
         }
 
         try {
           final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+
+          if (data['sdp'] == null) return;
 
           await _pc!.setRemoteDescription(
             RTCSessionDescription(
@@ -248,23 +258,11 @@ class SilentWebRTCService {
             ),
           );
 
-          final answer = await _pc!.createAnswer({
-            'offerToReceiveVideo': false,
-            'offerToReceiveAudio': false,
-          });
-
-          await _pc!.setLocalDescription(answer);
-
-          await db.child('calls/$childUid/answer').set({
-            'sdp': answer.sdp,
-            'type': answer.type,
-          });
-
           _answerSet = true;
 
-          debugPrint('[SilentWebRTC] Answer sent');
+          debugPrint('[SilentWebRTC] Answer received and set');
         } catch (e) {
-          debugPrint('[SilentWebRTC] Answer error: $e');
+          debugPrint('[SilentWebRTC] Answer set error: $e');
         }
       });
 

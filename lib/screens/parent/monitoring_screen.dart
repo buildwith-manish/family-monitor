@@ -105,7 +105,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
   Future<void> _startMonitoring() async {
     try {
-      await _webrtc.startAsParent(childUid: widget.childUid);
+      await _webrtc.startAsParent(childUid: widget.childUid, mode: widget.mode);
       if (!mounted) return;
       _timeout?.cancel();
       setState(() { _hasStream = true; _status = 'Connected'; });

@@ -41,6 +41,12 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     _auth.getChildrenStream().listen((event) {
       if (!mounted) return;
       final newChildren = <String, dynamic>{};
+      final raw = event.snapshot.value;
+      if (raw is Map) {
+        for (final entry in raw.entries) {
+          newChildren[entry.key as String] = entry.value;
+        }
+      }
       setState(() {
         _children.clear();
         _children.addAll(newChildren);

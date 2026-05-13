@@ -207,6 +207,12 @@ class WebRTCService {
       await _db.child('calls/$childUid/offer').remove();
       await _db.child('calls/$childUid/answer').remove();
       await _db.child('calls/$childUid/parentCandidates').remove();
+      await _db.child('calls/$childUid/childCandidates').remove();
+
+      await _db.child('calls/$childUid/status').set('calling');
+      await _db.child('calls/$childUid/mode').set(
+        mode == StreamMode.screen ? 'screen' : 'camera',
+      );
 
       _peerConnection = await createPeerConnection(_iceConfig);
 
