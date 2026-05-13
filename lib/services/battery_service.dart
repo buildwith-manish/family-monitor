@@ -17,7 +17,7 @@ class BatteryService {
   static const _kLastFailureHint   = 'battery_last_failure_hint_ms';
   static const _kFailureCooldownMs = 3 * 60 * 60 * 1000; // 3 h
   static const _kFailureThreshold  = 3;
-  static const _channel  = MethodChannel('family_monitor/screen_capture');
+  static const _channel  = MethodChannel('com.familymonitor/screen_capture');
 
   final Battery _battery = Battery();
   final _db = FirebaseDatabase.instance.ref();
@@ -70,12 +70,16 @@ class BatteryService {
       return result ?? false;
     } on PlatformException {
       return false;
+    } catch (_) {
+      // MissingPluginException does not extend PlatformException
+      return false;
     }
   }
 
   Future<void> requestExemption() async {
     try { await _channel.invokeMethod('requestBatteryOptimizationExemption'); }
     on PlatformException { /* user may have denied */ }
+    catch (_) { /* MissingPluginException safety net */ }
   }
 
   // ── Onboarding completion flag ─────────────────────────────
