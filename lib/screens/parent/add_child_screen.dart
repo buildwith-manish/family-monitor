@@ -7,19 +7,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'parent_qr_scanner_screen.dart';
 
 class AddChildScreen extends StatefulWidget {
-  const AddChildScreen({super.key
-            );
-          },
-        );
-      });
+  const AddChildScreen({super.key});
 
   @override
   State<AddChildScreen> createState() => _AddChildScreenState();
-
-            );
-          },
-        );
-      }
+}
 
 class _AddChildScreenState extends State<AddChildScreen> {
   final _uidCtrl = TextEditingController();
@@ -33,49 +25,25 @@ class _AddChildScreenState extends State<AddChildScreen> {
   void dispose() {
     _uidCtrl.dispose();
     super.dispose();
-  
-            );
-          },
-        );
-      }
+  }
 
   Future<void> _sendRequest() async {
     final uid = _uidCtrl.text.trim();
     if (uid.isEmpty) {
-      setState(() { _error = 'Please enter the child device ID'; 
-            );
-          },
-        );
-      });
+      setState(() { _error = 'Please enter the child device ID'; });
       return;
-    
-            );
-          },
-        );
-      }
+    }
 
     if (uid == _auth.currentUser!.uid) {
-      setState(() { _error = 'You cannot add your own account'; 
-            );
-          },
-        );
-      });
+      setState(() { _error = 'You cannot add your own account'; });
       return;
-    
-            );
-          },
-        );
-      }
+    }
 
     setState(() {
       _loading = true;
       _error = null;
       _successMessage = null;
-    
-            );
-          },
-        );
-      });
+    });
 
     final result = await _auth.sendParentRequest(uid);
 
@@ -86,47 +54,15 @@ class _AddChildScreenState extends State<AddChildScreen> {
       setState(() {
         _successMessage = 'Request sent! Ask your child to open Family Monitor and approve your request.';
         _uidCtrl.clear();
-      
-            );
-          },
-        );
       });
-    
-            );
-          },
-        );
-      } else {
+    } else {
       setState(() { _error = result['error'] ??
-          'Could not send request. Check the device ID and try again.'; 
-            );
-          },
-        );
-      });
-    
-            );
-          },
-        );
-      }
-  
-            );
-          },
-        );
-      }
+          'Could not send request. Check the device ID and try again.'; });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     final myUid = _auth.currentUser!.uid;
 
     return Scaffold(
@@ -251,16 +187,8 @@ class _AddChildScreenState extends State<AddChildScreen> {
                       final data = await Clipboard.getData('text/plain');
                       if (data?.text != null) {
                         _uidCtrl.text = data!.text!;
-                      
-            );
-          },
-        );
-      }
-                    
-            );
-          },
-        );
-      },
+                      }
+                    },
                   ),
                 ),
                 style: GoogleFonts.robotoMono(fontSize: 13),
@@ -285,21 +213,9 @@ class _AddChildScreenState extends State<AddChildScreen> {
                         _uidCtrl.text = scanned;
                         _error = null;
                         _successMessage = null;
-                      
-            );
-          },
-        );
-      });
-                    
-            );
-          },
-        );
-      }
-                  
-            );
-          },
-        );
-      },
+                      });
+                    }
+                  },
                   icon: const Icon(Icons.qr_code_scanner, size: 18),
                   label: const Text('Scan QR Code Instead'),
                 ),
@@ -383,11 +299,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('ID copied to clipboard')),
                         );
-                      
-            );
-          },
-        );
-      },
+                      },
                     ),
                   ],
                 ),
@@ -397,40 +309,16 @@ class _AddChildScreenState extends State<AddChildScreen> {
         ),
       ),
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}
 
 class _Step extends StatelessWidget {
   final String number;
   final String text;
-  const _Step({required this.number, required this.text
-            );
-          },
-        );
-      });
+  const _Step({required this.number, required this.text});
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -467,13 +355,5 @@ class _Step extends StatelessWidget {
         ],
       ),
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}

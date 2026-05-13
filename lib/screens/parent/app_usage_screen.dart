@@ -7,19 +7,11 @@ class AppUsageScreen extends StatefulWidget {
   final String childUid;
   final String childName;
   const AppUsageScreen(
-      {super.key, required this.childUid, required this.childName
-            );
-          },
-        );
-      });
+      {super.key, required this.childUid, required this.childName});
 
   @override
   State<AppUsageScreen> createState() => _AppUsageScreenState();
-
-            );
-          },
-        );
-      }
+}
 
 class _AppUsageScreenState extends State<AppUsageScreen> {
   final _db = FirebaseDatabase.instance.ref();
@@ -32,33 +24,17 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
     super.initState();
     _loadApps();
     _requestSync();
-  
-            );
-          },
-        );
-      }
+  }
 
   Future<void> _requestSync() async {
     await _db
-        .child('commands/${widget.childUid
-            );
-          },
-        );
-      }/syncAppList/requested')
+        .child('commands/${widget.childUid}/syncAppList/requested')
         .set(true);
-  
-            );
-          },
-        );
-      }
+  }
 
   Future<void> _loadApps() async {
     setState(() => _loading = true);
-    final snap = await _db.child('appList/${widget.childUid
-            );
-          },
-        );
-      }').get();
+    final snap = await _db.child('appList/${widget.childUid}').get();
     if (!mounted) return;
     if (snap.value != null) {
       final raw = Map<String, dynamic>.from(snap.value as Map);
@@ -70,91 +46,39 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
           final aTime = (a['totalTimeMs'] as num?)?.toInt() ?? 0;
           final bTime = (b['totalTimeMs'] as num?)?.toInt() ?? 0;
           return bTime.compareTo(aTime);
-        
-            );
-          },
-        );
-      } else {
+        } else {
           return (a['packageName'] as String? ?? '')
               .compareTo(b['packageName'] as String? ?? '');
-        
-            );
-          },
-        );
-      }
-      
-            );
-          },
-        );
+        }
       });
       setState(() {
         _apps
           ..clear()
           ..addAll(list);
         _loading = false;
-      
-            );
-          },
-        );
       });
-    
-            );
-          },
-        );
-      } else {
+    } else {
       setState(() {
         _apps.clear();
         _loading = false;
-      
-            );
-          },
-        );
       });
-    
-            );
-          },
-        );
-      }
-  
-            );
-          },
-        );
-      }
+    }
+  }
 
   String _formatDuration(int ms) {
     final minutes = ms ~/ 60000;
-    if (minutes < 60) return '${minutes
-            );
-          },
-        );
-      }m';
+    if (minutes < 60) return '${minutes}m';
     final hours = minutes ~/ 60;
     final mins = minutes % 60;
-    return '${hours
-            );
-          },
-        );
-      }h ${mins
-            );
-          },
-        );
-      }m';
-  
-            );
-          },
-        );
-      }
+    return '${hours}h ${mins}m';
+  }
 
   String _appName(String pkg) {
     final parts = pkg.split('.');
     return parts.length >= 2
         ? parts.last[0].toUpperCase() + parts.last.substring(1)
         : pkg;
-  
-            );
-          },
-        );
-      }
+  }
 
   Color _colorForPkg(String pkg) {
     final colors = [
@@ -166,26 +90,10 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
       const Color(0xFF00897B),
     ];
     return colors[pkg.hashCode.abs() % colors.length];
-  
-            );
-          },
-        );
-      }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFB),
       appBar: AppBar(
@@ -204,20 +112,12 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
               onPressed: () {
                 _requestSync();
                 _loadApps();
-              
-            );
-          },
-        );
-      }),
+              }),
           PopupMenuButton<String>(
             onSelected: (v) {
               setState(() => _sortBy = v);
               _loadApps();
-            
-            );
-          },
-        );
-      },
+            },
             itemBuilder: (_) => [
               const PopupMenuItem(
                   value: 'usage', child: Text('Sort by Usage')),
@@ -318,20 +218,8 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
                             ]),
                       ]),
                     );
-                  
-            );
-          },
-        );
-      },
+                  },
                 ),
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}

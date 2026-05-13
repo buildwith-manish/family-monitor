@@ -12,19 +12,11 @@ class SnapshotsScreen extends StatefulWidget {
     super.key,
     required this.childUid,
     required this.childName,
-  
-            );
-          },
-        );
-      });
+  });
 
   @override
   State<SnapshotsScreen> createState() => _SnapshotsScreenState();
-
-            );
-          },
-        );
-      }
+}
 
 class _SnapshotsScreenState extends State<SnapshotsScreen> {
   final _svc = SnapshotService();
@@ -36,20 +28,8 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
     super.initState();
     _svc.watchSnapshots(widget.childUid).listen((snaps) {
       if (!mounted) return;
-    setState(() { _snapshots = snaps; 
-            );
-          },
-        );
-      });    
-            );
-          },
-        );
-      });
-  
-            );
-          },
-        );
-      }
+    setState(() { _snapshots = snaps; });    });
+  }
 
   Future<void> _requestSnapshot() async {
     setState(() => _requesting = true);
@@ -63,16 +43,8 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
           duration: Duration(seconds: 3),
         ),
       );
-    
-            );
-          },
-        );
-      }
-  
-            );
-          },
-        );
-      }
+    }
+  }
 
   Future<void> _deleteSnapshot(SnapshotEntry entry) async {
     final confirmed = await showDialog<bool>(
@@ -93,31 +65,11 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
     );
     if (confirmed == true) {
       await _svc.deleteSnapshot(widget.childUid, entry);
-    
-            );
-          },
-        );
-      }
-  
-            );
-          },
-        );
-      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFB),
       appBar: AppBar(
@@ -153,11 +105,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
       ),
       body: _snapshots.isEmpty ? _buildEmpty() : _buildGrid(),
     );
-  
-            );
-          },
-        );
-      }
+  }
 
   Widget _buildEmpty() {
     return Center(
@@ -192,11 +140,7 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
         ),
       ),
     );
-  
-            );
-          },
-        );
-      }
+  }
 
   Widget _buildGrid() {
     return GridView.builder(
@@ -216,17 +160,9 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
           onDelete: () => _deleteSnapshot(snap),
           onTap: () => _openFullscreen(snap),
         );
-      
-            );
-          },
-        );
       },
     );
-  
-            );
-          },
-        );
-      }
+  }
 
   void _openFullscreen(SnapshotEntry entry) {
     Navigator.push(
@@ -235,16 +171,8 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
         builder: (_) => _FullscreenPhoto(entry: entry),
       ),
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}
 
 class _SnapshotTile extends StatelessWidget {
   final SnapshotEntry entry;
@@ -257,26 +185,10 @@ class _SnapshotTile extends StatelessWidget {
     required this.delay,
     required this.onDelete,
     required this.onTap,
-  
-            );
-          },
-        );
-      });
+  });
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -300,11 +212,7 @@ class _SnapshotTile extends StatelessWidget {
                     child: const Center(
                         child: CircularProgressIndicator(strokeWidth: 2)),
                   );
-                
-            );
-          },
-        );
-      },
+                },
                 errorBuilder: (_, __, ___) => Container(
                   color: const Color(0xFFF1F3F4),
                   child: const Icon(Icons.broken_image,
@@ -347,39 +255,15 @@ class _SnapshotTile extends StatelessWidget {
         ),
       ).animate(delay: Duration(milliseconds: delay)).fadeIn().scale(begin: const Offset(0.9, 0.9))
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}
 
 class _FullscreenPhoto extends StatelessWidget {
   final SnapshotEntry entry;
-  const _FullscreenPhoto({required this.entry
-            );
-          },
-        );
-      });
+  const _FullscreenPhoto({required this.entry});
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -394,13 +278,5 @@ class _FullscreenPhoto extends StatelessWidget {
         ),
       ),
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}

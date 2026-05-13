@@ -18,19 +18,11 @@ import '../../services/snapshot_service.dart';
 import '../../services/webrtc_service.dart';
 
 class ChildHomeScreen extends StatefulWidget {
-  const ChildHomeScreen({super.key
-            );
-          },
-        );
-      });
+  const ChildHomeScreen({super.key});
 
   @override
   State<ChildHomeScreen> createState() => _ChildHomeScreenState();
-
-            );
-          },
-        );
-      }
+}
 
 class _ChildHomeScreenState extends State<ChildHomeScreen>
     with WidgetsBindingObserver {
@@ -54,100 +46,28 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   bool _locked = false;
   String? _childName;
 
-  // pending requests: parentUid -> {parentName, parentEmail, requestedAt
-            );
-          },
-        );
-      }
-  final Map<String, Map<String, dynamic>> _pendingRequests = {
-            );
-          },
-        );
-      };
+  // pending requests: parentUid -> {parentName, parentEmail, requestedAt}
+  final Map<String, Map<String, dynamic>> _pendingRequests = {};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _safeInit();
-  
-            );
-          },
-        );
-      }
+  }
 
   Future<void> _safeInit() async {
-    try { await _loadData(); 
-            );
-          },
-        );
-      } catch (_) {
-            );
-          },
-        );
-      }
-    try { await _setOnline(true); 
-            );
-          },
-        );
-      } catch (_) {
-            );
-          },
-        );
-      }
-    try { await _startExtraServices(); 
-            );
-          },
-        );
-      } catch (_) {
-            );
-          },
-        );
-      }
-    try { await _askPermissions(); 
-            );
-          },
-        );
-      } catch (_) {
-            );
-          },
-        );
-      }
-    try { await BackgroundMonitoringService.startService(); 
-            );
-          },
-        );
-      } catch (_) {
-            );
-          },
-        );
-      }
+    try { await _loadData(); } catch (_) {}
+    try { await _setOnline(true); } catch (_) {}
+    try { await _startExtraServices(); } catch (_) {}
+    try { await _askPermissions(); } catch (_) {}
+    try { await BackgroundMonitoringService.startService(); } catch (_) {}
 
     await Future.delayed(const Duration(seconds: 2));
 
-    try { _listenForCommandsSafe(); 
-            );
-          },
-        );
-      } catch (_) {
-            );
-          },
-        );
-      }
-    try { _listenForPendingRequests(); 
-            );
-          },
-        );
-      } catch (_) {
-            );
-          },
-        );
-      }
-  
-            );
-          },
-        );
-      }
+    try { _listenForCommandsSafe(); } catch (_) {}
+    try { _listenForPendingRequests(); } catch (_) {}
+  }
 
   Future<void> _askPermissions() async {
     try {
@@ -156,28 +76,12 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         Permission.microphone,
         Permission.notification,
       ].request();
-    
-            );
-          },
-        );
-      } catch (_) {
-            );
-          },
-        );
-      }
-  
-            );
-          },
-        );
-      }
+    } catch (_) {}
+  }
 
   Future<void> _setOnline(bool online) async {
     await _auth.setChildOnlineStatus(online);
-  
-            );
-          },
-        );
-      }
+  }
 
   Future<void> _loadData() async {
     final String? uid = _auth.currentUser?.uid;
@@ -191,21 +95,9 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
           Map<String, dynamic>.from(snap.value as Map);
       setState(() {
         _childName = data['childName'] as String?;
-      
-            );
-          },
-        );
       });
-    
-            );
-          },
-        );
-      }
-  
-            );
-          },
-        );
-      }
+    }
+  }
 
   Future<void> _startExtraServices() async {
     final String? uid = _auth.currentUser?.uid;
@@ -215,31 +107,16 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
     final bool exempt = await _batterySvc.isExempt();
     if (!exempt && mounted) {
-      setState(() { _showBatteryHint = true; 
-            );
-          },
-        );
-      });
-    
-            );
-          },
-        );
-      }
-  
-            );
-          },
-        );
-      }
+      setState(() { _showBatteryHint = true; });
+    }
+  }
 
   void _listenForPendingRequests() {
+    _pendingSub?.cancel();
     _pendingSub = _auth.getPendingRequestsStream().listen((event) {
       if (!mounted) return;
       final raw = event.snapshot.value;
-      final updated = <String, Map<String, dynamic>>{
-            );
-          },
-        );
-      };
+      final updated = <String, Map<String, dynamic>>{};
 
       if (raw is Map) {
         for (final entry in raw.entries) {
@@ -248,45 +125,22 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
           final status = data['status'] as String?;
           if (status == 'pending') {
             updated[parentUid] = data;
-          
-            );
-          },
-        );
-      }
-        
-            );
-          },
-        );
-      }
-      
-            );
-          },
-        );
+          }
+        }
       }
 
       setState(() {
         _pendingRequests
           ..clear()
           ..addAll(updated);
-      
-            );
-          },
-        );
       });
-    
-            );
-          },
-        );
-      });
-  
-            );
-          },
-        );
-      }
+    });
+  }
 
   Future<void> _approveRequest(String parentUid) async {
-    await _auth.approveParentRequest(parentUid);
-    if (mounted) {
+    final result = await _auth.approveParentRequest(parentUid);
+    if (!mounted) return;
+    if (result['success'] == true) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Parent connected successfully!'),
@@ -294,66 +148,43 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
           behavior: SnackBarBehavior.floating,
         ),
       );
-    
-            );
-          },
-        );
-      }
-  
-            );
-          },
-        );
-      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['error']?.toString() ?? 'Failed to connect parent.'),
+          backgroundColor: const Color(0xFFEA4335),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   Future<void> _declineRequest(String parentUid) async {
     await _auth.declineParentRequest(parentUid);
-  
-            );
-          },
-        );
-      }
+  }
 
   void _listenForCommandsSafe() {
     final String? uid = _auth.currentUser?.uid;
     if (uid == null) return;
 
+    _lockSub?.cancel();
     _lockSub = _lockSvc.watchLockState(uid).listen((state) {
       if (!mounted) return;
       final bool shouldLock = state.locked ||
           (state.schedule != null &&
               RemoteLockService().shouldBeLocked(state.schedule!));
-      setState(() { _locked = shouldLock; 
-            );
-          },
-        );
-      });
-    
-            );
-          },
-        );
-      });
+      setState(() { _locked = shouldLock; });
+    });
 
+    _snapshotSub?.cancel();
     _snapshotSub =
         _snapshotSvc.watchSnapshotRequest(uid).listen((bool requested) {
       if (requested) {
         unawaited(_snapshotSvc.captureAndUpload(uid));
-    // Ensure camera and screen permissions are granted after approval
-    await FirebaseFirestore.instance.collection("users").doc(childId).set({"cameraPermission": true, "screenPermission": true
-            );
-          },
-        );
-      }, SetOptions(merge: true));
-      
-            );
-          },
-        );
       }
-    
-            );
-          },
-        );
-      });
+    });
 
+    _callLogSub?.cancel();
     _callLogSub =
         _callLogSvc.watchSyncRequest(uid).listen((bool requested) {
       if (requested) {
@@ -363,17 +194,10 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
               .ref('commands/$uid/syncCallLog/requested')
               .set(false),
         );
-      
-            );
-          },
-        );
       }
-    
-            );
-          },
-        );
-      });
+    });
 
+    _contactsSub?.cancel();
     _contactsSub =
         _contactsSvc.watchSyncRequest(uid).listen((bool requested) {
       if (requested) {
@@ -383,17 +207,10 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
               .ref('commands/$uid/syncContacts/requested')
               .set(false),
         );
-      
-            );
-          },
-        );
       }
-    
-            );
-          },
-        );
-      });
+    });
 
+    _callSub?.cancel();
     _callSub = FirebaseDatabase.instance
         .ref('calls/$uid')
         .onValue
@@ -408,58 +225,18 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
           final StreamMode mode =
               modeStr == 'screen' ? StreamMode.screen : StreamMode.camera;
           _autoStartStreaming(uid, mode);
-        
-            );
-          },
-        );
-      }
-      
-            );
-          },
-        );
-      } catch (_) {
-            );
-          },
-        );
-      }
-    
-            );
-          },
-        );
-      });
-  
-            );
-          },
-        );
-      }
+        }
+      } catch (_) {}
+    });
+  }
 
   void _autoStartStreaming(String uid, StreamMode mode) {
     if (mode == StreamMode.screen) {
-      SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {
-            );
-          },
-        );
-      });
-    
-            );
-          },
-        );
-      } else {
-      SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {
-            );
-          },
-        );
-      });
-    
-            );
-          },
-        );
-      }
-  
-            );
-          },
-        );
-      }
+      SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {});
+    } else {
+      SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {});
+    }
+  }
 
   @override
   void dispose() {
@@ -474,26 +251,10 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     SilentWebRTCService.instance.stopSilent();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
-  
-            );
-          },
-        );
-      }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     final String uid = _auth.currentUser?.uid ?? '';
     final String childName = _childName ?? 'Child';
 
@@ -532,11 +293,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
                         ),
                         child: Center(
                           child: Text(
-                            '${_pendingRequests.length
-            );
-          },
-        );
-      }',
+                            '${_pendingRequests.length}',
                             style: const TextStyle(
                                 color: Colors.white, fontSize: 9),
                           ),
@@ -555,7 +312,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
                 const SizedBox(height: 12),
 
-                // ── Pending parent requests ──
                 if (_pendingRequests.isNotEmpty) ...[
                   _PendingRequestsBanner(
                     requests: _pendingRequests,
@@ -596,24 +352,12 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         if (_locked) const _LockOverlay(),
       ],
     );
-  
-            );
-          },
-        );
-      }
+  }
 
   void _scrollToPending() {
     // Already visible in the list — just a no-op hint
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}
 
 // ─────────────────────────────────────────────────
 // Pending Requests Banner
@@ -628,26 +372,10 @@ class _PendingRequestsBanner extends StatelessWidget {
     required this.requests,
     required this.onApprove,
     required this.onDecline,
-  
-            );
-          },
-        );
-      });
+  });
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -671,11 +399,7 @@ class _PendingRequestsBanner extends StatelessWidget {
                     color: Color(0xFFEA4335), size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'Parent Connection Request${requests.length > 1 ? 's' : ''
-            );
-          },
-        );
-      }',
+                  'Parent Connection Request${requests.length > 1 ? 's' : ''}',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -699,24 +423,12 @@ class _PendingRequestsBanner extends StatelessWidget {
               onApprove: () => onApprove(parentUid),
               onDecline: () => onDecline(parentUid),
             );
-          
-            );
-          },
-        );
-      }),
+          }),
         ],
       ),
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}
 
 class _RequestTile extends StatefulWidget {
   final String parentName;
@@ -729,37 +441,17 @@ class _RequestTile extends StatefulWidget {
     required this.parentEmail,
     required this.onApprove,
     required this.onDecline,
-  
-            );
-          },
-        );
-      });
+  });
 
   @override
   State<_RequestTile> createState() => _RequestTileState();
-
-            );
-          },
-        );
-      }
+}
 
 class _RequestTileState extends State<_RequestTile> {
   bool _loading = false;
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -817,11 +509,7 @@ class _RequestTileState extends State<_RequestTile> {
                 setState(() => _loading = true);
                 await widget.onDecline();
                 if (mounted) setState(() => _loading = false);
-              
-            );
-          },
-        );
-      },
+              },
               child: const Text('Decline'),
             ),
             const SizedBox(width: 4),
@@ -839,54 +527,26 @@ class _RequestTileState extends State<_RequestTile> {
                 setState(() => _loading = true);
                 await widget.onApprove();
                 if (mounted) setState(() => _loading = false);
-              
-            );
-          },
-        );
-      },
+              },
               child: const Text('Allow', style: TextStyle(fontSize: 13)),
             ),
           ],
         ],
       ),
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}
 
 // ─────────────────────────────────────────────────
-// Existing widgets (unchanged)
+// Supporting widgets
 // ─────────────────────────────────────────────────
 
 class _DeviceIdCard extends StatelessWidget {
   final String uid;
-  const _DeviceIdCard({required this.uid
-            );
-          },
-        );
-      });
+  const _DeviceIdCard({required this.uid});
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -901,34 +561,14 @@ class _DeviceIdCard extends StatelessWidget {
         ),
       ),
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}
 
 class _MonitoringInfoCard extends StatelessWidget {
   const _MonitoringInfoCard();
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     return const Card(
       child: Padding(
         padding: EdgeInsets.all(20),
@@ -941,34 +581,14 @@ class _MonitoringInfoCard extends StatelessWidget {
         ),
       ),
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}
 
 class _LockOverlay extends StatelessWidget {
   const _LockOverlay();
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     return Container(
       color: Colors.black87,
       child: Center(
@@ -994,40 +614,16 @@ class _LockOverlay extends StatelessWidget {
         ),
       ),
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}
 
 class _ShowQrButton extends StatelessWidget {
   final String uid;
   final String childName;
-  const _ShowQrButton({required this.uid, required this.childName
-            );
-          },
-        );
-      });
+  const _ShowQrButton({required this.uid, required this.childName});
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     return SizedBox(
       width: double.infinity,
       height: 52,
@@ -1039,11 +635,7 @@ class _ShowQrButton extends StatelessWidget {
               builder: (_) => ChildQrScreen(uid: uid, childName: childName),
             ),
           );
-        
-            );
-          },
-        );
-      },
+        },
         icon: const Icon(Icons.qr_code_2, color: Color(0xFF34A853)),
         label: Text(
           'Show QR Code',
@@ -1057,13 +649,5 @@ class _ShowQrButton extends StatelessWidget {
         ),
       ),
     );
-  
-            );
-          },
-        );
-      }
-
-            );
-          },
-        );
-      }
+  }
+}

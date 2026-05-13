@@ -17,18 +17,11 @@ class MonitoringScreen extends StatefulWidget {
     required this.childUid,
     required this.childData,
     this.mode = StreamMode.camera,
-  
-            );
-          },
-        );
-      });
+  });
+
   @override
   State<MonitoringScreen> createState() => _MonitoringScreenState();
-
-            );
-          },
-        );
-      }
+}
 
 class _MonitoringScreenState extends State<MonitoringScreen> {
   final _webrtc = WebRTCService();
@@ -56,212 +49,96 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     _listenToPresence();
     _timeout = Timer(const Duration(seconds: 20), () {
       if (mounted && !_hasStream) {
-        setState(() { _status = 'Child not responding.\nMake sure child app is running.'; 
-            );
-          },
-        );
-      });
-      
-            );
-          },
-        );
+        setState(() {
+          _status = 'Child not responding.\nMake sure child app is running.';
+        });
       }
-    
-            );
-          },
-        );
-      });
-  
-            );
-          },
-        );
-      }
+    });
+  }
 
   void _listenToPresence() {
     final db = FirebaseDatabase.instance.ref();
 
-    _screenErrorSub =
-        db.child('calls/\${widget.childUid
-            );
-          },
-        );
-      }/screenError')
-            .onValue
-            .listen((e) {
+    _screenErrorSub = db
+        .child('calls/${widget.childUid}/screenError')
+        .onValue
+        .listen((e) {
       if (!mounted) return;
-
       final msg = e.snapshot.value as String?;
-
       if (msg != null) {
         setState(() {
           _screenError = msg;
-        
-            );
-          },
-        );
-      });
-      
-            );
-          },
-        );
+        });
       }
-    
-            );
-          },
-        );
-      });
+    });
 
     _statusSub = db
-        .child('calls/${widget.childUid
-            );
-          },
-        );
-      }/status')
+        .child('calls/${widget.childUid}/status')
         .onValue
         .listen((e) {
       if (!mounted) return;
-
       final status = e.snapshot.value as String?;
-
       setState(() {
         _isChildOnline = status == 'online';
-      
-            );
-          },
-        );
       });
-    
-            );
-          },
-        );
-      });
+    });
 
     _heartbeatSub = db
-        .child('calls/${widget.childUid
-            );
-          },
-        );
-      }/heartbeat')
+        .child('calls/${widget.childUid}/heartbeat')
         .onValue
         .listen((e) {
       if (!mounted) return;
-
       final ts = e.snapshot.value;
-
       if (ts is int) {
-        final stale =
-            DateTime.now().millisecondsSinceEpoch - ts > 30000;
-
+        final stale = DateTime.now().millisecondsSinceEpoch - ts > 30000;
         setState(() {
           _isChildOnline = !stale;
-        
-            );
-          },
-        );
-      });
-      
-            );
-          },
-        );
+        });
       }
-    
-            );
-          },
-        );
-      });
-  
-            );
-          },
-        );
-      }
+    });
+  }
 
   Future<void> _startMonitoring() async {
     try {
-      await _webrtc.startAsParent(childUid: widget.childUid, mode: widget.mode);
+      await _webrtc.startAsParent(
+          childUid: widget.childUid, mode: widget.mode);
       if (!mounted) return;
       _timeout?.cancel();
-      setState(() { _hasStream = true; _status = 'Connected'; 
-            );
-          },
-        );
+      setState(() {
+        _hasStream = true;
+        _status = 'Connected';
       });
       _startControlsTimer();
-    
-            );
-          },
-        );
-      } catch (e) {
+    } catch (e) {
       if (!mounted) return;
-    setState(() { _status = 'Error: $e'; 
-            );
-          },
-        );
-      });
-    
-            );
-          },
-        );
-      }
-  
-            );
-          },
-        );
-      }
+      setState(() { _status = 'Error: $e'; });
+    }
+  }
 
   void _startControlsTimer() {
     _controlsTimer?.cancel();
     _controlsTimer = Timer(const Duration(seconds: 4), () {
       if (!mounted) return;
-    setState(() => _showControls = false);
-    
-            );
-          },
-        );
-      });
-  
-            );
-          },
-        );
-      }
+      setState(() => _showControls = false);
+    });
+  }
 
   void _toggleControls() {
-    setState(() { _showControls = !_showControls; 
-            );
-          },
-        );
-      });
+    setState(() { _showControls = !_showControls; });
     if (_showControls) {
       _startControlsTimer();
-    
-            );
-          },
-        );
-      }
-            );
-          },
-        );
-      }
+    }
+  }
 
   Future<void> _flipCamera() async {
     await _webrtc.sendFlipCommand(widget.childUid);
-  
-            );
-          },
-        );
-      }
+  }
+
   Future<void> _toggleMic() async {
     await _webrtc.sendMuteCommand(widget.childUid, !_isMuted);
     if (!mounted) return;
-    setState(() { _isMuted = !_isMuted; 
-            );
-          },
-        );
-      });
-  
-            );
-          },
-        );
-      }
+    setState(() { _isMuted = !_isMuted; });
+  }
 
   Future<void> _endSession() async {
     _timeout?.cancel();
@@ -269,15 +146,8 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     await _webrtc.endCall(widget.childUid);
     if (mounted) {
       Navigator.pop(context);
-    
-            );
-          },
-        );
-      }
-            );
-          },
-        );
-      }
+    }
+  }
 
   @override
   void dispose() {
@@ -289,26 +159,10 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     _webrtc.dispose();
     super.dispose();
-  
-            );
-          },
-        );
-      }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(childId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {
-            );
-          },
-        );
-      };
-        bool cameraPermission = data['cameraPermission'] == true;
-        bool screenPermission = data['screenPermission'] == true;
-        return 
     final childName = widget.childData['childName'] as String? ?? 'Child';
     final isScreen = widget.mode == StreamMode.screen;
 
@@ -354,18 +208,22 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           if (!_hasStream)
             Center(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                const CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 3),
                 const SizedBox(height: 24),
-                Text(_status,
-                  style: GoogleFonts.inter(color: Colors.white, fontSize: 14, height: 1.5),
+                Text(
+                  _status,
+                  style: GoogleFonts.inter(
+                      color: Colors.white, fontSize: 14, height: 1.5),
                   textAlign: TextAlign.center,
                 ).animate().fadeIn(),
                 const SizedBox(height: 8),
                 Text(
                   isScreen
-                    ? "Child needs to accept screen share permission"
-                    : "Connecting to child device silently...",
-                  style: GoogleFonts.inter(color: Colors.white54, fontSize: 12),
+                      ? 'Child needs to accept screen share permission'
+                      : 'Connecting to child device silently...',
+                  style:
+                      GoogleFonts.inter(color: Colors.white54, fontSize: 12),
                   textAlign: TextAlign.center,
                 ),
               ]),
@@ -379,65 +237,66 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
               child: Column(children: [
                 // Top bar
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
                       colors: [Colors.black87, Colors.transparent],
                     ),
                   ),
                   child: Row(children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      icon:
+                          const Icon(Icons.arrow_back, color: Colors.white),
                       onPressed: _endSession,
                     ),
                     const SizedBox(width: 4),
-                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(
-                        childName,
-                        style: GoogleFonts.plusJakartaSans(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-
-                      Row(
+                    Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            margin: const EdgeInsets.only(right: 4),
-                            decoration: BoxDecoration(
-                              color: _isChildOnline
-                                  ? Colors.greenAccent
-                                  : Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-
                           Text(
-                            _isChildOnline ? 'Online' : 'Offline',
-                            style: GoogleFonts.inter(
-                              color: _isChildOnline
-                                  ? Colors.greenAccent
-                                  : Colors.red,
-                              fontSize: 11,
+                            childName,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
-
-                          const SizedBox(width: 6),
-
-                          Text(
-                            isScreen ? '📱 Screen' : '📷 Camera',
-                            style: GoogleFonts.inter(
-                              color: Colors.white60,
-                              fontSize: 11,
-                            ),
+                          Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                margin: const EdgeInsets.only(right: 4),
+                                decoration: BoxDecoration(
+                                  color: _isChildOnline
+                                      ? Colors.greenAccent
+                                      : Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              Text(
+                                _isChildOnline ? 'Online' : 'Offline',
+                                style: GoogleFonts.inter(
+                                  color: _isChildOnline
+                                      ? Colors.greenAccent
+                                      : Colors.red,
+                                  fontSize: 11,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                isScreen ? '📱 Screen' : '📷 Camera',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white60,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ]),
+                        ]),
                     const Spacer(),
                     if (_hasStream) _liveBadge(),
                     const SizedBox(width: 8),
@@ -452,14 +311,14 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                     padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
-                        begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
                         colors: [Colors.black87, Colors.transparent],
                       ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        // Mic mute (only for camera mode)
                         if (!isScreen)
                           _controlBtn(
                             icon: _isMuted ? Icons.mic_off : Icons.mic,
@@ -467,8 +326,6 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                             onTap: _toggleMic,
                             color: _isMuted ? Colors.red : Colors.white24,
                           ),
-
-                        // Flip camera (only for camera mode)
                         if (!isScreen)
                           _controlBtn(
                             icon: Icons.flip_camera_android,
@@ -476,8 +333,6 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                             onTap: _flipCamera,
                             color: Colors.white24,
                           ),
-
-                        // End call
                         _controlBtn(
                           icon: Icons.call_end,
                           label: 'End',
@@ -494,23 +349,29 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         ]),
       ),
     );
-  
-            );
-          },
-        );
-      }
+  }
 
   Widget _liveBadge() => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(20)),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Container(width: 8, height: 8,
-        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-      ).animate(onPlay: (c) => c.repeat()).fadeOut(duration: 800.ms),
-      const SizedBox(width: 6),
-      Text('LIVE', style: GoogleFonts.inter(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
-    ]),
-  );
+        padding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+            color: Colors.red,
+            borderRadius: BorderRadius.circular(20)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+                color: Colors.white, shape: BoxShape.circle),
+          ).animate(onPlay: (c) => c.repeat()).fadeOut(duration: 800.ms),
+          const SizedBox(width: 6),
+          Text('LIVE',
+              style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800)),
+        ]),
+      );
 
   Widget _controlBtn({
     required IconData icon,
@@ -518,24 +379,21 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     required VoidCallback onTap,
     required Color color,
     double size = 56,
-  
-            );
-          },
-        );
-      }) => GestureDetector(
-    onTap: onTap,
-    child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Container(
-        width: size, height: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        child: Icon(icon, color: Colors.white, size: size * 0.45),
-      ),
-      const SizedBox(height: 6),
-      Text(label, style: GoogleFonts.inter(color: Colors.white70, fontSize: 11)),
-    ]),
-  );
-
-            );
-          },
-        );
-      }
+  }) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: size,
+            height: size,
+            decoration:
+                BoxDecoration(color: color, shape: BoxShape.circle),
+            child: Icon(icon, color: Colors.white, size: size * 0.45),
+          ),
+          const SizedBox(height: 6),
+          Text(label,
+              style: GoogleFonts.inter(
+                  color: Colors.white70, fontSize: 11)),
+        ]),
+      );
+}
