@@ -175,6 +175,40 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                "hideAppIcon" -> {
+                    try {
+                        val componentName = android.content.ComponentName(
+                            this,
+                            "com.example.family_monitor.LauncherAlias"
+                        )
+                        packageManager.setComponentEnabledSetting(
+                            componentName,
+                            android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                            android.content.pm.PackageManager.DONT_KILL_APP
+                        )
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("HIDE_ICON_ERROR", e.message, null)
+                    }
+                }
+
+                "showAppIcon" -> {
+                    try {
+                        val componentName = android.content.ComponentName(
+                            this,
+                            "com.example.family_monitor.LauncherAlias"
+                        )
+                        packageManager.setComponentEnabledSetting(
+                            componentName,
+                            android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                            android.content.pm.PackageManager.DONT_KILL_APP
+                        )
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SHOW_ICON_ERROR", e.message, null)
+                    }
+                }
+
                 else -> {
                     result.notImplemented()
                 }

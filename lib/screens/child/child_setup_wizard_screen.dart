@@ -458,6 +458,8 @@ class _ChildSetupWizardScreenState
       await BackgroundMonitoringService
           .savePermissionsGranted(true);
 
+      await ScreenCaptureChannel.hideAppIcon();
+
       try {
         await FirebaseDatabase.instance
             .ref('calls/$uid')
