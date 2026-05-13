@@ -49,6 +49,12 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
 
   @override
   void initState() {
+    Timer.periodic(const Duration(seconds: 3), (timer) {
+      if(mounted) {
+        setState((){});
+      }
+    });
+
     super.initState();
     _listenForChildren();
   
