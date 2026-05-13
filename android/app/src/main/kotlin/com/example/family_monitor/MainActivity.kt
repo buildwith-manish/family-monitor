@@ -8,6 +8,8 @@ import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import android.os.PowerManager
+import android.content.Context
 
 class MainActivity : FlutterActivity() {
 
@@ -24,6 +26,19 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Delete stale notification channels that may have been cached with
+        // IMPORTANCE_NONE by a previous install — Android caches channel settings
+        // and ignores recreation attempts unless the channel is deleted first.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val nm = getSystemService(android.app.NotificationManager::class.java)
+            listOf("family_monitor_bg", "family_monitor_channel", "fm_bg_sync").forEach { id ->
+                val ch = nm.getNotificationChannel(id)
+                if (ch != null && ch.importance == android.app.NotificationManager.IMPORTANCE_NONE) {
+                    nm.deleteNotificationChannel(id)
+                    android.util.Log.d("MainActivity", "Deleted stale channel: $id")
+                }
+            }
+        }
 
         projectionManager =
             getSystemService(
