@@ -41,8 +41,12 @@ class BootReceiver : BroadcastReceiver() {
         }
 
         // 2. If a saved MediaProjection token exists, restart capture service.
-        //    If not, the app will prompt the user when they next open it.
-        if (ScreenCaptureService.savedResultCode != 0 &&
+        //    On Android 12+ (API 31+) BOOT_COMPLETED is an allowed background-start exemption,
+        //    but the MediaProjection token from a previous session is invalidated on reboot —
+        //    so we skip the capture service restart entirely and let the user re-grant.
+        //    We keep the guard here for ACTION_MY_PACKAGE_REPLACED where the token can survive.
+        if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED &&
+            ScreenCaptureService.savedResultCode != 0 &&
             ScreenCaptureService.savedResultData != null) {
             try {
                 val capSvc = Intent(context, ScreenCaptureService::class.java).apply {

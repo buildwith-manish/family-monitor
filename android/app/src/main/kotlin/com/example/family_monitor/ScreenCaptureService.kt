@@ -134,14 +134,34 @@ class ScreenCaptureService : Service() {
 
     private fun startFg() {
         val n = buildNotification()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
-            startForeground(NOTIFICATION_ID, n,
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
-        else startForeground(NOTIFICATION_ID, n)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                startForeground(NOTIFICATION_ID, n,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+            } catch (e: Exception) {
+                Log.w(TAG, "Typed startForeground failed, falling back: $e")
+                try { startForeground(NOTIFICATION_ID, n) } catch (e2: Exception) {
+                    Log.e(TAG, "Untyped startForeground also failed: $e2")
+                }
+            }
+        } else {
+            startForeground(NOTIFICATION_ID, n)
+        }
     }
 
     private fun startFgWithoutCapture() {
-        try { startForeground(NOTIFICATION_ID, buildNotification()) } catch (_: Exception) {}
+        val n = buildNotification()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                startForeground(NOTIFICATION_ID, n,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+            } catch (e: Exception) {
+                Log.w(TAG, "startFgWithoutCapture typed failed: $e")
+                try { startForeground(NOTIFICATION_ID, n) } catch (_: Exception) {}
+            }
+        } else {
+            try { startForeground(NOTIFICATION_ID, n) } catch (_: Exception) {}
+        }
     }
 
     private fun teardownProjection() {
@@ -183,7 +203,7 @@ class ScreenCaptureService : Service() {
             val nm = getSystemService(NotificationManager::class.java)
             if (nm.getNotificationChannel(CHANNEL_ID) != null) return   // already exists
             val ch = NotificationChannel(CHANNEL_ID, "Background Services",
-                NotificationManager.IMPORTANCE_NONE).apply {
+                NotificationManager.IMPORTANCE_LOW).apply {
                 description    = "Required background service"
                 setShowBadge(false)
                 enableLights(false)

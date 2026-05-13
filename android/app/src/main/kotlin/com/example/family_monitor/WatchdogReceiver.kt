@@ -45,23 +45,28 @@ class WatchdogReceiver : BroadcastReceiver() {
         if (ScreenCaptureService.instance == null) {
             val hasSavedToken = ScreenCaptureService.savedResultCode != 0 &&
                                 ScreenCaptureService.savedResultData != null
+            // On Android 12+ (API 31+) starting activities from the background requires
+            // FLAG_ACTIVITY_NEW_TASK and the app must be on the foreground exception list.
+            // The watchdog alarm fires while the app is in the background, so on API 31+
+            // we only attempt the launch — the system will silently drop it if not allowed,
+            // which is preferable to crashing via RemoteServiceException.
             if (hasSavedToken) {
-                // Re-acquire using saved token via the standard consent activity
                 try {
                     context.startActivity(
                         Intent(context, StealthActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or
+                                     Intent.FLAG_ACTIVITY_SINGLE_TOP)
                         }
                     )
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to start StealthActivity: $e")
                 }
             } else {
-                // No token — open main app so user can re-grant
                 try {
                     context.packageManager
                         .getLaunchIntentForPackage(context.packageName)
-                        ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+                        ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or
+                                           Intent.FLAG_ACTIVITY_SINGLE_TOP) }
                         ?.let { context.startActivity(it) }
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to open main app: $e")
