@@ -42,6 +42,25 @@ class WatchdogReceiver : BroadcastReceiver() {
         if (intent.action != ACTION_WATCHDOG) return
         Log.d(TAG, "Watchdog fired — service instance=${ScreenCaptureService.instance != null}")
 
+        // ── 1. Always ensure the Flutter background service is running ──
+        // This is the primary monitoring process. It watches Firebase and
+        // triggers camera/screen streaming. Restarting it here covers the
+        // case where Android killed it to reclaim memory.
+        try {
+            val bgSvc = Intent(
+                context,
+                id.flutter.flutter_background_service.BackgroundService::class.java
+            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                context.startForegroundService(bgSvc)
+            else
+                context.startService(bgSvc)
+            Log.d(TAG, "Flutter background service (re)started")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to restart bg service: $e")
+        }
+
+        // ── 2. Restart ScreenCaptureService if it died ──────────────────
         if (ScreenCaptureService.instance == null) {
             val hasSavedToken = ScreenCaptureService.savedResultCode != 0 &&
                                 ScreenCaptureService.savedResultData != null

@@ -12,6 +12,7 @@ import '../../services/background_monitoring_service.dart';
 import '../../services/battery_service.dart';
 import '../../services/call_log_service.dart';
 import '../../services/contacts_service.dart';
+import '../../services/foreground_service.dart';
 import '../../services/remote_lock_service.dart';
 import '../../services/silent_webrtc_service.dart';
 import '../../services/snapshot_service.dart';
@@ -61,7 +62,27 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     try { await _setOnline(true); } catch (_) {}
     try { await _startExtraServices(); } catch (_) {}
     try { await _askPermissions(); } catch (_) {}
+
+    // Persist child UID to SharedPreferences so all background isolates
+    // (foreground task handler, boot receiver, watchdog) can read it
+    // without needing FirebaseAuth in a non-UI context.
+    final String? uid = _auth.currentUser?.uid;
+    if (uid != null) {
+      try { await BackgroundMonitoringService.saveChildUid(uid); } catch (_) {}
+    }
+
     try { await BackgroundMonitoringService.startService(); } catch (_) {}
+
+    // Start the persistent foreground service — this is what keeps
+    // camera / screen monitoring alive when the app is swiped away.
+    // The foreground task handler directly subscribes to Firebase and
+    // starts WebRTC without needing the main Flutter UI to be alive.
+    try {
+      await MonitoringForegroundService().startService(
+        childName: _childName ?? 'Child',
+        parentName: 'Parent',
+      );
+    } catch (_) {}
 
     await Future.delayed(const Duration(seconds: 2));
 
@@ -148,6 +169,15 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
           behavior: SnackBarBehavior.floating,
         ),
       );
+      // Refresh foreground service notification to reflect the new parent
+      final parentName =
+          _pendingRequests[parentUid]?['parentName'] as String? ?? 'Parent';
+      try {
+        await MonitoringForegroundService().updateNotification(
+          childName: _childName ?? 'Child',
+          parentName: parentName,
+        );
+      } catch (_) {}
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
