@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -43,9 +44,16 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   StreamSubscription? _callLogSub;
   StreamSubscription? _contactsSub;
   StreamSubscription? _pendingSub;
+  StreamSubscription? _parentSub;
 
   bool _locked = false;
   String? _childName;
+  String? _deviceName;
+
+  // Connected parent info
+  String? _connectedParentName;
+  String? _connectedParentEmail;
+  bool _parentOnline = false;
 
   // pending requests: parentUid -> {parentName, parentEmail, requestedAt}
   final Map<String, Map<String, dynamic>> _pendingRequests = {};
@@ -63,9 +71,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     try { await _startExtraServices(); } catch (_) {}
     try { await _askPermissions(); } catch (_) {}
 
-    // Persist child UID to SharedPreferences so all background isolates
-    // (foreground task handler, boot receiver, watchdog) can read it
-    // without needing FirebaseAuth in a non-UI context.
     final String? uid = _auth.currentUser?.uid;
     if (uid != null) {
       try { await BackgroundMonitoringService.saveChildUid(uid); } catch (_) {}
@@ -73,14 +78,10 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
     try { await BackgroundMonitoringService.startService(); } catch (_) {}
 
-    // Start the persistent foreground service — this is what keeps
-    // camera / screen monitoring alive when the app is swiped away.
-    // The foreground task handler directly subscribes to Firebase and
-    // starts WebRTC without needing the main Flutter UI to be alive.
     try {
       await MonitoringForegroundService().startService(
         childName: _childName ?? 'Child',
-        parentName: 'Parent',
+        parentName: _connectedParentName ?? 'Parent',
       );
     } catch (_) {}
 
@@ -88,6 +89,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
     try { _listenForCommandsSafe(); } catch (_) {}
     try { _listenForPendingRequests(); } catch (_) {}
+    try { _listenForConnectedParent(); } catch (_) {}
   }
 
   Future<void> _askPermissions() async {
@@ -116,6 +118,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
           Map<String, dynamic>.from(snap.value as Map);
       setState(() {
         _childName = data['childName'] as String?;
+        _deviceName = data['deviceName'] as String?;
       });
     }
   }
@@ -130,6 +133,89 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     if (!exempt && mounted) {
       setState(() { _showBatteryHint = true; });
     }
+  }
+
+  void _listenForConnectedParent() {
+    final String? uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    _parentSub?.cancel();
+    _parentSub = FirebaseDatabase.instance
+        .ref('users/$uid/connectedParent')
+        .onValue
+        .listen((event) async {
+      if (!mounted) return;
+      final raw = event.snapshot.value;
+      if (raw is Map) {
+        final data = Map<String, dynamic>.from(raw);
+        final parentUid = data['uid'] as String?;
+        String? parentName = data['parentName'] as String?;
+        String? parentEmail = data['parentEmail'] as String?;
+        bool parentOnline = false;
+
+        if (parentUid != null) {
+          try {
+            final parentSnap = await FirebaseDatabase.instance
+                .ref('users/$parentUid')
+                .get();
+            if (parentSnap.value is Map) {
+              final pd = Map<String, dynamic>.from(parentSnap.value as Map);
+              parentName ??= pd['parentName'] as String?;
+              parentEmail ??= pd['email'] as String?;
+              parentOnline = pd['online'] == true;
+            }
+          } catch (_) {}
+        }
+
+        if (mounted) {
+          setState(() {
+            _connectedParentName = parentName;
+            _connectedParentEmail = parentEmail;
+            _parentOnline = parentOnline;
+          });
+        }
+      } else {
+        // Try reading from approvedParents node instead
+        _loadConnectedParentFromApproved(uid);
+      }
+    });
+  }
+
+  Future<void> _loadConnectedParentFromApproved(String uid) async {
+    try {
+      final snap = await FirebaseDatabase.instance
+          .ref('users/$uid/approvedParents')
+          .get();
+      if (snap.value is Map && mounted) {
+        final map = Map<String, dynamic>.from(snap.value as Map);
+        final firstEntry = map.entries.first;
+        final parentUid = firstEntry.key as String;
+        final data = Map<String, dynamic>.from(firstEntry.value as Map);
+        String? parentName = data['parentName'] as String?;
+        String? parentEmail = data['parentEmail'] as String?;
+        bool parentOnline = false;
+
+        try {
+          final parentSnap = await FirebaseDatabase.instance
+              .ref('users/$parentUid')
+              .get();
+          if (parentSnap.value is Map) {
+            final pd = Map<String, dynamic>.from(parentSnap.value as Map);
+            parentName ??= pd['parentName'] as String?;
+            parentEmail ??= pd['email'] as String?;
+            parentOnline = pd['online'] == true;
+          }
+        } catch (_) {}
+
+        if (mounted) {
+          setState(() {
+            _connectedParentName = parentName;
+            _connectedParentEmail = parentEmail;
+            _parentOnline = parentOnline;
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   void _listenForPendingRequests() {
@@ -169,7 +255,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
           behavior: SnackBarBehavior.floating,
         ),
       );
-      // Refresh foreground service notification to reflect the new parent
       final parentName =
           _pendingRequests[parentUid]?['parentName'] as String? ?? 'Parent';
       try {
@@ -278,6 +363,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     _callLogSub?.cancel();
     _contactsSub?.cancel();
     _pendingSub?.cancel();
+    _parentSub?.cancel();
     SilentWebRTCService.instance.stopSilent();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -291,91 +377,61 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     return Stack(
       children: [
         Scaffold(
-          backgroundColor: const Color(0xFFF4F6F9),
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            title: Text(
-              'Hi, $childName 👋',
-              style: GoogleFonts.plusJakartaSans(
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF202124),
-              ),
-            ),
-            actions: [
-              if (_pendingRequests.isNotEmpty)
-                Stack(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.notifications_active,
-                          color: Color(0xFFEA4335)),
-                      onPressed: () => _scrollToPending(),
-                    ),
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        width: 14,
-                        height: 14,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFEA4335),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text(
-                            '${_pendingRequests.length}',
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 9),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+          backgroundColor: const Color(0xFFF0F4FF),
+          body: CustomScrollView(
+            slivers: [
+              _buildSliverHeader(childName, uid),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    const SizedBox(height: 16),
+
+                    // Pending requests
+                    if (_pendingRequests.isNotEmpty) ...[
+                      _PendingRequestsBanner(
+                        requests: _pendingRequests,
+                        onApprove: _approveRequest,
+                        onDecline: _declineRequest,
+                      ).animate().fadeIn().slideY(begin: -0.1, end: 0),
+                      const SizedBox(height: 14),
+                    ],
+
+                    // Connected parent card
+                    _ParentStatusCard(
+                      parentName: _connectedParentName,
+                      parentEmail: _connectedParentEmail,
+                      parentOnline: _parentOnline,
+                    ).animate().fadeIn(delay: 100.ms),
+
+                    const SizedBox(height: 14),
+
+                    // Monitoring active card
+                    const _MonitoringActiveCard()
+                        .animate().fadeIn(delay: 180.ms),
+
+                    const SizedBox(height: 14),
+
+                    // Battery warning
+                    if (_showBatteryHint) ...[
+                      _BatteryWarningCard()
+                          .animate().fadeIn(delay: 220.ms),
+                      const SizedBox(height: 14),
+                    ],
+
+                    // Device ID card
+                    _DeviceIdCard(uid: uid)
+                        .animate().fadeIn(delay: 260.ms),
+
+                    const SizedBox(height: 14),
+
+                    // QR button
+                    _ShowQrButton(uid: uid, childName: childName)
+                        .animate().fadeIn(delay: 300.ms),
+                  ]),
                 ),
+              ),
             ],
-          ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                _DeviceIdCard(uid: uid).animate().fadeIn(),
-
-                const SizedBox(height: 12),
-
-                if (_pendingRequests.isNotEmpty) ...[
-                  _PendingRequestsBanner(
-                    requests: _pendingRequests,
-                    onApprove: _approveRequest,
-                    onDecline: _declineRequest,
-                  ).animate().fadeIn().slideY(begin: -0.1, end: 0),
-                  const SizedBox(height: 12),
-                ],
-
-                if (_showBatteryHint)
-                  const Card(
-                    color: Color(0xFFFFF8E1),
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Icon(Icons.battery_alert),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Battery optimisation may interrupt monitoring.',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                const SizedBox(height: 16),
-                const _MonitoringInfoCard(),
-                const SizedBox(height: 16),
-                _ShowQrButton(uid: uid, childName: childName),
-              ],
-            ),
           ),
         ),
 
@@ -384,8 +440,534 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     );
   }
 
-  void _scrollToPending() {
-    // Already visible in the list — just a no-op hint
+  Widget _buildSliverHeader(String childName, String uid) {
+    final initials = childName.isNotEmpty
+        ? childName.trim().split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase()
+        : 'C';
+
+    return SliverAppBar(
+      expandedHeight: 200,
+      pinned: true,
+      elevation: 0,
+      backgroundColor: const Color(0xFF1A73E8),
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF1A73E8), Color(0xFF0D47A1)],
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
+                        child: Text(
+                          initials,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Hi, $childName!',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                            if (_deviceName != null)
+                              Text(
+                                _deviceName!,
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (_pendingRequests.isNotEmpty)
+                        Stack(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.notifications_active,
+                                  color: Colors.white),
+                              onPressed: () {},
+                            ),
+                            Positioned(
+                              right: 8,
+                              top: 8,
+                              child: Container(
+                                width: 14,
+                                height: 14,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFEA4335),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '${_pendingRequests.length}',
+                                    style: const TextStyle(
+                                        color: Colors.white, fontSize: 9),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF34A853),
+                            shape: BoxShape.circle,
+                          ),
+                        )
+                            .animate(onPlay: (c) => c.repeat())
+                            .fadeOut(duration: 900.ms)
+                            .then()
+                            .fadeIn(duration: 900.ms),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Monitoring Active',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────
+// Connected Parent Status Card
+// ─────────────────────────────────────────────────
+
+class _ParentStatusCard extends StatelessWidget {
+  final String? parentName;
+  final String? parentEmail;
+  final bool parentOnline;
+
+  const _ParentStatusCard({
+    this.parentName,
+    this.parentEmail,
+    this.parentOnline = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool connected = parentName != null;
+    final initials = connected && parentName!.trim().isNotEmpty
+        ? parentName!.trim().split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase()
+        : 'P';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Stack(
+              children: [
+                CircleAvatar(
+                  radius: 26,
+                  backgroundColor: connected
+                      ? const Color(0xFFE8F0FE)
+                      : const Color(0xFFF1F3F4),
+                  child: Text(
+                    initials,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: connected
+                          ? const Color(0xFF1A73E8)
+                          : const Color(0xFF9AA0A6),
+                    ),
+                  ),
+                ),
+                if (connected)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 13,
+                      height: 13,
+                      decoration: BoxDecoration(
+                        color: parentOnline
+                            ? const Color(0xFF34A853)
+                            : const Color(0xFF9AA0A6),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: connected
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          parentName!,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF202124),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        if (parentEmail != null)
+                          Text(
+                            parentEmail!,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: const Color(0xFF5F6368),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: parentOnline
+                                    ? const Color(0xFF34A853)
+                                    : const Color(0xFF9AA0A6),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              parentOnline ? 'Online now' : 'Offline',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                color: parentOnline
+                                    ? const Color(0xFF34A853)
+                                    : const Color(0xFF9AA0A6),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'No parent connected',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF5F6368),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Ask your parent to scan the QR code below',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: const Color(0xFF9AA0A6),
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: connected
+                    ? const Color(0xFFE6F4EA)
+                    : const Color(0xFFF1F3F4),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                connected ? 'Connected' : 'Waiting',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: connected
+                      ? const Color(0xFF34A853)
+                      : const Color(0xFF9AA0A6),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────
+// Monitoring Active Card
+// ─────────────────────────────────────────────────
+
+class _MonitoringActiveCard extends StatelessWidget {
+  const _MonitoringActiveCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1A73E8), Color(0xFF0D47A1)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1A73E8).withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.shield_outlined,
+                color: Colors.white,
+                size: 26,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Protection Active',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'This device is being monitored by a parent',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.check_circle, color: Color(0xFF81C995), size: 22),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────
+// Battery Warning Card
+// ─────────────────────────────────────────────────
+
+class _BatteryWarningCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFFB300).withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            const Icon(Icons.battery_alert,
+                color: Color(0xFFE65100), size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Battery Optimisation On',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFFE65100),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'May interrupt background monitoring. Disable it in Settings.',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: const Color(0xFFBF360C),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────
+// Device ID Card
+// ─────────────────────────────────────────────────
+
+class _DeviceIdCard extends StatelessWidget {
+  final String uid;
+  const _DeviceIdCard({required this.uid});
+
+  @override
+  Widget build(BuildContext context) {
+    final shortId = uid.length > 16 ? '${uid.substring(0, 8)}...${uid.substring(uid.length - 8)}' : uid;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F3F4),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.phone_android,
+                  color: Color(0xFF5F6368), size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Device ID',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: const Color(0xFF9AA0A6),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    shortId,
+                    style: GoogleFonts.robotoMono(
+                      fontSize: 13,
+                      color: const Color(0xFF202124),
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.copy_outlined,
+                  color: Color(0xFF9AA0A6), size: 18),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: uid));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Device ID copied'),
+                    behavior: SnackBarBehavior.floating,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -410,7 +992,7 @@ class _PendingRequestsBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEA4335).withValues(alpha: 0.4)),
+        border: Border.all(color: const Color(0xFFEA4335).withValues(alpha: 0.35)),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFFEA4335).withValues(alpha: 0.08),
@@ -568,51 +1150,8 @@ class _RequestTileState extends State<_RequestTile> {
 }
 
 // ─────────────────────────────────────────────────
-// Supporting widgets
+// Lock Overlay
 // ─────────────────────────────────────────────────
-
-class _DeviceIdCard extends StatelessWidget {
-  final String uid;
-  const _DeviceIdCard({required this.uid});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            const Icon(Icons.phone_android),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(uid, overflow: TextOverflow.ellipsis),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MonitoringInfoCard extends StatelessWidget {
-  const _MonitoringInfoCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Card(
-      child: Padding(
-        padding: EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Icon(Icons.security),
-            SizedBox(width: 12),
-            Expanded(child: Text('Device is ready for monitoring')),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _LockOverlay extends StatelessWidget {
   const _LockOverlay();
@@ -647,6 +1186,10 @@ class _LockOverlay extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────
+// Show QR Button
+// ─────────────────────────────────────────────────
+
 class _ShowQrButton extends StatelessWidget {
   final String uid;
   final String childName;
@@ -666,16 +1209,16 @@ class _ShowQrButton extends StatelessWidget {
             ),
           );
         },
-        icon: const Icon(Icons.qr_code_2, color: Color(0xFF34A853)),
+        icon: const Icon(Icons.qr_code_2, color: Color(0xFF1A73E8)),
         label: Text(
-          'Show QR Code',
+          'Show Pairing QR Code',
           style: GoogleFonts.inter(
-              fontWeight: FontWeight.w600, color: const Color(0xFF34A853)),
+              fontWeight: FontWeight.w600, color: const Color(0xFF1A73E8)),
         ),
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Color(0xFF34A853)),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          side: const BorderSide(color: Color(0xFF1A73E8)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14)),
         ),
       ),
     );
