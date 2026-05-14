@@ -1114,63 +1114,6 @@ class _PermRow extends StatelessWidget {
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-
-  const _InfoRow({
-    required this.icon,
-    required this.text,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding:
-          const EdgeInsets.symmetric(
-        vertical: 6,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color:
-                  const Color(0xFFE6F4EA),
-              borderRadius:
-                  BorderRadius.circular(
-                10,
-              ),
-            ),
-            child: Icon(
-              icon,
-              size: 18,
-              color:
-                  const Color(0xFF34A853),
-            ),
-          ),
-
-          const SizedBox(width: 14),
-
-          Expanded(
-            child: Text(
-              text,
-              style:
-                  GoogleFonts.inter(
-                fontSize: 14,
-                color:
-                    const Color(
-                  0xFF3C4043,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _PageBatteryScreen extends StatelessWidget {
   final bool batteryExempt;
@@ -2220,12 +2163,12 @@ class _PageDeviceAdmin extends StatelessWidget {
 
 class _InfoIconRow extends StatelessWidget {
   final IconData icon;
-  final Color color;
+  final Color? color;
   final String text;
 
   const _InfoIconRow({
     required this.icon,
-    required this.color,
+    this.color,
     required this.text,
   });
 
@@ -2242,7 +2185,7 @@ class _InfoIconRow extends StatelessWidget {
               color: color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 18, color: color),
+            child: Icon(icon, size: 18, color: color ?? const Color(0xFF34A853)),
           ),
           const SizedBox(width: 14),
           Expanded(
