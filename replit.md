@@ -57,3 +57,13 @@ See `SETUP.md` for the full setup guide.
 - Keep the Node.js overview server as the Replit entry point (Flutter apps can't run in browser)
 - Firebase Auth is used for parent (email/password) and child (anonymous) authentication
 - No Replit Auth replacement needed — app runs natively on Android devices
+
+## AI Provider Configuration
+
+All AI requests must route through **OpenRouter** — never call OpenAI, Anthropic, or other providers directly.
+
+- **Endpoint:** `https://openrouter.ai/api/v1`
+- **API Key:** `OPENROUTER_API_KEY` (stored in Replit Secrets)
+- **Model for coding tasks:** `anthropic/claude-opus-4-5` (Claude Opus 4.7)
+- **Model for general tasks:** `qwen/qwen3-coder` (Qwen3 Coder Next)
+- Any OpenAI-compatible SDK should point base URL to `https://openrouter.ai/api/v1` and use `OPENROUTER_API_KEY`
