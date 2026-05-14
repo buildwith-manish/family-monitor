@@ -31,6 +31,16 @@ class NotificationService {
   final _localNotif = FlutterLocalNotificationsPlugin();
 
   final Map<String, StreamSubscription> _subs = {};
+
+  // Instance-level seen-sets keyed by alert type + childUid.
+  // Keeping them at instance scope (not as local closure variables) prevents
+  // the sets being reset to empty every time watchChild() cancels and
+  // recreates a subscription, which would produce duplicate notifications.
+  final Map<String, Set<String>> _seenAlerts = {};
+
+  Set<String> _seenFor(String key) =>
+      _seenAlerts.putIfAbsent(key, () => {});
+
   bool _initialized = false;
   int _notifId = 1000;
 
@@ -98,6 +108,7 @@ class NotificationService {
     ]) {
       _subs[k]?.cancel();
       _subs.remove(k);
+      _seenAlerts.remove(k);
     }
   }
 
@@ -106,6 +117,7 @@ class NotificationService {
       s.cancel();
     }
     _subs.clear();
+    _seenAlerts.clear();
     _initialized = false;
   }
 
@@ -117,8 +129,8 @@ class NotificationService {
     final key = 'battery_$childUid';
     _subs[key]?.cancel();
 
-    // Track already-seen alert keys so we don't re-notify on reconnect.
-    final Set<String> _seen = {};
+    // Use instance-level seen-set so it survives subscription recreations.
+    final seen = _seenFor(key);
 
     _subs[key] = _db
         .child('battery_alerts/$childUid')
@@ -127,8 +139,8 @@ class NotificationService {
         .onChildAdded
         .listen((event) {
       final alertKey = event.snapshot.key;
-      if (alertKey == null || _seen.contains(alertKey)) return;
-      _seen.add(alertKey);
+      if (alertKey == null || seen.contains(alertKey)) return;
+      seen.add(alertKey);
 
       final v = event.snapshot.value;
       if (v == null || v is! Map) return;
@@ -151,7 +163,7 @@ class NotificationService {
     final key = 'geofence_$childUid';
     _subs[key]?.cancel();
 
-    final Set<String> _seen = {};
+    final seen = _seenFor(key);
 
     _subs[key] = _db
         .child('geofence_alerts/$childUid')
@@ -160,8 +172,8 @@ class NotificationService {
         .onChildAdded
         .listen((event) {
       final alertKey = event.snapshot.key;
-      if (alertKey == null || _seen.contains(alertKey)) return;
-      _seen.add(alertKey);
+      if (alertKey == null || seen.contains(alertKey)) return;
+      seen.add(alertKey);
 
       final v = event.snapshot.value;
       if (v == null || v is! Map) return;
@@ -214,7 +226,7 @@ class NotificationService {
     final key = 'crash_$childUid';
     _subs[key]?.cancel();
 
-    final Set<String> seen = {};
+    final seen = _seenFor(key);
     // Subtract 5 s so we do not miss events written just before we subscribed,
     // but skip anything older that belongs to a previous session.
     final int startMs = DateTime.now().millisecondsSinceEpoch - 5000;
@@ -273,7 +285,7 @@ class NotificationService {
   void _watchPanicAlerts(String childUid, String childName) {
     final key = 'panic_$childUid';
     _subs[key]?.cancel();
-    final Set<String> seen = {};
+    final seen = _seenFor(key);
     _subs[key] = _db
         .child('panic_alerts/$childUid')
         .onChildAdded
@@ -302,7 +314,7 @@ class NotificationService {
   void _watchKeywordAlerts(String childUid, String childName) {
     final key = 'keyword_$childUid';
     _subs[key]?.cancel();
-    final Set<String> seen = {};
+    final seen = _seenFor(key);
     _subs[key] = _db
         .child('keyword_alerts/$childUid')
         .onChildAdded

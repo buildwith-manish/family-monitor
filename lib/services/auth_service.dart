@@ -281,21 +281,18 @@ class AuthService {
       final Map<String, dynamic> childData =
           Map<String, dynamic>.from(rawChild);
 
-      await _db
-          .child('users/$childUid/pendingParentRequests/$parentUid/status')
-          .set('approved');
-
-      await _db
-          .child('users/$childUid/approvedParents/$parentUid')
-          .set(true);
-
-      await _db
-          .child('users/$parentUid/children/$childUid')
-          .set({
-        'childName':  childData['childName'],
-        'deviceName': childData['deviceName'],
-        'approvedAt': ServerValue.timestamp,
-        'isOnline':   false,
+      // Single atomic multi-path update — if the app is killed between
+      // any of these writes, the partial state is avoided. Firebase RTDB
+      // applies all keys in one operation or rolls back on network failure.
+      await _db.update({
+        'users/$childUid/pendingParentRequests/$parentUid/status': 'approved',
+        'users/$childUid/approvedParents/$parentUid': true,
+        'users/$parentUid/children/$childUid': {
+          'childName':  childData['childName'],
+          'deviceName': childData['deviceName'],
+          'approvedAt': ServerValue.timestamp,
+          'isOnline':   false,
+        },
       });
 
       return {'success': true};

@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -23,14 +24,28 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (!mounted) return;
 
-    final authService = AuthService();
+    // Wait for Firebase Auth to restore the persisted session.
+    // On cold start, currentUser can be null for 300-800ms even with a valid
+    // cached token — authStateChanges emits the true state within ~100ms.
+    // Capped at 3 seconds as a safety net against a hung Firebase init.
+    User? user;
+    try {
+      user = await FirebaseAuth.instance
+          .authStateChanges()
+          .first
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {
+      user = FirebaseAuth.instance.currentUser;
+    }
 
-    if (!authService.isLoggedIn) {
+    if (!mounted) return;
+
+    if (user == null) {
       Navigator.pushReplacementNamed(context, '/role-select');
       return;
     }
 
-    final role = await authService.getSavedRole();
+    final role = await AuthService().getSavedRole();
 
     if (!mounted) return;
 

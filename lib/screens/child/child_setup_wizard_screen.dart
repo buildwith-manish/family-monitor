@@ -69,6 +69,15 @@ class _ChildSetupWizardScreenState
     _pageCtrl = PageController();
     _refreshStatus();
     _loadGuide();
+    // Start listening for parent requests immediately if a UID is already
+    // known (re-entry case: childUid passed via route args after an earlier
+    // setup). Without this, the listener only starts after page 5 is
+    // completed, so QR scans that arrive during the 400ms page animation
+    // are silently missed, and re-entry flows never start the listener.
+    final existingUid = widget.childUid ?? _auth.currentUser?.uid;
+    if (existingUid != null && existingUid.isNotEmpty) {
+      _startRequestListener(existingUid);
+    }
   }
 
   @override
@@ -242,31 +251,27 @@ class _ChildSetupWizardScreenState
       widget.childUid ??
       '';
 
-  void _enterQrPage() {
-    final uid = _childUidForQr;
-
-    if (uid.isEmpty) return;
-
+  void _startRequestListener(String uid) {
     _requestSub?.cancel();
-
     _requestSub = FirebaseDatabase.instance
         .ref('users/$uid/pendingParentRequests')
         .onValue
         .listen((event) {
       if (!mounted) return;
-
       final raw = event.snapshot.value;
-
       if (raw == null) {
         setState(() => _pendingRequests = {});
         return;
       }
-
-      final map =
-          Map<String, dynamic>.from(raw as Map);
-
-      setState(() => _pendingRequests = map);
+      setState(() =>
+          _pendingRequests = Map<String, dynamic>.from(raw as Map));
     });
+  }
+
+  void _enterQrPage() {
+    final uid = _childUidForQr;
+    if (uid.isEmpty) return;
+    _startRequestListener(uid);
   }
 
   Future<void> _approveRequest(
