@@ -4,10 +4,12 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../services/auth_service.dart';
+import '../../services/notification_service.dart';
 import '../../services/presence_service.dart';
 import 'add_child_screen.dart';
 import '../../services/battery_service.dart';
 import 'battery_alerts_screen.dart';
+import 'contacts_screen.dart';
 import 'geofence_screen.dart';
 import 'monitoring_screen.dart';
 import '../../services/webrtc_service.dart';
@@ -41,6 +43,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    NotificationService.instance.initialize();
     _listenForChildren();
   }
 
@@ -67,6 +70,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
     for (final s in _presenceSubs.values) {
       s.cancel();
     }
+    NotificationService.instance.dispose();
     super.dispose();
   }
 
@@ -108,6 +112,13 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
             setState(() => _presenceMap[uid] = online);
           });
         }
+
+        // Push notification watchers — fire local alerts for battery,
+        // geofence and offline events for each monitored child.
+        final childName = (newChildren[uid] as Map?)?['childName'] as String?
+            ?? (newChildren[uid] as Map?)?['displayName'] as String?
+            ?? 'Child';
+        NotificationService.instance.watchChild(uid, childName);
       }
 
       final removed = _batterySubs.keys
@@ -120,6 +131,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
         _presenceSubs[uid]?.cancel();
         _presenceSubs.remove(uid);
         _presenceMap.remove(uid);
+        NotificationService.instance.unwatchChild(uid);
       }
     }, onError: (_) {
       if (mounted) {
@@ -713,6 +725,26 @@ class _ChildCard extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => SmsCallLogScreen(
+                          childUid: childUid,
+                          childName:
+                              childData['childName'] as String? ?? name,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                _FeatureRow(
+                  icon: Icons.contacts_outlined,
+                  label: 'Contact Book',
+                  subtitle: 'Browse contacts, approve or block individuals',
+                  color: const Color(0xFF9334E6),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ContactsScreen(
                           childUid: childUid,
                           childName:
                               childData['childName'] as String? ?? name,

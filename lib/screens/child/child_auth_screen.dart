@@ -1,3 +1,4 @@
+import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -123,12 +124,17 @@ class _ChildAuthScreenState
       await BackgroundMonitoringService
           .saveChildUid(uid);
 
+      // Save FCM token to Firebase so the parent app can send targeted
+      // push notifications to this child device if needed.
       try {
-        await FirebaseMessaging.instance
+        final token = await FirebaseMessaging.instance
             .getToken()
-            .timeout(
-              const Duration(seconds: 5),
-            );
+            .timeout(const Duration(seconds: 5));
+        if (token != null) {
+          await FirebaseDatabase.instance
+              .ref('users/$uid/fcmToken')
+              .set(token);
+        }
       } catch (_) {}
 
       if (!mounted) {
