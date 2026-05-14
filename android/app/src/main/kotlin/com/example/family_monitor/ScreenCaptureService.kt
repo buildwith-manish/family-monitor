@@ -117,6 +117,15 @@ class ScreenCaptureService : Service() {
                 }, mainHandler)
             }
             projectionToken = mediaProjection
+
+            // Persist that consent was granted so boot receiver / watchdog
+            // know to attempt a silent restart rather than immediately asking again.
+            applicationContext
+                .getSharedPreferences("fm_prefs", Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("projection_consent_granted", true)
+                .apply()
+            Log.d(TAG, "Projection consent persisted to prefs")
         } catch (e: Exception) {
             Log.e(TAG, "startCaptureSafe failed: $e")
             requestPermissionViaUi()

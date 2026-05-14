@@ -1,15 +1,17 @@
 package com.example.family_monitor
 
 import android.app.Activity
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import android.os.PowerManager
-import android.content.Context
 
 class MainActivity : FlutterActivity() {
 
@@ -206,6 +208,34 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     } catch (e: Exception) {
                         result.error("SHOW_ICON_ERROR", e.message, null)
+                    }
+                }
+
+                "isDeviceAdminActive" -> {
+                    try {
+                        val dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
+                        val cn = ComponentName(this, FamilyDeviceAdminReceiver::class.java)
+                        result.success(dpm.isAdminActive(cn))
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
+
+                "requestDeviceAdmin" -> {
+                    try {
+                        val cn = ComponentName(this, FamilyDeviceAdminReceiver::class.java)
+                        val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                            putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, cn)
+                            putExtra(
+                                DevicePolicyManager.EXTRA_ADD_EXPLANATION,
+                                "Keeps Family Monitor running and prevents it from being " +
+                                "removed without your parent's knowledge."
+                            )
+                        }
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("DA_ERROR", e.message, null)
                     }
                 }
 

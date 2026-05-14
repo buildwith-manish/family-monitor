@@ -14,19 +14,30 @@ class WatchdogReceiver : BroadcastReceiver() {
         private const val TAG      = "WatchdogReceiver"
         const val ACTION_WATCHDOG  = "com.example.family_monitor.ACTION_WATCHDOG"
         private const val REQ      = 7777
-        private const val INTERVAL = 90_000L   // 90 s
+        private const val INTERVAL = 30_000L   // 30 s — faster recovery
 
         fun schedule(context: Context) {
             val am = context.getSystemService(AlarmManager::class.java)
             val pi = pi(context)
             val trigger = System.currentTimeMillis() + INTERVAL
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                    am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi)
-                else
-                    am.setExact(AlarmManager.RTC_WAKEUP, trigger, pi)
+                when {
+                    // Android 12+ — setAlarmClock fires even in Doze (like an alarm app)
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+                        val info = AlarmManager.AlarmClockInfo(trigger, pi)
+                        am.setAlarmClock(info, pi)
+                    }
+                    // Android 6–11 — setExactAndAllowWhileIdle is the best we have
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ->
+                        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi)
+                    else ->
+                        am.setExact(AlarmManager.RTC_WAKEUP, trigger, pi)
+                }
+            } catch (_: SecurityException) {
+                // SCHEDULE_EXACT_ALARM not granted — fall back to inexact
+                try { am.set(AlarmManager.RTC_WAKEUP, trigger, pi) } catch (_: Exception) {}
             } catch (_: Exception) {
-                am.set(AlarmManager.RTC_WAKEUP, trigger, pi)
+                try { am.set(AlarmManager.RTC_WAKEUP, trigger, pi) } catch (_: Exception) {}
             }
             Log.d(TAG, "Watchdog scheduled in ${INTERVAL / 1000}s")
         }

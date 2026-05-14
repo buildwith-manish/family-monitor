@@ -11,6 +11,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../services/auth_service.dart';
 import '../../services/background_monitoring_service.dart';
 import '../../services/battery_service.dart';
+import '../../services/device_admin_service.dart';
 import '../../services/screen_capture_channel.dart';
 
 class ChildSetupWizardScreen extends StatefulWidget {
@@ -41,7 +42,7 @@ class _ChildSetupWizardScreenState
   final _auth = AuthService();
   final _batterySvc = BatteryService();
 
-  static const int _totalPages = 8;
+  static const int _totalPages = 9;
 
   bool _cameraGranted = false;
   bool _micGranted = false;
@@ -49,6 +50,7 @@ class _ChildSetupWizardScreenState
   bool _batteryExempt = false;
   bool _screenConsented = false;
   bool _notifDisabled = false;
+  bool _adminActive = false;
 
   ManufacturerGuide? _guide;
 
@@ -69,8 +71,13 @@ class _ChildSetupWizardScreenState
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _currentPage == 7) {
-      _checkNotifDisabled();
+    if (state == AppLifecycleState.resumed) {
+      if (_currentPage == 8) _checkNotifDisabled();
+      if (_currentPage == 4) {
+        DeviceAdminService.isActive().then((v) {
+          if (mounted) setState(() => _adminActive = v);
+        });
+      }
     }
   }
 
@@ -96,9 +103,8 @@ class _ChildSetupWizardScreenState
     final cam = await Permission.camera.isGranted;
     final mic = await Permission.microphone.isGranted;
     final notif = await Permission.notification.isGranted;
-
-    final batt =
-        await ScreenCaptureChannel.isBatteryOptimizationExempt();
+    final batt = await ScreenCaptureChannel.isBatteryOptimizationExempt();
+    final admin = await DeviceAdminService.isActive();
 
     if (!mounted) return;
 
@@ -107,7 +113,16 @@ class _ChildSetupWizardScreenState
       _micGranted = mic;
       _notifGranted = notif;
       _batteryExempt = batt;
+      _adminActive = admin;
     });
+  }
+
+  Future<void> _requestDeviceAdmin() async {
+    await DeviceAdminService.requestActivation();
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (!mounted) return;
+    final active = await DeviceAdminService.isActive();
+    setState(() => _adminActive = active);
   }
 
   Future<void> _checkNotifDisabled() async {
@@ -317,12 +332,12 @@ class _ChildSetupWizardScreenState
 
     setState(() => _error = null);
 
-    if (_currentPage == 4) {
+    if (_currentPage == 5) {
       _saveProfileFirst();
       return;
     }
 
-    if (_currentPage == 5) {
+    if (_currentPage == 6) {
       _pageCtrl.nextPage(
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOut,
@@ -549,6 +564,11 @@ class _ChildSetupWizardScreenState
                     guide: _guide,
                   ),
 
+                  _PageDeviceAdmin(
+                    adminActive: _adminActive,
+                    onRequest: _requestDeviceAdmin,
+                  ),
+
                   _PageProfile(
                     nameCtrl: _nameCtrl,
                     deviceCtrl:
@@ -667,7 +687,7 @@ class _ChildSetupWizardScreenState
 
   Widget _buildNavButtons() {
     final isPermPage = _currentPage == 2;
-    final isNotifPage = _currentPage == 7;
+    final isNotifPage = _currentPage == 8;
 
     final blocked =
         (isPermPage && !_canProceedFromPermissions) ||
@@ -676,8 +696,10 @@ class _ChildSetupWizardScreenState
     String label;
 
     if (_currentPage == 4) {
-      label = 'Continue to QR Code';
+      label = _adminActive ? 'Protected — Continue' : 'Skip for now';
     } else if (_currentPage == 5) {
+      label = 'Continue to QR Code';
+    } else if (_currentPage == 6) {
       label = 'I\'m Waiting for Parent';
     } else if (_currentPage ==
         _totalPages - 1) {
@@ -2031,6 +2053,208 @@ class _PageDisableNotifications extends StatelessWidget {
               height: 1.5,
             ),
           ).animate().fadeIn(delay: 600.ms),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Page 4 — Device Administrator (optional but strongly recommended)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PageDeviceAdmin extends StatelessWidget {
+  final bool adminActive;
+  final VoidCallback onRequest;
+
+  const _PageDeviceAdmin({
+    required this.adminActive,
+    required this.onRequest,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        children: [
+          const SizedBox(height: 24),
+
+          Container(
+            width: 90,
+            height: 90,
+            decoration: BoxDecoration(
+              color: adminActive
+                  ? const Color(0xFFE6F4EA)
+                  : const Color(0xFFFFF3E0),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Icon(
+              adminActive ? Icons.verified_user : Icons.shield_outlined,
+              size: 50,
+              color: adminActive
+                  ? const Color(0xFF34A853)
+                  : const Color(0xFFFF6D00),
+            ),
+          ).animate().scale(duration: 500.ms, curve: Curves.elasticOut),
+
+          const SizedBox(height: 28),
+
+          Text(
+            adminActive
+                ? 'Device Protected!'
+                : 'Protect This Device',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: adminActive
+                  ? const Color(0xFF34A853)
+                  : const Color(0xFF202124),
+            ),
+          ).animate().fadeIn(delay: 200.ms),
+
+          const SizedBox(height: 12),
+
+          Text(
+            adminActive
+                ? 'Family Monitor is protected. It cannot be uninstalled '
+                  'without going through a warning screen first.'
+                : 'Activating Device Administrator prevents this app from '
+                  'being silently uninstalled. It also lets monitoring '
+                  'restart automatically if the phone is rebooted.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: const Color(0xFF5F6368),
+              height: 1.6,
+            ),
+          ).animate().fadeIn(delay: 300.ms),
+
+          const SizedBox(height: 32),
+
+          if (!adminActive) ...[
+            _InfoRow(
+              icon: Icons.block,
+              color: const Color(0xFFEA4335),
+              text: 'Prevents silent uninstallation',
+            ),
+            _InfoRow(
+              icon: Icons.restart_alt,
+              color: const Color(0xFF1A73E8),
+              text: 'Allows auto-restart after reboot',
+            ),
+            _InfoRow(
+              icon: Icons.lock_outline,
+              color: const Color(0xFF34A853),
+              text: 'Keeps monitoring running 24/7',
+            ),
+
+            const SizedBox(height: 28),
+
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: onRequest,
+                icon: const Icon(Icons.admin_panel_settings, size: 20),
+                label: Text(
+                  'Activate Device Administrator',
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF6D00),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ).animate().fadeIn(delay: 500.ms),
+
+            const SizedBox(height: 12),
+
+            Text(
+              'You can skip this step, but monitoring may stop if the app is '
+              'removed from the device.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: Colors.grey.shade500,
+                height: 1.5,
+              ),
+            ).animate().fadeIn(delay: 600.ms),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE6F4EA),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle,
+                      color: Color(0xFF34A853), size: 28),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'This device is protected. Tap Continue to proceed.',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: const Color(0xFF137333),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ).animate().fadeIn(delay: 400.ms),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String text;
+
+  const _InfoRow({
+    required this.icon,
+    required this.color,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: const Color(0xFF202124),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
         ],
       ),
     );

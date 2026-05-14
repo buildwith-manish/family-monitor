@@ -1,14 +1,22 @@
 package com.example.family_monitor
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import androidx.core.app.NotificationCompat
 
 class BootReceiver : BroadcastReceiver() {
 
-    companion object { private const val TAG = "BootReceiver" }
+    companion object {
+        private const val TAG          = "BootReceiver"
+        private const val NOTIF_CH     = "fm_resume_ch"
+        private const val NOTIF_ID     = 9201
+    }
 
     override fun onReceive(context: Context, intent: Intent) {
         val valid = listOf(
@@ -19,32 +27,31 @@ class BootReceiver : BroadcastReceiver() {
         )
         if (intent.action !in valid) return
 
-        val prefs      = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        val wizardDone = prefs.getBoolean("flutter.wizard_done", false)
-        val uid        = prefs.getString("flutter.child_uid", null)
+        val flutterPrefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        val wizardDone   = flutterPrefs.getBoolean("flutter.wizard_done", false)
+        val uid          = flutterPrefs.getString("flutter.child_uid", null)
         if (!wizardDone || uid.isNullOrEmpty()) {
             Log.d(TAG, "Setup not complete — skipping auto-start")
             return
         }
 
-        Log.d(TAG, "Boot complete — starting background service")
+        Log.d(TAG, "Boot complete (${intent.action}) — starting services")
 
-        // 1. Flutter background service (foreground, user-visible)
+        // ── 1. Flutter background service ────────────────────────────────────────
         try {
             val bgSvc = Intent(context,
                 id.flutter.flutter_background_service.BackgroundService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
                 context.startForegroundService(bgSvc)
             else context.startService(bgSvc)
+            Log.d(TAG, "Flutter background service started")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start background service: $e")
         }
 
-        // 2. If a saved MediaProjection token exists, restart capture service.
-        //    On Android 12+ (API 31+) BOOT_COMPLETED is an allowed background-start exemption,
-        //    but the MediaProjection token from a previous session is invalidated on reboot —
-        //    so we skip the capture service restart entirely and let the user re-grant.
-        //    We keep the guard here for ACTION_MY_PACKAGE_REPLACED where the token can survive.
+        // ── 2. Screen-capture service ─────────────────────────────────────────────
+        // MediaProjection tokens are invalidated on full reboot — only attempt silent
+        // restart on MY_PACKAGE_REPLACED where the process stays alive.
         if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED &&
             ScreenCaptureService.savedResultCode != 0 &&
             ScreenCaptureService.savedResultData != null) {
@@ -55,12 +62,70 @@ class BootReceiver : BroadcastReceiver() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
                     context.startForegroundService(capSvc)
                 else context.startService(capSvc)
+                Log.d(TAG, "ScreenCaptureService silent restart attempted")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to restart capture service: $e")
             }
         }
 
-        // 3. Arm watchdog
+        // ── 3. "Tap to resume" notification on reboot ────────────────────────────
+        // When the phone restarts, the MediaProjection token is gone.
+        // Show a quiet notification so the parent can trigger the one-tap re-consent.
+        // This mimics what FlashGet Kids does — a background notification that stays
+        // until the app is opened and monitoring resumes.
+        val fmPrefs       = context.getSharedPreferences("fm_prefs", Context.MODE_PRIVATE)
+        val consentBefore = fmPrefs.getBoolean("projection_consent_granted", false)
+        val isReboot      = intent.action != Intent.ACTION_MY_PACKAGE_REPLACED
+
+        if (consentBefore && isReboot) {
+            showResumeNotification(context)
+        }
+
+        // ── 4. Arm watchdog ───────────────────────────────────────────────────────
         WatchdogReceiver.schedule(context)
+    }
+
+    private fun showResumeNotification(context: Context) {
+        try {
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE)
+                as NotificationManager
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val ch = NotificationChannel(
+                    NOTIF_CH,
+                    "Monitoring Resume",
+                    NotificationManager.IMPORTANCE_LOW
+                ).apply {
+                    description = "Prompts to resume monitoring after reboot"
+                    setShowBadge(false)
+                }
+                nm.createNotificationChannel(ch)
+            }
+
+            val tapIntent = context.packageManager
+                .getLaunchIntentForPackage(context.packageName)
+                ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP) }
+                ?: return
+
+            val pi = PendingIntent.getActivity(
+                context, 0, tapIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val notif = NotificationCompat.Builder(context, NOTIF_CH)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle("Family Monitor")
+                .setContentText("Tap to resume monitoring after restart")
+                .setContentIntent(pi)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(false)
+                .build()
+
+            nm.notify(NOTIF_ID, notif)
+            Log.d(TAG, "Resume notification shown")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to show resume notification: $e")
+        }
     }
 }
