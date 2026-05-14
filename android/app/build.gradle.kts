@@ -161,20 +161,21 @@ android {
         }
     }
 
-    // ── ABI splits — each APK variant only ships native libs for one CPU ──
-    // arm64-v8a  = modern phones (2015+) — ~90% of installs
-    // armeabi-v7a = older 32-bit phones
-    // x86_64     = emulators / Chromebooks
-    // Without this, every APK bundles all three, tripling native-lib size.
-    // flutter_webrtc alone adds ~30 MB of native libs per ABI.
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("arm64-v8a", "armeabi-v7a", "x86_64")
-            isUniversalApk = false
-        }
-    }
+    // ── ABI splits ─────────────────────────────────────────────────────────
+    // DO NOT use the Gradle `splits { abi { } }` block here — the Flutter
+    // Gradle plugin sets ndk.abiFilters automatically, which conflicts with
+    // a manual splits block and causes a build failure.
+    //
+    // To build split APKs (one per CPU architecture), pass the flag to Flutter:
+    //   flutter build apk --split-per-abi
+    //
+    // This produces three separate APKs:
+    //   app-arm64-v8a-release.apk   (~55–60 MB) — modern phones, 90%+ of installs
+    //   app-armeabi-v7a-release.apk (~55–60 MB) — older 32-bit phones
+    //   app-x86_64-release.apk      (~55–60 MB) — emulators
+    //
+    // For Play Store: use `flutter build appbundle` (AAB) — Play Store does
+    // the splitting automatically and reduces installed size by a further 20–40%.
 
     packaging {
 
