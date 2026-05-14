@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../services/auth_service.dart';
+import '../../services/presence_service.dart';
 import 'add_child_screen.dart';
 import '../../services/battery_service.dart';
 import 'monitoring_screen.dart';
@@ -29,6 +30,8 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
   final Map<String, dynamic> _children = {};
   final Map<String, Map<String, dynamic>> _deviceInfo = {};
   final Map<String, StreamSubscription> _batterySubs = {};
+  final Map<String, StreamSubscription> _presenceSubs = {};
+  final Map<String, bool> _presenceMap = {};
 
   StreamSubscription? _childrenSub;
 
@@ -59,6 +62,9 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
     for (final s in _batterySubs.values) {
       s.cancel();
     }
+    for (final s in _presenceSubs.values) {
+      s.cancel();
+    }
     super.dispose();
   }
 
@@ -83,11 +89,23 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
       });
 
       for (final uid in newChildren.keys) {
-        if (_batterySubs.containsKey(uid)) continue;
-        _batterySubs[uid] = BatteryService.watchDeviceInfo(uid).listen((info) {
-          if (!mounted) return;
-          setState(() => _deviceInfo[uid] = info);
-        });
+        if (!_batterySubs.containsKey(uid)) {
+          _batterySubs[uid] = BatteryService.watchDeviceInfo(uid).listen((info) {
+            if (!mounted) return;
+            setState(() => _deviceInfo[uid] = info);
+          });
+        }
+
+        // Real-time presence via PresenceService — updates arrive within
+        // milliseconds of the child going offline rather than waiting for
+        // the next battery-service heartbeat.
+        if (!_presenceSubs.containsKey(uid)) {
+          _presenceSubs[uid] =
+              PresenceService.instance.watchChildPresence(uid).listen((online) {
+            if (!mounted) return;
+            setState(() => _presenceMap[uid] = online);
+          });
+        }
       }
 
       final removed = _batterySubs.keys
@@ -97,6 +115,9 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
         _batterySubs[uid]?.cancel();
         _batterySubs.remove(uid);
         _deviceInfo.remove(uid);
+        _presenceSubs[uid]?.cancel();
+        _presenceSubs.remove(uid);
+        _presenceMap.remove(uid);
       }
     }, onError: (_) {
       if (mounted) {
@@ -226,6 +247,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
                       childData: childData,
                       delay: index * 80,
                       deviceInfo: _deviceInfo,
+                      isOnline: _presenceMap[childUid] ?? false,
                     );
                   }),
                   const SizedBox(height: 8),
@@ -310,12 +332,16 @@ class _ChildCard extends StatelessWidget {
   final Map<String, dynamic> childData;
   final int delay;
   final Map<String, Map<String, dynamic>> deviceInfo;
+  // Live presence fed from PresenceService.watchChildPresence stream.
+  // True = device is online right now (Firebase .info/connected confirmed).
+  final bool isOnline;
 
   const _ChildCard({
     required this.childUid,
     required this.childData,
     required this.delay,
     required this.deviceInfo,
+    required this.isOnline,
   });
 
   @override
@@ -328,9 +354,6 @@ class _ChildCard extends StatelessWidget {
     final isCharging = info['isCharging'] == true;
     final networkType = info['networkType'] as String?;
     final deviceModel = info['deviceModel'] as String?;
-    final lastSeen = info['lastSeen'] as int?;
-    final isOnline = lastSeen != null &&
-        (DateTime.now().millisecondsSinceEpoch - lastSeen) < 120000;
 
     final initials = name.trim().split(' ')
         .map((w) => w.isNotEmpty ? w[0] : '')

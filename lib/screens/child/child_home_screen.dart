@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../services/auth_service.dart';
+import '../../services/presence_service.dart';
 import 'child_qr_screen.dart';
 import '../../services/background_monitoring_service.dart';
 import '../../services/battery_service.dart';
@@ -105,7 +106,13 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   }
 
   Future<void> _setOnline(bool online) async {
-    await _auth.setChildOnlineStatus(online);
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+    if (online) {
+      await PresenceService.instance.startChildPresence(uid);
+    } else {
+      await PresenceService.instance.stopChildPresence();
+    }
   }
 
   Future<void> _loadData() async {
