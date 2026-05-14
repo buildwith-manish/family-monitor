@@ -111,6 +111,12 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
   Future<void> _startMonitoring() async {
     try {
+      // Clear any stale screenError from a previous session so it doesn't
+      // bleed into this new session as a false-positive banner.
+      await FirebaseDatabase.instance
+          .ref('calls/${widget.childUid}/screenError')
+          .remove();
+
       await _webrtc.startAsParent(
           childUid: widget.childUid, mode: widget.mode);
       if (!mounted) return;

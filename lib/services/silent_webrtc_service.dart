@@ -17,6 +17,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'screen_capture_channel.dart';
 import 'turn_config_service.dart';
 
 class SilentWebRTCService {
@@ -287,12 +288,15 @@ class SilentWebRTCService {
         final command = event.snapshot.value is String ? event.snapshot.value as String : null;
 
         if (command == 'flip') {
-          final tracks = _localStream?.getVideoTracks() ?? [];
+          // Flip only makes sense for camera mode — screen capture has no camera to switch.
+          if (_activeMode == 'camera') {
+            final tracks = _localStream?.getVideoTracks() ?? [];
 
-          if (tracks.isNotEmpty) {
-            try {
-              await Helper.switchCamera(tracks.first);
-            } catch (_) {}
+            if (tracks.isNotEmpty) {
+              try {
+                await Helper.switchCamera(tracks.first);
+              } catch (_) {}
+            }
           }
         } else if (command == 'mute') {
           for (final track in _localStream?.getAudioTracks() ?? []) {
@@ -347,23 +351,62 @@ class SilentWebRTCService {
 
   Future<MediaStream?> _acquireMedia() async {
     if (_activeMode == 'screen') {
-      debugPrint(
-        '[SilentWebRTC] Screen capture unavailable in background — using camera fallback',
-      );
+      // Screen mode: use MediaProjection/getDisplayMedia — NEVER fall back to camera.
+      try {
+        final projectionActive =
+            await ScreenCaptureChannel.isProjectionActive();
 
-      if (_activeUid != null) {
-        try {
-          await FirebaseDatabase.instance
-              .ref('calls/$_activeUid/screenError')
-              .set(
-                'Screen sharing unavailable – showing camera instead',
-              );
-        } catch (_) {}
+        if (!projectionActive) {
+          debugPrint(
+            '[SilentWebRTC] No active MediaProjection token — screen share requires foreground permission grant first',
+          );
+
+          if (_activeUid != null) {
+            try {
+              await FirebaseDatabase.instance
+                  .ref('calls/$_activeUid/screenError')
+                  .set(
+                    'Screen sharing requires the child app to be open. Open the child app and grant screen permission.',
+                  );
+            } catch (_) {}
+          }
+
+          return null;
+        }
+
+        debugPrint('[SilentWebRTC] MediaProjection active — calling getDisplayMedia');
+
+        final stream = await navigator.mediaDevices.getDisplayMedia({
+          'video': {
+            'frameRate': {'ideal': 15, 'max': 30},
+            'width': {'ideal': 1280},
+            'height': {'ideal': 720},
+          },
+          'audio': false,
+        });
+
+        debugPrint('[SilentWebRTC] getDisplayMedia succeeded — screen tracks: ${stream.getVideoTracks().length}');
+
+        return stream;
+      } catch (e) {
+        debugPrint('[SilentWebRTC] Screen capture failed: $e');
+
+        if (_activeUid != null) {
+          try {
+            await FirebaseDatabase.instance
+                .ref('calls/$_activeUid/screenError')
+                .set(
+                  'Screen capture failed — open the child app and grant screen permission again.',
+                );
+          } catch (_) {}
+        }
+
+        // Do NOT fall back to camera. Return null so the caller stops cleanly.
+        return null;
       }
-
-      _activeMode = 'camera';
     }
 
+    // Camera mode — completely separate path, no cross-contamination.
     try {
       return await navigator.mediaDevices.getUserMedia({
         'video': {
@@ -375,9 +418,7 @@ class SilentWebRTCService {
         'audio': true,
       });
     } catch (e) {
-      debugPrint(
-        '[SilentWebRTC] Camera acquisition failed: $e',
-      );
+      debugPrint('[SilentWebRTC] Camera acquisition failed: $e');
 
       return null;
     }

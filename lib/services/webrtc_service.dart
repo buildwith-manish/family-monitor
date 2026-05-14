@@ -429,6 +429,7 @@ class WebRTCService {
 
   Future<MediaStream> _getStream(StreamMode mode) async {
     if (mode == StreamMode.camera) {
+      // Camera mode — use getUserMedia only.
       return navigator.mediaDevices.getUserMedia({
         'video': {
           'facingMode': 'environment',
@@ -440,28 +441,23 @@ class WebRTCService {
       });
     }
 
-    try {
-      final granted = await ScreenCaptureChannel.requestScreenCapture();
+    // Screen mode — use MediaProjection/getDisplayMedia only.
+    // NEVER fall back to camera; if this throws, let the exception propagate
+    // so the caller can surface a clean error instead of a silent camera switch.
+    final granted = await ScreenCaptureChannel.requestScreenCapture();
 
-      if (!granted) {
-        throw Exception('Screen capture permission denied');
-      }
-
-      return navigator.mediaDevices.getDisplayMedia({
-        'video': {
-          'frameRate': 15,
-          'width': 720,
-        },
-        'audio': false,
-      });
-    } catch (e) {
-      debugPrint('[WebRTC] Screen capture fallback: $e');
-
-      return navigator.mediaDevices.getUserMedia({
-        'video': true,
-        'audio': true,
-      });
+    if (!granted) {
+      throw Exception('Screen capture permission denied by user');
     }
+
+    return navigator.mediaDevices.getDisplayMedia({
+      'video': {
+        'frameRate': 15,
+        'width': 1280,
+        'height': 720,
+      },
+      'audio': false,
+    });
   }
 
   Future<void> _cancelSubs() async {
