@@ -430,8 +430,10 @@ class SilentWebRTCService {
   void _startWatchdog(String childUid) {
     _watchdogTimer?.cancel();
 
+    // FIX-17: Reduce poll interval 30→20 s and stale-ICE threshold 60→45 s
+    // so orphaned connections are detected and reconnected ~33% faster.
     _watchdogTimer = Timer.periodic(
-      const Duration(seconds: 30),
+      const Duration(seconds: 20),
       (_) async {
         if (!_active) {
           _watchdogTimer?.cancel();
@@ -440,7 +442,7 @@ class SilentWebRTCService {
 
         if (_lastIceActivity != null &&
             DateTime.now().difference(_lastIceActivity!) >
-                const Duration(seconds: 60)) {
+                const Duration(seconds: 45)) {
           debugPrint(
             '[SilentWebRTC] Watchdog detected stale ICE',
           );

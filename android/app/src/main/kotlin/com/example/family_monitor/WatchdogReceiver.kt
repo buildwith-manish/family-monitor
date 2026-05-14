@@ -14,24 +14,21 @@ class WatchdogReceiver : BroadcastReceiver() {
         private const val TAG      = "WatchdogReceiver"
         const val ACTION_WATCHDOG  = "com.example.family_monitor.ACTION_WATCHDOG"
         private const val REQ      = 7777
-        private const val INTERVAL = 120_000L  // 2 min — balances recovery speed with battery
+        // FIX-12: Reduced from 120 s to 60 s for faster crash recovery.
+        private const val INTERVAL = 60_000L
 
         fun schedule(context: Context) {
             val am = context.getSystemService(AlarmManager::class.java)
             val pi = pi(context)
             val trigger = System.currentTimeMillis() + INTERVAL
+            // FIX-06: Removed setAlarmClock path (requires USE_EXACT_ALARM which
+            // is Play Store-restricted). Use setExactAndAllowWhileIdle on M+ and
+            // fall back to inexact if SCHEDULE_EXACT_ALARM is not granted.
             try {
-                when {
-                    // Android 12+ — setAlarmClock fires even in Doze (like an alarm app)
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-                        val info = AlarmManager.AlarmClockInfo(trigger, pi)
-                        am.setAlarmClock(info, pi)
-                    }
-                    // Android 6–11 — setExactAndAllowWhileIdle is the best we have
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ->
-                        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi)
-                    else ->
-                        am.setExact(AlarmManager.RTC_WAKEUP, trigger, pi)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi)
+                } else {
+                    am.setExact(AlarmManager.RTC_WAKEUP, trigger, pi)
                 }
             } catch (_: SecurityException) {
                 // SCHEDULE_EXACT_ALARM not granted — fall back to inexact

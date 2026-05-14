@@ -10,6 +10,10 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import java.util.concurrent.TimeUnit
 
 class BootReceiver : BroadcastReceiver() {
 
@@ -93,8 +97,26 @@ class BootReceiver : BroadcastReceiver() {
             showResumeNotification(context)
         }
 
-        // ── 4. Arm watchdog ───────────────────────────────────────────────────────
+        // ── 4. Arm alarm-based watchdog ──────────────────────────────────────────
         WatchdogReceiver.schedule(context)
+
+        // ── 5. FIX-06: Also enqueue WorkManager periodic watchdog ────────────────
+        // WorkManager provides a complementary safety net that fires every 15 min
+        // even in Doze mode without requiring USE_EXACT_ALARM. KEEP policy ensures
+        // only one instance runs at a time.
+        try {
+            val workRequest = PeriodicWorkRequestBuilder<WatchdogWorker>(
+                15, TimeUnit.MINUTES
+            ).build()
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                WatchdogWorker.WORK_NAME,
+                ExistingPeriodicWorkPolicy.KEEP,
+                workRequest
+            )
+            Log.d(TAG, "WorkManager watchdog enqueued")
+        } catch (e: Exception) {
+            Log.e(TAG, "WorkManager enqueue failed: $e")
+        }
     }
 
     // AND-03: Check whether the app process is currently in the foreground.

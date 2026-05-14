@@ -1,7 +1,7 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ContactsService {
   static final ContactsService _instance = ContactsService._internal();
@@ -47,7 +47,11 @@ class ContactsService {
   }
 
   Future<void> syncContacts() async {
-    final String? uid = FirebaseAuth.instance.currentUser?.uid;
+    // FIX-11: FirebaseAuth.currentUser is null in background isolates.
+    // Read the persisted UID from SharedPreferences — written during setup.
+    final prefs = await SharedPreferences.getInstance();
+    final String? uid = prefs.getString('child_uid')
+        ?? prefs.getString('flutter.child_uid');
 
     if (uid == null) {
       return;

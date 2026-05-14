@@ -176,25 +176,21 @@ class _MonitoringTaskHandler extends TaskHandler {
   @override
   Future<void> onRepeatEvent(DateTime timestamp) async {
     _heartbeatCount++;
+    // FIX-07: Do NOT write lastSeen here — the background-service isolate
+    // (background_monitoring_service.dart _heartbeatTimer) already writes it
+    // every 30 s. Writing it here too creates a race condition and doubles
+    // Firebase write costs. Stale-session cleanup is retained as it is low-
+    // frequency (every 20 ticks = ~10 min) and harmless to run twice.
     if (_childUid == null) {
       await _loadUid();
-      if (_childUid != null) {
-        debugPrint('[TaskHandler] UID resolved on repeat: $_childUid');
-      }
     }
-    // ARCH-03: Only write lastSeen — PresenceService owns isOnline.
     try {
-      final uid = _childUid ?? FirebaseAuth.instance.currentUser?.uid;
-      if (uid != null) {
-        await FirebaseDatabase.instance
-            .ref('users/$uid/lastSeen')
-            .set(ServerValue.timestamp);
-        if (_heartbeatCount % 20 == 0) {
-          await _cleanupStaleSessions(uid);
-        }
+      final uid = _childUid;
+      if (uid != null && _heartbeatCount % 20 == 0) {
+        await _cleanupStaleSessions(uid);
       }
     } catch (e) {
-      debugPrint('[TaskHandler] heartbeat error: $e');
+      debugPrint('[TaskHandler] cleanup error: $e');
     }
   }
 

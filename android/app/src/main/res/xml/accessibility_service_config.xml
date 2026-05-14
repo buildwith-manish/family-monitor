@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    FIX-02: Accessibility service configuration for app blocking.
+    accessibilityEventTypes: only TYPE_WINDOW_STATE_CHANGED — the minimum
+    needed to detect foreground-app changes. No need for touch/gesture events.
+    accessibilityFeedbackType: FEEDBACK_GENERIC (no TTS or audio needed).
+    notificationTimeout: 100 ms debounce to avoid redundant triggers.
+    canRetrieveWindowContent: false — we only need the package name from the
+    event, not window content, minimising privacy impact.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault"
+    android:canRetrieveWindowContent="false"
+    android:description="@string/accessibility_service_description"
+    android:notificationTimeout="100"
+    android:packageNames=""
+    android:settingsActivity=".MainActivity" />

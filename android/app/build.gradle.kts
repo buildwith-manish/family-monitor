@@ -220,4 +220,13 @@ dependencies {
         "androidx.multidex:multidex:2.0.1"
     )
 
+    // FIX-06: WorkManager as a complementary watchdog alongside AlarmManager.
+    // WorkManager survives Doze and Battery Saver on Android 6+ without needing
+    // USE_EXACT_ALARM or SCHEDULE_EXACT_ALARM — both of which are restricted on
+    // Android 12+ and cause Play Store review rejection.
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+
+    // FIX-15: For DevicePolicyManager.setPackagesSuspended (requires API 24+
+    // which matches our minSdk=24, no extra dep needed — using built-in DPM API)
+
 }

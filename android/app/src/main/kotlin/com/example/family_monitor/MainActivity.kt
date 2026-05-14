@@ -196,6 +196,49 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                // FIX-15: DevicePolicyManager.setPackagesSuspended for reliable
+                // app blocking when Device Admin is active (API 24+, minSdk=24).
+                // Suspended apps cannot be launched by the user — they see a
+                // system dialog explaining the app is unavailable. This is more
+                // reliable than AccessibilityService-based home-screen redirect.
+                "suspendPackages" -> {
+                    try {
+                        val packages = call.argument<List<String>>("packages") ?: emptyList()
+                        val dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
+                        val cn = ComponentName(this, FamilyDeviceAdminReceiver::class.java)
+                        if (dpm.isAdminActive(cn) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                            val failed = dpm.setPackagesSuspended(
+                                cn,
+                                packages.toTypedArray(),
+                                true
+                            )
+                            result.success(failed?.toList() ?: emptyList<String>())
+                        } else {
+                            result.success(emptyList<String>())
+                        }
+                    } catch (e: Exception) {
+                        result.error("SUSPEND_ERROR", e.message, null)
+                    }
+                }
+
+                "unsuspendPackages" -> {
+                    try {
+                        val packages = call.argument<List<String>>("packages") ?: emptyList()
+                        val dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
+                        val cn = ComponentName(this, FamilyDeviceAdminReceiver::class.java)
+                        if (dpm.isAdminActive(cn) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                            dpm.setPackagesSuspended(
+                                cn,
+                                packages.toTypedArray(),
+                                false
+                            )
+                        }
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("UNSUSPEND_ERROR", e.message, null)
+                    }
+                }
+
                 "requestDeviceAdmin" -> {
                     try {
                         val cn = ComponentName(this, FamilyDeviceAdminReceiver::class.java)

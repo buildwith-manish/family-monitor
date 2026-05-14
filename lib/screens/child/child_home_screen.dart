@@ -427,7 +427,10 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     _contactsSub?.cancel();
     _pendingSub?.cancel();
     _parentSub?.cancel();
-    SilentWebRTCService.instance.stopSilent();
+    // FIX-01: Do NOT call SilentWebRTCService.instance.stopSilent() here.
+    // WebRTC is now owned by the background-service isolate. Stopping it from
+    // the UI dispose races with the background isolate and would kill an active
+    // monitoring session whenever the UI is recreated (rotation, navigation).
     LocationService.instance.stopTracking();
     AlertService.instance.stopBatteryMonitoring();
     WidgetsBinding.instance.removeObserver(this);

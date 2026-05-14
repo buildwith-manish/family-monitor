@@ -86,9 +86,11 @@
     <!-- Secret dialer code — intercept outgoing calls to detect *#9527# -->
     <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS"/>
 
-    <!-- Reliable watchdog alarms even in Doze mode (Android 12+) -->
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM"
-        android:minSdkVersion="33"/>
+    <!-- FIX-06: USE_EXACT_ALARM removed — it is Play Store-restricted and
+         causes automatic review rejection. SCHEDULE_EXACT_ALARM is retained
+         as a best-effort path; SecurityException is caught and falls back to
+         setExactAndAllowWhileIdle / inexact alarm. WorkManager handles the
+         complementary periodic watchdog without any alarm permission. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"
         android:minSdkVersion="31"/>
 
@@ -207,6 +209,24 @@
         <receiver
             android:name=".WatchdogReceiver"
             android:exported="false"/>
+
+        <!-- FIX-02: Accessibility service for reliable app blocking.
+             Intercepts TYPE_WINDOW_STATE_CHANGED to detect foreground-app
+             changes and enforce blocks from app_locks/$uid without requiring
+             UsageStats polling from a visible activity. The user must grant
+             this once via Settings → Accessibility → Family Monitor. -->
+        <service
+            android:name=".AppBlockAccessibilityService"
+            android:exported="true"
+            android:label="Family Monitor App Block"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config"/>
+        </service>
 
         <!-- ── Secret Dialer Code (*#9527#) ─────────────── -->
         <receiver

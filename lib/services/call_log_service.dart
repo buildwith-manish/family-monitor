@@ -1,6 +1,6 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CallRecord {
   final String number;
@@ -75,7 +75,13 @@ class CallLogService {
 
   Future<void> syncCallLog() async {
     try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
+      // FIX-11: FirebaseAuth.currentUser is null in background isolates.
+      // Read the persisted UID from SharedPreferences instead — it is written
+      // by BackgroundMonitoringService.saveChildUid() during setup and is
+      // always available regardless of which isolate calls syncCallLog().
+      final prefs = await SharedPreferences.getInstance();
+      final uid = prefs.getString('child_uid')
+          ?? prefs.getString('flutter.child_uid');
       if (uid == null) return;
 
       final List raw = await _ch.invokeMethod('readCallLog');

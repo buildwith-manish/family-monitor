@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="accessibility_service_description">Required for device management</string>
+    <string name="accessibility_service_description">Family Monitor App Block monitors which apps are open and closes any apps that a parent has restricted, enforcing screen time limits and app blocking rules.</string>
 </resources>
