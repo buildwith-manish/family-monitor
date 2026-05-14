@@ -105,18 +105,14 @@
         android:networkSecurityConfig="@xml/network_security_config">
 
         <!-- ── Main Activity ─────────────────────────────── -->
-        <!--
-             The MAIN+LAUNCHER filter below must stay on MainActivity directly.
-             flutter_background_service calls getLaunchIntentForPackage() to build
-             the notification tap PendingIntent.  If the only LAUNCHER component is
-             the LauncherAlias and that alias is disabled (icon-hiding mode), the
-             package manager returns null and the service crashes with a
-             NullPointerException inside BackgroundService.updateNotificationInfo().
-             Keeping MAIN+LAUNCHER here guarantees a non-null intent at all times.
-             The LauncherAlias below still controls launcher-icon visibility —
-             most launchers deduplicate entries that share the same target activity,
-             so only one icon appears when both are enabled.
-        -->
+        <!-- ICON-FIX: Only ONE MAIN+LAUNCHER entry. The previous architecture
+             had both MainActivity AND LauncherAlias each carrying a MAIN+LAUNCHER
+             intent filter, which caused every launcher (Samsung, MIUI, AOSP,
+             Pixel) to show TWO icons for the same app.
+             LauncherAlias has been removed entirely — it existed only to support
+             the icon-hiding feature which has been removed per product requirements.
+             flutter_background_service.getLaunchIntentForPackage() works correctly
+             with MainActivity's direct filter. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -133,21 +129,6 @@
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme"/>
         </activity>
-
-        <!-- Launcher alias — disabled after setup to hide the icon.
-             Disabling this alias removes the icon from the launcher drawer while
-             MainActivity's own MAIN+LAUNCHER filter (above) ensures the background
-             service can always build a valid notification PendingIntent. -->
-        <activity-alias
-            android:name=".LauncherAlias"
-            android:targetActivity=".MainActivity"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity-alias>
 
         <!-- ── Flutter Foreground Task ───────────────────── -->
         <!-- AND-02: foregroundServiceType is dataSync only — after ARCH-01 fix

@@ -473,7 +473,7 @@ class _ChildSetupWizardScreenState
       await BackgroundMonitoringService
           .savePermissionsGranted(true);
 
-      await ScreenCaptureChannel.hideAppIcon();
+      // ICON-FIX: hideAppIcon() removed — child app icon must always be visible.
 
       try {
         await FirebaseDatabase.instance

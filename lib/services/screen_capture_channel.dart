@@ -107,31 +107,10 @@ class ScreenCaptureChannel {
     }
   }
 
-  /// Hides the app icon from the Android launcher by disabling the
-  /// LauncherAlias activity-alias. The app continues to run normally.
-  static Future<void> hideAppIcon() async {
-    try {
-      await _channel.invokeMethod('hideAppIcon');
-    } on MissingPluginException catch (e) {
-      debugPrint('[ScreenCapture] Missing plugin (hideAppIcon): $e');
-    } on PlatformException catch (e) {
-      debugPrint('[ScreenCapture] hideAppIcon error: $e');
-    } catch (e) {
-      debugPrint('[ScreenCapture] Unknown hideAppIcon error: $e');
-    }
-  }
-
-  /// Restores the app icon in the Android launcher by re-enabling the
-  /// LauncherAlias activity-alias.
-  static Future<void> showAppIcon() async {
-    try {
-      await _channel.invokeMethod('showAppIcon');
-    } on MissingPluginException catch (e) {
-      debugPrint('[ScreenCapture] Missing plugin (showAppIcon): $e');
-    } on PlatformException catch (e) {
-      debugPrint('[ScreenCapture] showAppIcon error: $e');
-    } catch (e) {
-      debugPrint('[ScreenCapture] Unknown showAppIcon error: $e');
-    }
-  }
+  // ICON-FIX: hideAppIcon() and showAppIcon() removed.
+  // The launcher-icon hiding feature (LauncherAlias toggle via PackageManager)
+  // has been removed per product requirements. The child app icon must always
+  // remain visible. The LauncherAlias activity-alias has also been removed from
+  // AndroidManifest.xml — removing it here prevents dead MethodChannel calls
+  // from surfacing as PlatformExceptions in the logs.
 }
