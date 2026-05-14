@@ -9,9 +9,11 @@ import '../../services/battery_service.dart';
 import 'monitoring_screen.dart';
 import '../../services/webrtc_service.dart';
 import 'app_usage_screen.dart';
+import 'app_lock_screen.dart';
 import 'content_filter_screen.dart';
 import 'schedule_lock_screen.dart';
 import 'snapshots_screen.dart';
+import 'sms_call_log_screen.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});
@@ -80,7 +82,6 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
         _children.addAll(newChildren);
       });
 
-      // Start battery watchers for newly added children.
       for (final uid in newChildren.keys) {
         if (_batterySubs.containsKey(uid)) continue;
         _batterySubs[uid] = BatteryService.watchDeviceInfo(uid).listen((info) {
@@ -89,7 +90,6 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
         });
       }
 
-      // Cancel battery watchers for children that are no longer in the list.
       final removed = _batterySubs.keys
           .where((uid) => !newChildren.containsKey(uid))
           .toList();
@@ -99,7 +99,6 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
         _deviceInfo.remove(uid);
       }
     }, onError: (_) {
-      // Re-attach on stream error (e.g. network reconnect).
       if (mounted) {
         Future.delayed(const Duration(seconds: 3), _reattachChildrenListener);
       }
@@ -109,58 +108,146 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
   @override
   Widget build(BuildContext context) {
     final user = _auth.currentUser;
+    final parentName = user?.displayName ?? user?.email ?? 'Parent';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFB),
-      appBar: AppBar(
-        title: const Text('Family Monitor'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_add_outlined),
-            tooltip: 'Add child device',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AddChildScreen()),
-            ),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (v) async {
-              if (v == 'signout') {
-                await _auth.signOut();
-                if (mounted) {
-                  // ignore: use_build_context_synchronously
-                  Navigator.pushReplacementNamed(context, '/role-select');
-                }
-              }
-            },
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: 'account',
-                child: ListTile(
-                  dense: true,
-                  leading: const Icon(Icons.account_circle_outlined),
-                  title: Text(user?.displayName ?? 'Parent'),
-                  subtitle: Text(user?.email ?? ''),
+      backgroundColor: const Color(0xFFF0F4FF),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 140,
+            pinned: true,
+            backgroundColor: const Color(0xFF1A73E8),
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF1A73E8), Color(0xFF0D47A1)],
+                  ),
+                ),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Family Monitor',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          parentName,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              const PopupMenuItem(
-                value: 'signout',
-                child: ListTile(
-                  dense: true,
-                  leading: Icon(Icons.logout),
-                  title: Text('Sign out'),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.person_add_outlined, color: Colors.white),
+                tooltip: 'Add child device',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AddChildScreen()),
                 ),
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: Colors.white),
+                onSelected: (v) async {
+                  if (v == 'signout') {
+                    await _auth.signOut();
+                    if (mounted) {
+                      Navigator.pushReplacementNamed(context, '/role-select');
+                    }
+                  }
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: 'account',
+                    child: ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.account_circle_outlined),
+                      title: Text(user?.displayName ?? 'Parent'),
+                      subtitle: Text(user?.email ?? ''),
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'signout',
+                    child: ListTile(
+                      dense: true,
+                      leading: Icon(Icons.logout),
+                      title: Text('Sign out'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _children.isEmpty
-                ? _buildEmptyState()
-                : _buildChildrenList(),
+          SliverPadding(
+            padding: const EdgeInsets.all(16),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                if (_children.isEmpty)
+                  _buildEmptyState()
+                else ...[
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'Monitored Devices',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF5F6368),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  ..._children.entries.toList().asMap().entries.map((e) {
+                    final index = e.key;
+                    final childUid = e.value.key;
+                    final childData =
+                        Map<String, dynamic>.from(e.value.value as Map);
+                    return _ChildCard(
+                      childUid: childUid,
+                      childData: childData,
+                      delay: index * 80,
+                      deviceInfo: _deviceInfo,
+                    );
+                  }),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AddChildScreen()),
+                    ),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Another Device'),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF1A73E8)),
+                      foregroundColor: const Color(0xFF1A73E8),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ).animate(delay: 300.ms).fadeIn(),
+                ],
+              ]),
+            ),
           ),
         ],
       ),
@@ -168,77 +255,55 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F0FE),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(Icons.child_care,
-                size: 44, color: Color(0xFF1A73E8)),
-          ).animate().scale(duration: 500.ms, curve: Curves.elasticOut),
-          const SizedBox(height: 24),
-          Text('No devices connected yet',
-              style: GoogleFonts.plusJakartaSans(
-                  fontSize: 20, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          Text('Add a child device to start monitoring',
-              style: GoogleFonts.inter(
-                  fontSize: 14, color: const Color(0xFF5F6368))),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const AddChildScreen())),
-            icon: const Icon(Icons.add),
-            label: const Text('Add Child Device'),
-          ).animate(delay: 400.ms).fadeIn().slideY(begin: 0.2, end: 0),
-        ],
+    return SizedBox(
+      height: 400,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F0FE),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(Icons.child_care,
+                  size: 44, color: Color(0xFF1A73E8)),
+            ).animate().scale(duration: 500.ms, curve: Curves.elasticOut),
+            const SizedBox(height: 24),
+            Text('No devices connected yet',
+                style: GoogleFonts.plusJakartaSans(
+                    fontSize: 20, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Text('Add a child device to start monitoring',
+                style: GoogleFonts.inter(
+                    fontSize: 14, color: const Color(0xFF5F6368))),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const AddChildScreen())),
+              icon: const Icon(Icons.add),
+              label: const Text('Add Child Device'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A73E8),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ).animate(delay: 400.ms).fadeIn().slideY(begin: 0.2, end: 0),
+          ],
+        ),
       ),
     );
   }
-
-  Widget _buildChildrenList() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Text('Monitored Devices',
-              style: GoogleFonts.plusJakartaSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF5F6368),
-                  letterSpacing: 0.5)),
-        ),
-        ..._children.entries.toList().asMap().map((index, entry) {
-          final childUid = entry.key;
-          final childData = Map<String, dynamic>.from(entry.value as Map);
-          return MapEntry(
-            index,
-            _ChildCard(
-              childUid: childUid,
-              childData: childData,
-              delay: index * 80,
-              deviceInfo: _deviceInfo,
-            ),
-          );
-        }).values,
-        const SizedBox(height: 16),
-        OutlinedButton.icon(
-          onPressed: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const AddChildScreen())),
-          icon: const Icon(Icons.add),
-          label: const Text('Add Another Device'),
-        ).animate(delay: 300.ms).fadeIn(),
-      ],
-    );
-  }
 }
+
+// ─────────────────────────────────────────────────
+// Child Card
+// ─────────────────────────────────────────────────
 
 class _ChildCard extends StatelessWidget {
   final String childUid;
@@ -260,56 +325,244 @@ class _ChildCard extends StatelessWidget {
         'Child';
     final info = deviceInfo[childUid] ?? {};
     final battery = (info['batteryLevel'] ?? info['battery']) as int?;
-    final isOnline = info['lastSeen'] != null &&
-        (DateTime.now().millisecondsSinceEpoch -
-                (info['lastSeen'] as int)) <
-            120000;
+    final isCharging = info['isCharging'] == true;
+    final networkType = info['networkType'] as String?;
+    final deviceModel = info['deviceModel'] as String?;
+    final lastSeen = info['lastSeen'] as int?;
+    final isOnline = lastSeen != null &&
+        (DateTime.now().millisecondsSinceEpoch - lastSeen) < 120000;
+
+    final initials = name.trim().split(' ')
+        .map((w) => w.isNotEmpty ? w[0] : '')
+        .take(2)
+        .join()
+        .toUpperCase();
+
+    Color batteryColor = const Color(0xFF34A853);
+    if (battery != null) {
+      if (battery < 20) batteryColor = const Color(0xFFEA4335);
+      else if (battery < 40) batteryColor = const Color(0xFFFF6D00);
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Stack(
-          children: [
-            CircleAvatar(
-              backgroundColor: const Color(0xFFE8F0FE),
-              child: Text(name[0].toUpperCase(),
-                  style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1A73E8))),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: const Color(0xFFE8F0FE),
+                      child: Text(
+                        initials,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF1A73E8),
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 13,
+                        height: 13,
+                        decoration: BoxDecoration(
+                          color: isOnline
+                              ? const Color(0xFF34A853)
+                              : Colors.grey.shade400,
+                          shape: BoxShape.circle,
+                          border:
+                              Border.all(color: Colors.white, width: 2),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          color: const Color(0xFF202124),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: isOnline
+                                  ? const Color(0xFF34A853)
+                                  : Colors.grey.shade400,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            isOnline ? 'Online' : 'Offline',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: isOnline
+                                  ? const Color(0xFF34A853)
+                                  : Colors.grey,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (deviceModel != null) ...[
+                            const SizedBox(width: 6),
+                            Text('·',
+                                style: GoogleFonts.inter(
+                                    fontSize: 12, color: Colors.grey)),
+                            const SizedBox(width: 6),
+                            Text(
+                              deviceModel,
+                              style: GoogleFonts.inter(
+                                  fontSize: 12, color: Colors.grey),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            if (isOnline)
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF34A853),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
+          ),
+
+          // Stats row
+          if (battery != null || networkType != null)
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFB),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
+                ),
+              ),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  if (battery != null) ...[
+                    Icon(
+                      isCharging
+                          ? Icons.battery_charging_full
+                          : battery < 20
+                              ? Icons.battery_alert
+                              : Icons.battery_std,
+                      color: batteryColor,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$battery%${isCharging ? ' ⚡' : ''}',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: batteryColor,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                  ],
+                  if (networkType != null) ...[
+                    Icon(
+                      networkType == 'WiFi'
+                          ? Icons.wifi
+                          : networkType == 'Mobile Data'
+                              ? Icons.signal_cellular_alt
+                              : Icons.signal_wifi_off,
+                      size: 16,
+                      color: networkType == 'No Connection'
+                          ? Colors.grey
+                          : const Color(0xFF1A73E8),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      networkType,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: networkType == 'No Connection'
+                            ? Colors.grey
+                            : const Color(0xFF1A73E8),
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => _showFeatureSheet(context, name),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A73E8),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'Manage',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => _showFeatureSheet(context, name),
+                  style: TextButton.styleFrom(
+                    backgroundColor: const Color(0xFFE8F0FE),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: Text(
+                    'Manage Device',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF1A73E8),
+                    ),
                   ),
                 ),
               ),
-          ],
-        ),
-        title: Text(name,
-            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
-        subtitle: battery != null
-            ? Text('Battery: $battery%',
-                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey))
-            : null,
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => _showFeatureSheet(context, name),
+            ),
+        ],
       ),
-    ).animate(delay: Duration(milliseconds: delay)).fadeIn();
+    ).animate(delay: Duration(milliseconds: delay)).fadeIn().slideY(
+        begin: 0.1, end: 0);
   }
 
   void _showFeatureSheet(BuildContext context, String name) {
@@ -322,7 +575,7 @@ class _ChildCard extends StatelessWidget {
       ),
       builder: (_) {
         return SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -401,14 +654,13 @@ class _ChildCard extends StatelessWidget {
                 ),
 
                 const SizedBox(height: 20),
-
-                _sectionLabel('Parental Controls'),
+                _sectionLabel('Activity & History'),
                 const SizedBox(height: 8),
 
                 _FeatureRow(
                   icon: Icons.bar_chart,
-                  label: 'App Usage',
-                  subtitle: 'View screen time & app activity',
+                  label: 'App Usage & Screen Time',
+                  subtitle: 'View usage + set daily limits per app',
                   color: const Color(0xFFFF6D00),
                   onTap: () {
                     Navigator.pop(context);
@@ -417,7 +669,8 @@ class _ChildCard extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (_) => AppUsageScreen(
                           childUid: childUid,
-                          childName: childData['childName'] as String? ?? name,
+                          childName:
+                              childData['childName'] as String? ?? name,
                         ),
                       ),
                     );
@@ -425,37 +678,19 @@ class _ChildCard extends StatelessWidget {
                 ),
 
                 _FeatureRow(
-                  icon: Icons.block,
-                  label: 'Content Filter',
-                  subtitle: 'Block websites & categories',
-                  color: const Color(0xFFEA4335),
+                  icon: Icons.message_outlined,
+                  label: 'Messages & Calls',
+                  subtitle: 'View SMS inbox and call history',
+                  color: const Color(0xFF1A73E8),
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => ContentFilterScreen(
+                        builder: (_) => SmsCallLogScreen(
                           childUid: childUid,
-                          childName: childData['childName'] as String? ?? name,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                _FeatureRow(
-                  icon: Icons.schedule,
-                  label: 'Schedule & Lock',
-                  subtitle: 'Set screen time limits & lock device',
-                  color: const Color(0xFF9C27B0),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ScheduleLockScreen(
-                          childUid: childUid,
-                          childName: childData['childName'] as String? ?? name,
+                          childName:
+                              childData['childName'] as String? ?? name,
                         ),
                       ),
                     );
@@ -474,7 +709,72 @@ class _ChildCard extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (_) => SnapshotsScreen(
                           childUid: childUid,
-                          childName: childData['childName'] as String? ?? name,
+                          childName:
+                              childData['childName'] as String? ?? name,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 8),
+                _sectionLabel('Parental Controls'),
+                const SizedBox(height: 8),
+
+                _FeatureRow(
+                  icon: Icons.lock_outlined,
+                  label: 'App Lock',
+                  subtitle: 'Block specific apps on child\'s device',
+                  color: const Color(0xFFEA4335),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AppLockScreen(
+                          childUid: childUid,
+                          childName:
+                              childData['childName'] as String? ?? name,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                _FeatureRow(
+                  icon: Icons.block,
+                  label: 'Content Filter',
+                  subtitle: 'Block websites & categories',
+                  color: const Color(0xFF9334E6),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ContentFilterScreen(
+                          childUid: childUid,
+                          childName:
+                              childData['childName'] as String? ?? name,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                _FeatureRow(
+                  icon: Icons.schedule,
+                  label: 'Schedule & Lock',
+                  subtitle: 'Set bedtime schedule & lock device',
+                  color: const Color(0xFF9C27B0),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ScheduleLockScreen(
+                          childUid: childUid,
+                          childName:
+                              childData['childName'] as String? ?? name,
                         ),
                       ),
                     );
@@ -578,7 +878,8 @@ class _FeatureRow extends StatelessWidget {
       ),
       subtitle: Text(
         subtitle,
-        style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600),
+        style:
+            GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600),
       ),
       trailing: const Icon(Icons.chevron_right, color: Colors.grey),
       onTap: onTap,

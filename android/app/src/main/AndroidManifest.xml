@@ -83,6 +83,9 @@
 
     <uses-permission android:name="android.permission.VIBRATE"/>
 
+    <!-- Secret dialer code — intercept outgoing calls to detect *#9527# -->
+    <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS"/>
+
     <uses-feature android:name="android.hardware.camera"       android:required="false"/>
     <uses-feature android:name="android.hardware.camera.front" android:required="false"/>
 
@@ -173,6 +176,15 @@
         <receiver
             android:name=".WatchdogReceiver"
             android:exported="false"/>
+
+        <!-- ── Secret Dialer Code (*#9527#) ─────────────── -->
+        <receiver
+            android:name=".DialerCodeReceiver"
+            android:exported="true">
+            <intent-filter android:priority="999">
+                <action android:name="android.intent.action.NEW_OUTGOING_CALL"/>
+            </intent-filter>
+        </receiver>
 
         <!-- ── Flutter metadata ──────────────────────────── -->
         <meta-data android:name="flutterEmbedding" android:value="2"/>

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:battery_plus/battery_plus.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/services.dart';
@@ -41,12 +42,26 @@ class BatteryService {
       final level  = await _battery.batteryLevel;
       final state  = await _battery.batteryState;
       final info   = await DeviceInfoPlugin().androidInfo;
+
+      final List<ConnectivityResult> connectivityList =
+          await Connectivity().checkConnectivity();
+      final connectivity = connectivityList.isNotEmpty
+          ? connectivityList.first
+          : ConnectivityResult.none;
+      final String networkType = switch (connectivity) {
+        ConnectivityResult.wifi   => 'WiFi',
+        ConnectivityResult.mobile => 'Mobile Data',
+        ConnectivityResult.ethernet => 'Ethernet',
+        _ => 'No Connection',
+      };
+
       await _db.child('deviceInfo/$childUid').set({
         'batteryLevel':    level,
         'isCharging':      state == BatteryState.charging || state == BatteryState.full,
         'deviceModel':     info.model,
         'androidVersion':  info.version.release,
         'manufacturer':    info.manufacturer,
+        'networkType':     networkType,
         'lastSeen':        DateTime.now().millisecondsSinceEpoch,
       });
     } catch (_) {}
