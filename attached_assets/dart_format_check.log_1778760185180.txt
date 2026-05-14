@@ -1,0 +1,52 @@
+Checking Dart formatting...
+
+ERROR: The following Dart files are not formatted correctly:
+Changed lib/background/watchdog_entrypoint.dart
+Changed lib/main.dart
+Changed lib/main_parent.dart
+Changed lib/screens/child/child_auth_screen.dart
+Changed lib/screens/child/child_home_screen.dart
+Changed lib/screens/child/child_qr_screen.dart
+Changed lib/screens/child/child_setup_wizard_screen.dart
+Changed lib/screens/child/child_streaming_screen.dart
+Changed lib/screens/parent/add_child_screen.dart
+Changed lib/screens/parent/app_lock_screen.dart
+Changed lib/screens/parent/app_usage_screen.dart
+Changed lib/screens/parent/battery_alerts_screen.dart
+Changed lib/screens/parent/contacts_screen.dart
+Changed lib/screens/parent/content_filter_screen.dart
+Changed lib/screens/parent/crash_report_screen.dart
+Changed lib/screens/parent/geofence_screen.dart
+Changed lib/screens/parent/monitoring_screen.dart
+Changed lib/screens/parent/parent_auth_screen.dart
+Changed lib/screens/parent/parent_dashboard_screen.dart
+Changed lib/screens/parent/parent_qr_scanner_screen.dart
+Changed lib/screens/parent/sms_call_log_screen.dart
+Changed lib/screens/parent/snapshots_screen.dart
+Changed lib/screens/role_selection_screen.dart
+Changed lib/screens/splash_screen.dart
+Changed lib/services/alert_service.dart
+Changed lib/services/app_lock_service.dart
+Changed lib/services/auth_service.dart
+Changed lib/services/background_monitoring_service.dart
+Changed lib/services/battery_service.dart
+Changed lib/services/call_log_service.dart
+Changed lib/services/contacts_service.dart
+Changed lib/services/device_event_service.dart
+Changed lib/services/foreground_service.dart
+Changed lib/services/location_service.dart
+Changed lib/services/notification_service.dart
+Changed lib/services/presence_service.dart
+Changed lib/services/screen_capture_channel.dart
+Changed lib/services/silent_webrtc_service.dart
+Changed lib/services/sms_service.dart
+Changed lib/services/snapshot_service.dart
+Changed lib/services/turn_config_service.dart
+Changed lib/services/webrtc_service.dart
+Formatted 48 files (42 changed) in 0.07 seconds.
+
+Run 'dart format lib/' locally and commit the result.
+
+
+Build failed :|
+Step 6 script `Dart format check` exited with status code 1

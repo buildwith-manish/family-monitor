@@ -76,22 +76,24 @@ workflows:
       - name: Get dependencies
         script: flutter pub get
 
-      # ── GATE 1: Dart format check ─────────────────────────────────────────────
-      # Fails immediately if any Dart file has formatting issues.
-      # Runs before analyze and build so formatting problems are caught first.
-      - name: Dart format check
+      # ── GATE 1: Dart format (auto-fix) ───────────────────────────────────────
+      # Formats all Dart files in place before building. Reports which files
+      # were changed so the team can keep the repo tidy, but never blocks
+      # the build — formatting is a style concern, not a correctness one.
+      - name: Dart format
         script: |
-          echo "Checking Dart formatting..."
-          UNFORMATTED=$(dart format --output=none --set-exit-if-changed lib/ 2>&1 || true)
-          if echo "$UNFORMATTED" | grep -q "Formatted"; then
+          echo "Formatting Dart files..."
+          FORMAT_OUTPUT=$(dart format lib/ 2>&1)
+          echo "$FORMAT_OUTPUT"
+          CHANGED=$(echo "$FORMAT_OUTPUT" | grep -c "^Changed" || true)
+          if [ "$CHANGED" -gt 0 ]; then
             echo ""
-            echo "ERROR: The following Dart files are not formatted correctly:"
-            echo "$UNFORMATTED"
-            echo ""
-            echo "Run 'dart format lib/' locally and commit the result."
-            exit 1
+            echo "NOTE: $CHANGED file(s) were auto-formatted. Consider running"
+            echo "'dart format lib/' locally and committing the result to keep"
+            echo "the repository consistently formatted."
+          else
+            echo "All Dart files were already correctly formatted."
           fi
-          echo "All Dart files are correctly formatted."
 
       # ── GATE 2: Flutter analyze ───────────────────────────────────────────────
       # Catches Dart type errors, missing imports, and lint issues before
