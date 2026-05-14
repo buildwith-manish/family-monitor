@@ -57,6 +57,10 @@ android {
         versionName = "1.0"
 
         multiDexEnabled = true
+
+        // Strip all locales except English — Firebase, WebRTC, and AndroidX
+        // each ship 80+ locale string tables. Keeping only "en" saves ~2–4 MB.
+        resourceConfigurations += listOf("en")
     }
 
     // SEC-02: Release signing — credentials read from environment variables so
@@ -157,6 +161,21 @@ android {
         }
     }
 
+    // ── ABI splits — each APK variant only ships native libs for one CPU ──
+    // arm64-v8a  = modern phones (2015+) — ~90% of installs
+    // armeabi-v7a = older 32-bit phones
+    // x86_64     = emulators / Chromebooks
+    // Without this, every APK bundles all three, tripling native-lib size.
+    // flutter_webrtc alone adds ~30 MB of native libs per ABI.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = false
+        }
+    }
+
     packaging {
 
         resources {
@@ -164,6 +183,20 @@ android {
             excludes += listOf(
                 "META-INF/INDEX.LIST",
                 "META-INF/io.netty.versions.properties",
+                // WebRTC / Netty internals bundled unnecessarily
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.txt",
+                "META-INF/NOTICE",
+                "META-INF/NOTICE.txt",
+                "META-INF/*.kotlin_module",
+                // Kotlin reflection metadata not needed at runtime
+                "kotlin/**",
+                "DebugProbesKt.bin",
+                // Unused native debug info
+                "**.so.dbg",
+                // Unused ICU data (huge) — Flutter ships its own copy
+                "**/icu4j*.jar",
             )
         }
     }
