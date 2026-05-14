@@ -327,21 +327,32 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
       }
     });
 
+    // Listen ONLY to calls/$uid/status — not the entire calls/$uid node.
+    // Listening to the whole node caused _autoStartStreaming() to fire on
+    // every ICE-candidate push / answer write / heartbeat update because
+    // onValue re-fires for any descendant change while status was still
+    // 'calling'. Scoping to the status leaf eliminates those spurious triggers.
     _callSub?.cancel();
     _callSub = FirebaseDatabase.instance
-        .ref('calls/$uid')
+        .ref('calls/$uid/status')
         .onValue
         .listen((DatabaseEvent event) async {
       try {
-        final Object? data = event.snapshot.value;
-        if (data == null || data is! Map) return;
-        final Map<String, dynamic> map = Map<String, dynamic>.from(data);
-        final String? status = map['status'] as String?;
+        final String? status = event.snapshot.value is String
+            ? event.snapshot.value as String
+            : null;
         if (status == 'calling') {
-          final String modeStr = map['mode'] as String? ?? 'camera';
+          // Fetch the mode from a sibling node (single read, not a stream).
+          final modeSnap = await FirebaseDatabase.instance
+              .ref('calls/$uid/mode')
+              .get();
+          final String modeStr =
+              modeSnap.value is String ? modeSnap.value as String : 'camera';
           final StreamMode mode =
               modeStr == 'screen' ? StreamMode.screen : StreamMode.camera;
           _autoStartStreaming(uid, mode);
+        } else if (status == 'ended' || status == null) {
+          SilentWebRTCService.instance.stopSilent();
         }
       } catch (_) {}
     });

@@ -46,6 +46,12 @@ class SilentWebRTCService {
 
   int _reconnectAttempts = 0;
 
+  // After this many consecutive failed reconnects we treat the parent as gone
+  // and stop the camera rather than retrying indefinitely. This prevents the
+  // camera staying on forever when the parent app is killed without calling
+  // endCall (e.g. OS force-stop, crash).
+  static const int _maxReconnectAttempts = 8;
+
   DateTime? _lastReconnectTime;
 
   Timer? _reconnectTimer;
@@ -402,6 +408,18 @@ class SilentWebRTCService {
     _reconnectTimer?.cancel();
 
     _reconnectAttempts++;
+
+    // If the parent has been unreachable for too many consecutive attempts,
+    // treat the session as orphaned (parent crashed / was force-killed without
+    // calling endCall) and release the camera. This prevents the camera from
+    // running indefinitely in the background with no viewer.
+    if (_reconnectAttempts > _maxReconnectAttempts) {
+      debugPrint(
+        '[SilentWebRTC] Max reconnect attempts reached — stopping orphan session',
+      );
+      stopSilent();
+      return;
+    }
 
     final seconds = _reconnectAttempts > 5 ? 60 : (1 << _reconnectAttempts);
 

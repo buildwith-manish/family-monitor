@@ -128,25 +128,6 @@
             </intent-filter>
         </activity-alias>
 
-        <!-- ServiceLaunchAlias: ALWAYS enabled, empty label, no badge.
-             This ensures getLaunchIntentForPackage(packageName) NEVER returns null,
-             even when LauncherAlias is disabled (icon hidden after child setup).
-             Without this, both ScreenCaptureService.buildNotification() and the
-             flutter_background_service plugin's BackgroundService.updateNotificationInfo()
-             pass a null Intent to PendingIntent.getActivity() and crash fatally.
-             The empty label causes most launchers to suppress the duplicate entry. -->
-        <activity-alias
-            android:name=".ServiceLaunchAlias"
-            android:targetActivity=".MainActivity"
-            android:enabled="true"
-            android:exported="true"
-            android:label="">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity-alias>
-
         <!-- ── Flutter Foreground Task ───────────────────── -->
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"

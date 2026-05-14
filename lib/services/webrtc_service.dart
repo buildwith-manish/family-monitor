@@ -12,6 +12,7 @@ enum StreamMode { camera, screen }
 class WebRTCService {
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
+  MediaStream? _remoteStream;
 
   VoidCallback? onRemoteStream;
 
@@ -385,25 +386,41 @@ class WebRTCService {
       _db.child(path).push().set(candidate.toMap());
     };
 
-    _peerConnection?.onTrack = (event) {
+    _peerConnection?.onTrack = (event) async {
+      // On some Android devices/flutter_webrtc builds, event.streams can be
+      // empty even though the track is valid. We collect tracks manually into
+      // our own MediaStream so the renderer always gets a valid source.
+      MediaStream? stream;
+
       if (event.streams.isNotEmpty) {
-        final remoteStream = event.streams.first;
-
-        final existingTracks = remoteStream.getTracks();
-        for (final t in existingTracks) {
-          if (t.kind == event.track.kind && t.id != event.track.id) {
-            try {
-              t.stop();
-            } catch (_) {}
-
-            remoteStream.removeTrack(t);
-          }
-        }
-
-        remoteRenderer.srcObject = remoteStream;
-        _connectionTimer?.cancel();
-        onRemoteStream?.call();
+        stream = event.streams.first;
+      } else {
+        // Build or reuse a remote stream to hold arriving tracks.
+        _remoteStream ??= await createLocalMediaStream('remote');
+        stream = _remoteStream;
+        try {
+          await stream!.addTrack(event.track);
+        } catch (_) {}
       }
+
+      if (stream == null) return;
+
+      // Deduplicate: remove any older track of the same kind.
+      final existing = stream.getTracks();
+      for (final t in existing) {
+        if (t.kind == event.track.kind && t.id != event.track.id) {
+          try {
+            t.stop();
+          } catch (_) {}
+          try {
+            await stream.removeTrack(t);
+          } catch (_) {}
+        }
+      }
+
+      remoteRenderer.srcObject = stream;
+      _connectionTimer?.cancel();
+      onRemoteStream?.call();
     };
   }
 
@@ -509,10 +526,21 @@ class WebRTCService {
     } catch (_) {}
 
     try {
+      for (final track in _remoteStream?.getTracks() ?? []) {
+        await track.stop();
+      }
+    } catch (_) {}
+
+    try {
+      await _remoteStream?.dispose();
+    } catch (_) {}
+
+    try {
       await _peerConnection?.close();
     } catch (_) {}
 
     _localStream = null;
+    _remoteStream = null;
     _peerConnection = null;
   }
 

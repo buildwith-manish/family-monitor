@@ -166,6 +166,11 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     _screenErrorSub?.cancel();
     _webrtc.onRemoteStream = null;
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    // Always signal the child to stop camera — even if the user used the
+    // system back gesture instead of the "End" button. Without this, the
+    // child's SilentWebRTCService never receives 'ended' and the camera
+    // stays active indefinitely.
+    _webrtc.endCall(widget.childUid).catchError((_) {});
     _webrtc.dispose();
     super.dispose();
   }
@@ -180,12 +185,18 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       body: GestureDetector(
         onTap: _toggleControls,
         child: Stack(fit: StackFit.expand, children: [
-          // Video feed
-          if (_hasStream)
-            RTCVideoView(
+          // Video feed — always in the widget tree so the native surface
+          // is created before srcObject is assigned. Hiding it with
+          // Offstage avoids the blank-renderer problem on Android where
+          // assigning srcObject before the SurfaceViewRenderer is attached
+          // to a native view produces a permanently blank frame.
+          Offstage(
+            offstage: !_hasStream,
+            child: RTCVideoView(
               _webrtc.remoteRenderer,
               objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
             ),
+          ),
 
           // Screen error banner
           if (_screenError != null)
