@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 import '../../services/daily_report_service.dart';
 
@@ -27,6 +28,7 @@ class _DailyReportScreenState extends State<DailyReportScreen>
   List<Map<String, dynamic>> _reports = [];
   Map<String, dynamic>? _todayUsage;
   bool _loading = true;
+  bool _generating = false;
 
   StreamSubscription? _reportsSub;
   StreamSubscription? _todaySub;
@@ -37,7 +39,10 @@ class _DailyReportScreenState extends State<DailyReportScreen>
     _tabs = TabController(length: 2, vsync: this);
     _reportsSub = _svc.watchReports(widget.childUid).listen((r) {
       if (!mounted) return;
-      setState(() { _reports = r; _loading = false; });
+      setState(() {
+        _reports = r;
+        _loading = false;
+      });
     });
     _todaySub = _svc.watchTodayUsage(widget.childUid).listen((u) {
       if (!mounted) return;
@@ -52,6 +57,8 @@ class _DailyReportScreenState extends State<DailyReportScreen>
     _tabs.dispose();
     super.dispose();
   }
+
+  // ─── Helpers ────────────────────────────────────────────────────────────
 
   String _fmt(int ms) {
     final m = ms ~/ 60000;
@@ -82,13 +89,390 @@ class _DailyReportScreenState extends State<DailyReportScreen>
   }
 
   Color _colorFor(String? pkg) {
-    final colors = [
-      const Color(0xFF1A73E8), const Color(0xFF34A853),
-      const Color(0xFFEA4335), const Color(0xFF9334E6),
-      const Color(0xFFFF6F00), const Color(0xFF00897B),
+    const colors = [
+      Color(0xFF1A73E8), Color(0xFF34A853),
+      Color(0xFFEA4335), Color(0xFF9334E6),
+      Color(0xFFFF6F00), Color(0xFF00897B),
     ];
     return colors[(pkg?.hashCode ?? 0).abs() % colors.length];
   }
+
+  String _timeLabel(DateTime dt) {
+    final d = DateTime.now().difference(dt);
+    if (d.inMinutes < 1) return 'just now';
+    if (d.inHours < 1) return '${d.inMinutes}m ago';
+    return '${d.inHours}h ago';
+  }
+
+  Set<String> get _existingDates =>
+      _reports.map((r) => r['date'] as String? ?? '').toSet();
+
+  // ─── Generate Report sheet ───────────────────────────────────────────────
+
+  Future<void> _showGenerateSheet() async {
+    // Build list of last 14 days (excluding today — today shows in the Today tab).
+    final today = DateTime.now();
+    final candidates = List.generate(14, (i) {
+      final d = today.subtract(Duration(days: i + 1));
+      return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    });
+
+    final selectedDates = <String>{};
+    final selectedSections = <String>{'App Usage', 'Call Log', 'SMS', 'Location'};
+
+    const allSections = ['App Usage', 'Call Log', 'SMS', 'Location', 'Screenshots'];
+    const sectionIcons = {
+      'App Usage': Icons.apps_rounded,
+      'Call Log': Icons.call_outlined,
+      'SMS': Icons.sms_outlined,
+      'Location': Icons.location_on_outlined,
+      'Screenshots': Icons.camera_alt_outlined,
+    };
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => DraggableScrollableSheet(
+          initialChildSize: 0.85,
+          maxChildSize: 0.95,
+          minChildSize: 0.5,
+          builder: (_, controller) => Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                // Handle bar
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F0FE),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.auto_graph,
+                            color: Color(0xFF1A73E8), size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Generate Reports',
+                              style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700)),
+                          Text('Pick dates & content sections',
+                              style: GoogleFonts.inter(
+                                  fontSize: 12, color: Colors.grey)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Divider(height: 1),
+
+                Expanded(
+                  child: ListView(
+                    controller: controller,
+                    padding: const EdgeInsets.all(20),
+                    children: [
+                      // ── Section 1: Content to include ──────────────────
+                      _SheetSection(
+                        icon: Icons.checklist_rounded,
+                        title: 'What to include',
+                        subtitle:
+                            'Select the data sections for these reports',
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: allSections.map((s) {
+                          final selected = selectedSections.contains(s);
+                          return FilterChip(
+                            label: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(sectionIcons[s],
+                                    size: 14,
+                                    color: selected
+                                        ? const Color(0xFF1A73E8)
+                                        : Colors.grey.shade600),
+                                const SizedBox(width: 4),
+                                Text(s),
+                              ],
+                            ),
+                            selected: selected,
+                            onSelected: (v) => setSheet(() {
+                              if (v) {
+                                selectedSections.add(s);
+                              } else {
+                                selectedSections.remove(s);
+                              }
+                            }),
+                            selectedColor:
+                                const Color(0xFFE8F0FE),
+                            checkmarkColor: const Color(0xFF1A73E8),
+                            labelStyle: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: selected
+                                  ? const Color(0xFF1A73E8)
+                                  : Colors.grey.shade700,
+                            ),
+                            backgroundColor: Colors.grey.shade100,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              side: BorderSide(
+                                color: selected
+                                    ? const Color(0xFF1A73E8)
+                                        .withValues(alpha: 0.4)
+                                    : Colors.transparent,
+                              ),
+                            ),
+                            showCheckmark: false,
+                          );
+                        }).toList(),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // ── Section 2: Date selection ──────────────────────
+                      Row(children: [
+                        _SheetSection(
+                          icon: Icons.date_range,
+                          title: 'Select dates',
+                          subtitle: 'Last 14 days — grey = report exists',
+                        ),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () => setSheet(() {
+                            final missing = candidates
+                                .where((d) =>
+                                    !_existingDates.contains(d))
+                                .toSet();
+                            if (selectedDates.containsAll(missing)) {
+                              selectedDates.clear();
+                            } else {
+                              selectedDates.addAll(missing);
+                            }
+                          }),
+                          child: Text('Select missing',
+                              style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: const Color(0xFF1A73E8),
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                      ]),
+                      const SizedBox(height: 12),
+
+                      // Date grid
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          childAspectRatio: 2.4,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                        ),
+                        itemCount: candidates.length,
+                        itemBuilder: (_, i) {
+                          final dateStr = candidates[i];
+                          final alreadyExists =
+                              _existingDates.contains(dateStr);
+                          final isSelected =
+                              selectedDates.contains(dateStr);
+
+                          // Parse for display
+                          final parts = dateStr.split('-');
+                          final d = DateTime(
+                              int.parse(parts[0]),
+                              int.parse(parts[1]),
+                              int.parse(parts[2]));
+                          final label =
+                              '${_weekdayShort(d.weekday)}\n${d.day} ${_monthShort(d.month)}';
+
+                          return GestureDetector(
+                            onTap: alreadyExists
+                                ? null
+                                : () => setSheet(() {
+                                      if (isSelected) {
+                                        selectedDates.remove(dateStr);
+                                      } else {
+                                        selectedDates.add(dateStr);
+                                      }
+                                    }),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              decoration: BoxDecoration(
+                                color: alreadyExists
+                                    ? Colors.grey.shade100
+                                    : isSelected
+                                        ? const Color(0xFF1A73E8)
+                                        : Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: alreadyExists
+                                      ? Colors.grey.shade200
+                                      : isSelected
+                                          ? const Color(0xFF1A73E8)
+                                          : Colors.grey.shade300,
+                                ),
+                              ),
+                              child: Stack(
+                                children: [
+                                  Center(
+                                    child: Text(
+                                      label,
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        height: 1.4,
+                                        color: alreadyExists
+                                            ? Colors.grey.shade400
+                                            : isSelected
+                                                ? Colors.white
+                                                : Colors.grey.shade800,
+                                      ),
+                                    ),
+                                  ),
+                                  if (alreadyExists)
+                                    Positioned(
+                                      top: 4,
+                                      right: 4,
+                                      child: Icon(Icons.check_circle,
+                                          size: 12,
+                                          color: const Color(0xFF34A853)),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── Bottom action bar ──────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 12,
+                        offset: const Offset(0, -4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Row(children: [
+                        Icon(Icons.info_outline,
+                            size: 14, color: Colors.grey.shade500),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            selectedDates.isEmpty
+                                ? 'Select at least one date to generate'
+                                : '${selectedDates.length} date${selectedDates.length > 1 ? 's' : ''} · ${selectedSections.length} section${selectedSections.length > 1 ? 's' : ''} selected',
+                            style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: Colors.grey.shade600),
+                          ),
+                        ),
+                      ]),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          onPressed: selectedDates.isEmpty ||
+                                  selectedSections.isEmpty
+                              ? null
+                              : () {
+                                  Navigator.pop(ctx);
+                                  _requestGeneration(
+                                      selectedDates, selectedSections);
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1A73E8),
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor:
+                                Colors.grey.shade200,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                          ),
+                          icon: const Icon(Icons.auto_graph, size: 18),
+                          label: Text(
+                            'Generate Reports',
+                            style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _requestGeneration(
+      Set<String> dates, Set<String> sections) async {
+    setState(() => _generating = true);
+    try {
+      await _svc.requestReportGeneration(
+          widget.childUid, dates.toList(), sections.toList());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Generating ${dates.length} report${dates.length > 1 ? 's' : ''} — check back in a few seconds',
+            ),
+            backgroundColor: const Color(0xFF34A853),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _generating = false);
+    }
+  }
+
+  // ─── Build ───────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -109,8 +493,30 @@ class _DailyReportScreenState extends State<DailyReportScreen>
           labelColor: const Color(0xFF1A73E8),
           unselectedLabelColor: Colors.grey,
           indicatorColor: const Color(0xFF1A73E8),
-          tabs: const [Tab(text: "Today"), Tab(text: "History")],
+          tabs: const [Tab(text: 'Today'), Tab(text: 'History')],
         ),
+      ),
+      floatingActionButton: ListenableBuilder(
+        listenable: _tabs,
+        builder: (_, __) => _tabs.index == 1
+            ? FloatingActionButton.extended(
+                onPressed: _generating ? null : _showGenerateSheet,
+                backgroundColor: const Color(0xFF1A73E8),
+                foregroundColor: Colors.white,
+                icon: _generating
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.auto_graph),
+                label: Text(
+                  _generating ? 'Generating…' : 'Generate Report',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                ),
+              )
+            : const SizedBox.shrink(),
       ),
       body: TabBarView(
         controller: _tabs,
@@ -118,6 +524,8 @@ class _DailyReportScreenState extends State<DailyReportScreen>
       ),
     );
   }
+
+  // ── Today tab ────────────────────────────────────────────────────────────
 
   Widget _buildToday() {
     final usage = _todayUsage;
@@ -185,10 +593,13 @@ class _DailyReportScreenState extends State<DailyReportScreen>
     );
   }
 
+  // ── History tab ──────────────────────────────────────────────────────────
+
   Widget _buildHistory() {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
+
     if (_reports.isEmpty) {
       return Center(
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -198,23 +609,45 @@ class _DailyReportScreenState extends State<DailyReportScreen>
               style: GoogleFonts.plusJakartaSans(
                   fontSize: 16, color: Colors.grey)),
           const SizedBox(height: 8),
-          Text('Reports are generated nightly at midnight',
+          Text('Reports generate nightly — tap the button below to create one now',
               style: GoogleFonts.inter(
-                  fontSize: 13, color: Colors.grey.shade400)),
+                  fontSize: 13, color: Colors.grey.shade400),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 28),
+          ElevatedButton.icon(
+            onPressed: _showGenerateSheet,
+            icon: const Icon(Icons.auto_graph),
+            label: Text('Generate Report',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1A73E8),
+              foregroundColor: Colors.white,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
         ]),
       );
     }
+
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       itemCount: _reports.length,
       itemBuilder: (ctx, i) {
         final r = _reports[i];
         final date = r['date'] as String? ?? '';
         final totalMs = (r['totalMs'] as num?)?.toInt() ?? 0;
         final appCount = (r['appCount'] as num?)?.toInt() ?? 0;
+        final sections = (r['sections'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            ['App Usage'];
         final topApps = (r['topApps'] as List?)
-            ?.map((e) => Map<String, dynamic>.from(e as Map))
-            .toList() ?? [];
+                ?.map((e) => Map<String, dynamic>.from(e as Map))
+                .toList() ??
+            [];
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -224,76 +657,136 @@ class _DailyReportScreenState extends State<DailyReportScreen>
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8, offset: const Offset(0, 2),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               )
             ],
           ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              const Icon(Icons.calendar_today,
-                  size: 16, color: Color(0xFF1A73E8)),
-              const SizedBox(width: 8),
-              Text(date,
-                  style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14, fontWeight: FontWeight.w700)),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F0FE),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(_fmt(totalMs),
-                    style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: const Color(0xFF1A73E8),
-                        fontWeight: FontWeight.w600)),
-              ),
-            ]),
-            const SizedBox(height: 8),
-            Text('$appCount apps used',
-                style: GoogleFonts.inter(
-                    fontSize: 12, color: Colors.grey)),
-            if (topApps.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: topApps.map((app) {
-                  final pkg = app['pkg'] as String?;
-                  final color = _colorFor(pkg);
-                  return Container(
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  const Icon(Icons.calendar_today,
+                      size: 16, color: Color(0xFF1A73E8)),
+                  const SizedBox(width: 8),
+                  Text(date,
+                      style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14, fontWeight: FontWeight.w700)),
+                  const Spacer(),
+                  Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                        horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.1),
+                      color: const Color(0xFFE8F0FE),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(
-                      '${_appName(pkg)} · ${_fmt((app['usedMs'] as num?)?.toInt() ?? 0)}',
+                    child: Text(_fmt(totalMs),
+                        style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: const Color(0xFF1A73E8),
+                            fontWeight: FontWeight.w600)),
+                  ),
+                ]),
+                const SizedBox(height: 6),
+                Row(children: [
+                  Text('$appCount apps used',
                       style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: color,
-                          fontWeight: FontWeight.w500),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ]),
+                          fontSize: 12, color: Colors.grey)),
+                  const SizedBox(width: 10),
+                  Wrap(
+                    spacing: 4,
+                    children: sections.map((s) => Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(s,
+                          style: GoogleFonts.inter(
+                              fontSize: 9,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500)),
+                    )).toList(),
+                  ),
+                ]),
+                if (topApps.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: topApps.map((app) {
+                      final pkg = app['pkg'] as String?;
+                      final color = _colorFor(pkg);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '${_appName(pkg)} · ${_fmt((app['usedMs'] as num?)?.toInt() ?? 0)}',
+                          style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: color,
+                              fontWeight: FontWeight.w500),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ]),
         ).animate(delay: (i * 50).ms).fadeIn().slideY(begin: 0.05);
       },
     );
   }
 
-  String _timeLabel(DateTime dt) {
-    final d = DateTime.now().difference(dt);
-    if (d.inMinutes < 1) return 'just now';
-    if (d.inHours < 1) return '${d.inMinutes}m ago';
-    return '${d.inHours}h ago';
+  // ─── Date helpers ────────────────────────────────────────────────────────
+
+  String _weekdayShort(int wd) =>
+      const ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][wd];
+
+  String _monthShort(int m) => const [
+        '',
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ][m];
+}
+
+// ─── Sheet section header ────────────────────────────────────────────────────
+
+class _SheetSection extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _SheetSection({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: const Color(0xFF1A73E8)),
+        const SizedBox(width: 8),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title,
+              style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14, fontWeight: FontWeight.w700)),
+          Text(subtitle,
+              style: GoogleFonts.inter(
+                  fontSize: 11, color: Colors.grey.shade500)),
+        ]),
+      ],
+    );
   }
 }
+
+// ─── Summary card (Today tab) ────────────────────────────────────────────────
 
 class _SummaryCard extends StatelessWidget {
   final int totalMs;
@@ -351,10 +844,14 @@ class _Stat extends StatelessWidget {
           style: GoogleFonts.inter(color: Colors.white54, fontSize: 11)),
       Text(value,
           style: GoogleFonts.plusJakartaSans(
-              color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600)),
     ]);
   }
 }
+
+// ─── App row (Today tab) ─────────────────────────────────────────────────────
 
 class _AppRow extends StatelessWidget {
   final String name, pkg;
@@ -383,14 +880,16 @@ class _AppRow extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6, offset: const Offset(0, 2),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           )
         ],
       ),
       child: Column(children: [
         Row(children: [
           Container(
-            width: 38, height: 38,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
@@ -398,12 +897,15 @@ class _AppRow extends StatelessWidget {
             child: Center(
               child: Text(name.isNotEmpty ? name[0] : '?',
                   style: TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w700, color: color)),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: color)),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(name,
                   style: GoogleFonts.inter(
                       fontSize: 13, fontWeight: FontWeight.w600)),
@@ -415,9 +917,7 @@ class _AppRow extends StatelessWidget {
           ),
           Text(fmt(ms),
               style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: color)),
+                  fontSize: 13, fontWeight: FontWeight.w600, color: color)),
         ]),
         const SizedBox(height: 8),
         ClipRRect(

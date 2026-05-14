@@ -659,6 +659,81 @@ Future<void> _setupMonitoringSession(
   // and the nightly report was never generated.
   _generateYesterdayReportIfMissing(uid);
 
+  // ── On-demand report generation (parent-triggered) ─────────────────────
+  // Listens for commands/$uid/generateReport/$date entries written by the
+  // parent's Generate Report sheet.  Processes each date in turn, then
+  // removes the command node so it only runs once.
+  FirebaseDatabase.instance
+      .ref('commands/$uid/generateReport')
+      .onValue
+      .listen((event) async {
+    final raw = event.snapshot.value;
+    if (raw == null || raw is! Map) return;
+    final requests = Map<String, dynamic>.from(raw);
+
+    for (final entry in requests.entries) {
+      final dateStr = entry.key; // e.g. "2025-05-13"
+      final meta = entry.value is Map
+          ? Map<String, dynamic>.from(entry.value as Map)
+          : <String, dynamic>{};
+      final sections = (meta['sections'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          ['App Usage'];
+
+      try {
+        final parts = dateStr.split('-');
+        if (parts.length != 3) continue;
+        final midnight = DateTime(
+            int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+        final endOfDay = DateTime(midnight.year, midnight.month,
+            midnight.day, 23, 59, 59);
+
+        int totalMs = 0;
+        final appBreakdown = <Map<String, dynamic>>[];
+
+        if (sections.contains('App Usage')) {
+          final stats =
+              await UsageStats.queryUsageStats(midnight, endOfDay);
+          for (final s in stats) {
+            final ms = int.tryParse(s.totalTimeInForeground ?? '0') ?? 0;
+            if (ms > 60000 && s.packageName != null) {
+              totalMs += ms;
+              appBreakdown.add({
+                'pkg': s.packageName,
+                'usedMs': ms,
+                'usedMinutes': ms ~/ 60000,
+              });
+            }
+          }
+          appBreakdown.sort((a, b) =>
+              (b['usedMs'] as int).compareTo(a['usedMs'] as int));
+        }
+
+        await FirebaseDatabase.instance
+            .ref('daily_reports/$uid/$dateStr')
+            .set({
+          'date': dateStr,
+          'totalMs': totalMs,
+          'totalMinutes': totalMs ~/ 60000,
+          'appCount': appBreakdown.length,
+          'topApps': appBreakdown.take(5).toList(),
+          'sections': sections,
+          'generatedAt': DateTime.now().millisecondsSinceEpoch,
+        });
+
+        // Clear the command so it doesn't re-run.
+        await FirebaseDatabase.instance
+            .ref('commands/$uid/generateReport/$dateStr')
+            .remove();
+
+        debugPrint('[BgService] Generated on-demand report for $dateStr');
+      } catch (e) {
+        debugPrint('[BgService] On-demand report error for $dateStr: $e');
+      }
+    }
+  });
+
   // Ping Flutter layer every 20 s
   _pingTimer = Timer.periodic(const Duration(seconds: 20), (_) => service.invoke('ping', {}));
 
