@@ -262,6 +262,9 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
                       delay: index * 80,
                       deviceInfo: _deviceInfo,
                       isOnline: _presenceMap[childUid] ?? false,
+                      onRemove: () async {
+                        await _auth.removeChild(childUid);
+                      },
                     );
                   }),
                   const SizedBox(height: 8),
@@ -349,6 +352,7 @@ class _ChildCard extends StatelessWidget {
   // Live presence fed from PresenceService.watchChildPresence stream.
   // True = device is online right now (Firebase .info/connected confirmed).
   final bool isOnline;
+  final Future<void> Function() onRemove;
 
   const _ChildCard({
     required this.childUid,
@@ -356,6 +360,7 @@ class _ChildCard extends StatelessWidget {
     required this.delay,
     required this.deviceInfo,
     required this.isOnline,
+    required this.onRemove,
   });
 
   @override
@@ -486,6 +491,71 @@ class _ChildCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+
+                // Three-dot menu — remove device
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert,
+                      size: 20, color: Color(0xFF9AA0A6)),
+                  tooltip: 'Options',
+                  onSelected: (v) async {
+                    if (v != 'remove') return;
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                        title: Text('Remove $name?',
+                            style: GoogleFonts.plusJakartaSans(
+                                fontWeight: FontWeight.w700)),
+                        content: Text(
+                          'This will disconnect $name\'s device from '
+                          'your account. You can reconnect it later '
+                          'by scanning the QR code again.',
+                          style: GoogleFonts.inter(fontSize: 14),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.pop(context, false),
+                            child: const Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  const Color(0xFFEA4335),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(8)),
+                            ),
+                            onPressed: () =>
+                                Navigator.pop(context, true),
+                            child: const Text('Remove'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed == true) {
+                      await onRemove();
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem<String>(
+                      value: 'remove',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.link_off,
+                              color: Color(0xFFEA4335), size: 18),
+                          const SizedBox(width: 10),
+                          Text('Remove device',
+                              style: GoogleFonts.inter(
+                                  color: const Color(0xFFEA4335),
+                                  fontWeight: FontWeight.w500)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

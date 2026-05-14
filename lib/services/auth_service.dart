@@ -310,6 +310,25 @@ class AuthService {
   }
 
   // ─────────────────────────────
+  // Remove Connected Child
+  // ─────────────────────────────
+
+  /// Disconnects [childUid] from the current parent account.
+  /// Removes the child from the parent's children list and revokes the
+  /// parent's approval entry on the child's profile.
+  Future<void> removeChild(String childUid) async {
+    final String? parentUid = currentUser?.uid;
+    if (parentUid == null) return;
+
+    await Future.wait([
+      // Remove child from parent's list
+      _db.child('users/$parentUid/children/$childUid').remove(),
+      // Revoke approval so the child device no longer reports to this parent
+      _db.child('users/$childUid/approvedParents/$parentUid').remove(),
+    ]);
+  }
+
+  // ─────────────────────────────
   // Decline Parent
   // ─────────────────────────────
 
