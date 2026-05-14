@@ -179,6 +179,7 @@ afterEvaluate {
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 
     implementation(
         "androidx.multidex:multidex:2.0.1"
