@@ -123,8 +123,23 @@ workflows:
             ERRORS=$((ERRORS + 1))
           fi
 
+          # Detect duplicate uses-permission entries in AndroidManifest.xml
+          echo "Scanning AndroidManifest.xml for duplicate permissions..."
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST" ]; then
+            DUPES=$(grep -o 'android:name="android\.permission\.[^"]*"' "$MANIFEST" \
+              | sort | uniq -d)
+            if [ -n "$DUPES" ]; then
+              echo ""
+              echo "ERROR: Duplicate uses-permission entries found in AndroidManifest.xml:"
+              echo "$DUPES"
+              echo "Remove the duplicate declaration(s) — each permission must appear only once."
+              ERRORS=$((ERRORS + 1))
+            fi
+          fi
+
           if [ "$ERRORS" -eq 0 ]; then
-            echo "All .gradle.kts files passed syntax validation."
+            echo "All checks passed."
           else
             echo ""
             echo "Fix the $ERRORS error(s) above before building."
