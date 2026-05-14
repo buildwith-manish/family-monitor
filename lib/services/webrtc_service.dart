@@ -27,9 +27,17 @@ class WebRTCService {
   StreamSubscription? _candidateSub;
   StreamSubscription? _connectivitySub;
 
+  // Hard cap on reconnect attempts — after this many consecutive failures the
+  // peer is considered unreachable and reconnection stops entirely.
+  static const int _maxReconnectAttempts = 10;
+
   bool _initialized = false;
   bool _answerSet = false;
   bool _disposed = false;
+
+  // Promoted from local closure variable so it survives async gaps and can be
+  // properly reset in _cancelSubs(), preventing offer reprocessing on error.
+  bool _offerProcessed = false;
 
   int _reconnectAttempts = 0;
 
@@ -222,7 +230,7 @@ class WebRTCService {
         },
       );
 
-      bool _offerProcessed = false;
+      _offerProcessed = false;
       _offerSub =
           _db.child('calls/$childUid/offer').onValue.listen((event) async {
         if (_disposed || _offerProcessed) return;
@@ -406,6 +414,13 @@ class WebRTCService {
 
     _reconnectAttempts++;
 
+    // Give up after the hard cap — prevents infinite battery drain when the
+    // peer is permanently gone (app killed, no network, device offline).
+    if (_reconnectAttempts > _maxReconnectAttempts) {
+      debugPrint('[WebRTC] Max reconnect attempts reached — stopping.');
+      return;
+    }
+
     final seconds = _reconnectAttempts > 5 ? 60 : (1 << _reconnectAttempts);
 
     final delay = Duration(seconds: seconds);
@@ -474,6 +489,7 @@ class WebRTCService {
     _candidateSub = null;
 
     _answerSet = false;
+    _offerProcessed = false;
   }
 
   Future<void> _closePC() async {
@@ -513,6 +529,7 @@ class WebRTCService {
 
   Future<void> dispose() async {
     _disposed = true;
+    _reconnectAttempts = 0;
 
     _reconnectTimer?.cancel();
     _connectionTimer?.cancel();

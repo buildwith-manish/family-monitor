@@ -15,7 +15,7 @@ workflows:
       flutter: stable
       java: 17
       groups:
-        - firebase_credentials   # FIREBASE_TOKEN must be added in Codemagic → Teams → Environment variable groups
+        - firebase_credentials   # Must contain: FIREBASE_TOKEN, FIREBASE_API_KEY, PARENT_FIREBASE_APP_ID, CHILD_FIREBASE_APP_ID
 
     cache:
       cache_paths:
@@ -43,7 +43,7 @@ workflows:
                   }
                 },
                 "oauth_client": [],
-                "api_key": [{"current_key": "AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4"}],
+                "api_key": [{"current_key": "$FIREBASE_API_KEY"}],
                 "services": {"appinvite_service": {"other_platform_oauth_client": []}}
               },
               {
@@ -54,7 +54,7 @@ workflows:
                   }
                 },
                 "oauth_client": [],
-                "api_key": [{"current_key": "AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4"}],
+                "api_key": [{"current_key": "$FIREBASE_API_KEY"}],
                 "services": {"appinvite_service": {"other_platform_oauth_client": []}}
               },
               {
@@ -65,7 +65,7 @@ workflows:
                   }
                 },
                 "oauth_client": [],
-                "api_key": [{"current_key": "AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4"}],
+                "api_key": [{"current_key": "$FIREBASE_API_KEY"}],
                 "services": {"appinvite_service": {"other_platform_oauth_client": []}}
               }
             ],
@@ -284,10 +284,10 @@ workflows:
       #      Firebase App IDs from the Firebase Console (Project Settings → Apps).
       - name: Distribute to Firebase App Distribution
         script: |
-          # Replace these with your real Firebase App IDs from the Firebase Console:
-          #   Project Settings → Your Apps → App ID
-          PARENT_APP_ID="1:758644747673:android:ea45b7a53b3f2f2e22f708"
-          CHILD_APP_ID="1:758644747673:android:32a2141244fb9c3222f708"
+          # Firebase App IDs — set PARENT_FIREBASE_APP_ID and CHILD_FIREBASE_APP_ID
+          # in Codemagic → Teams → Environment variable groups → firebase_credentials
+          PARENT_APP_ID="${PARENT_FIREBASE_APP_ID}"
+          CHILD_APP_ID="${CHILD_FIREBASE_APP_ID}"
 
           GIT_SHORT_SHA=$(git rev-parse --short HEAD)
           GIT_MSG=$(git log -1 --pretty=format:"%s")
