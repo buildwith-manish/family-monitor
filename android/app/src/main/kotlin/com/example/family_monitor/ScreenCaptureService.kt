@@ -110,7 +110,7 @@ class ScreenCaptureService : Service() {
         try {
             startFg()
             val pm   = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-            val data = resultData ?: run { starting = false; return }
+            val data = resultData ?: run { starting.set(false); return }
             teardownProjection()
             mediaProjection = pm.getMediaProjection(resultCode, data)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
