@@ -51,6 +51,21 @@ class WatchdogReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION_WATCHDOG) return
+
+        // Guard: only act if the child setup wizard has been completed and a UID
+        // has been persisted. Without this check the watchdog would start the
+        // Flutter background service on every alarm even before setup — wasting
+        // battery and potentially confusing the background service's init logic.
+        val flutterPrefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        val wizardDone   = flutterPrefs.getBoolean("flutter.wizard_done", false)
+        val uid          = flutterPrefs.getString("flutter.child_uid", null)
+        if (!wizardDone || uid.isNullOrEmpty()) {
+            Log.d(TAG, "Watchdog fired but setup not complete — skipping service restart")
+            // Do NOT re-arm: the watchdog will be re-armed by FamilyDeviceAdminReceiver
+            // or ScreenCaptureService once setup is complete.
+            return
+        }
+
         Log.d(TAG, "Watchdog fired — service instance=${ScreenCaptureService.instance != null}")
 
         // ── 1. Always ensure the Flutter background service is running ──

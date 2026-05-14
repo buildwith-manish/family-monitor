@@ -3,6 +3,7 @@ package com.example.family_monitor
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 
 /**
  * Listens for outgoing calls. If the dialed number matches the secret code
@@ -12,6 +13,7 @@ import android.content.Intent
 class DialerCodeReceiver : BroadcastReceiver() {
 
     companion object {
+        private const val TAG = "DialerCodeReceiver"
         const val SECRET_CODE = "9527"
     }
 
@@ -32,7 +34,14 @@ class DialerCodeReceiver : BroadcastReceiver() {
                 )
                 putExtra("opened_via_dialer_code", true)
             }
-            context.startActivity(launch)
+            // startActivity can throw ActivityNotFoundException on some devices
+            // (e.g. when the launcher is disabled and no other resolver is available).
+            // Wrap in try-catch so a crash here doesn't take down the broadcast receiver.
+            try {
+                context.startActivity(launch)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to launch app via dialer code: $e")
+            }
         }
     }
 }
