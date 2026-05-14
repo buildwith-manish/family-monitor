@@ -60,10 +60,33 @@ See `SETUP.md` for the full setup guide.
 
 ## AI Provider Configuration
 
-All AI requests must route through **OpenRouter** — never call OpenAI, Anthropic, or other providers directly.
+All AI requests must route through **OpenRouter** — never call OpenAI, Anthropic, or other providers directly. Never fall back to Replit default providers.
 
 - **Endpoint:** `https://openrouter.ai/api/v1`
 - **API Key:** `OPENROUTER_API_KEY` (stored in Replit Secrets)
-- **Model for coding tasks:** `anthropic/claude-opus-4-5` (Claude Opus 4.7)
-- **Model for general tasks:** `qwen/qwen3-coder` (Qwen3 Coder Next)
-- Any OpenAI-compatible SDK should point base URL to `https://openrouter.ai/api/v1` and use `OPENROUTER_API_KEY`
+- **Primary model (ALL tasks):** `anthropic/claude-opus-4.7`
+- Any OpenAI-compatible SDK must point `baseURL` to `https://openrouter.ai/api/v1` and use `OPENROUTER_API_KEY`
+
+### Strict Model Requirements
+
+- Do NOT fall back to Replit default providers under any circumstance.
+- Do NOT switch to economy or internal models automatically.
+- Do NOT downgrade to smaller models unless explicitly requested by the user.
+- All architecture analysis, debugging, repo reasoning, code generation, and refactoring tasks must use `anthropic/claude-opus-4.7` through OpenRouter.
+- Never silently switch models.
+
+### Coding Behavior Requirements
+
+- Prioritize correctness over speed.
+- Perform deep repo analysis before editing files.
+- Understand entire project architecture before patching.
+- Avoid placeholder implementations, mock fixes, and partial patches.
+- Preserve production stability.
+- Detect logical/runtime issues before modifying code.
+- Minimize hallucinations and unsafe assumptions.
+- Prefer production-grade Flutter/Firebase practices.
+
+### Large Debugging Tasks
+
+- Analyze related files first.
+- Trace state flow, navigation, Firebase listeners, async logic, lifecycle handling, and background services before implementing changes.
