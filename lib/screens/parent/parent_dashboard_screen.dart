@@ -22,6 +22,8 @@ import 'snapshots_screen.dart';
 import 'sms_call_log_screen.dart';
 import '../../services/device_event_service.dart';
 import 'crash_report_screen.dart';
+import 'daily_report_screen.dart';
+import 'app_install_alerts_screen.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});
@@ -881,6 +883,46 @@ class _ChildCard extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => SnapshotsScreen(
+                          childUid: childUid,
+                          childName:
+                              childData['childName'] as String? ?? name,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                _FeatureRow(
+                  icon: Icons.assessment_outlined,
+                  label: 'Daily Reports',
+                  subtitle: 'View nightly activity summaries & screen time',
+                  color: const Color(0xFF1565C0),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DailyReportScreen(
+                          childUid: childUid,
+                          childName:
+                              childData['childName'] as String? ?? name,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                _FeatureRow(
+                  icon: Icons.app_registration,
+                  label: 'App Install Alerts',
+                  subtitle: 'Get notified when apps are installed or removed',
+                  color: const Color(0xFF2E7D32),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AppInstallAlertsScreen(
                           childUid: childUid,
                           childName:
                               childData['childName'] as String? ?? name,

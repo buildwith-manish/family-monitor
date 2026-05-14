@@ -26,7 +26,7 @@ class MonitoringScreen extends StatefulWidget {
 class _MonitoringScreenState extends State<MonitoringScreen> {
   final _webrtc = WebRTCService();
   bool _hasStream = false;
-  bool _isMuted = false;
+  bool _isMuted = true;
   bool _showControls = true;
   String _status = 'Connecting...';
   bool _isChildOnline = false;
@@ -53,6 +53,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       });
       _timeout?.cancel();
       _startControlsTimer();
+      // Enforce muted-by-default: send the mute command as soon as the
+      // stream connects so the child's mic is silenced from the first frame.
+      _webrtc.sendMuteCommand(widget.childUid, true).catchError((_) {});
     };
     _startMonitoring();
     _listenToPresence();

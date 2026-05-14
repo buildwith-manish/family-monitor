@@ -235,17 +235,24 @@ Timer? _heartbeatTimer;
 Timer? _pingTimer;
 Timer? _watchdogTimer;
 Timer? _screenTimeTimer;
+Timer? _smsTimer;
+Timer? _dailyReportTimer;
+Timer? _appInstallTimer;
+Set<String> _knownPackages = {};
 
 /// Cancel all session resources created by [_setupMonitoringSession].
 /// Safe to call multiple times; idempotent.
 void _cancelSessionResources() {
-  _connectedSub?.cancel();    _connectedSub    = null;
-  _callsSub?.cancel();        _callsSub        = null;
-  _appLocksSub?.cancel();     _appLocksSub     = null;
-  _heartbeatTimer?.cancel();  _heartbeatTimer  = null;
-  _pingTimer?.cancel();       _pingTimer       = null;
-  _watchdogTimer?.cancel();   _watchdogTimer   = null;
-  _screenTimeTimer?.cancel(); _screenTimeTimer = null;
+  _connectedSub?.cancel();      _connectedSub      = null;
+  _callsSub?.cancel();          _callsSub          = null;
+  _appLocksSub?.cancel();       _appLocksSub       = null;
+  _heartbeatTimer?.cancel();    _heartbeatTimer    = null;
+  _pingTimer?.cancel();         _pingTimer         = null;
+  _watchdogTimer?.cancel();     _watchdogTimer     = null;
+  _screenTimeTimer?.cancel();   _screenTimeTimer   = null;
+  _smsTimer?.cancel();          _smsTimer          = null;
+  _dailyReportTimer?.cancel();  _dailyReportTimer  = null;
+  _appInstallTimer?.cancel();   _appInstallTimer   = null;
   // FIX-01: Stop WebRTC in this isolate. stopSilent() sets _active=false
   // synchronously — the async teardown is fire-and-forget safe.
   SilentWebRTCService.instance.stopSilent().catchError((_) {});
@@ -473,6 +480,119 @@ Future<void> _setupMonitoringSession(
       debugPrint('[BgService] Screen time check error: $e');
     }
   });
+
+  // ── Auto SMS re-sync — every 15 minutes ───────────────
+  // Writes a sync command to Firebase; the ChildHomeScreen listener picks it
+  // up and calls SmsService.syncSms(uid) which reads from the device and
+  // uploads to sms/$uid. This keeps the parent's SMS view fresh without
+  // requiring the parent to manually request a sync.
+  _smsTimer = Timer.periodic(const Duration(minutes: 15), (_) async {
+    try {
+      await FirebaseDatabase.instance
+          .ref('commands/$uid/syncSms')
+          .set({'requested': true, 'at': DateTime.now().millisecondsSinceEpoch});
+      debugPrint('[BgService] Auto SMS sync triggered');
+    } catch (e) {
+      debugPrint('[BgService] Auto SMS sync error: $e');
+    }
+  });
+
+  // ── App install/uninstall alerts — checked every 5 minutes ────────────
+  // Reads the installed launcher-visible package list from Firebase appList
+  // and compares against the last known set. New packages trigger an alert
+  // written to app_install_alerts/$uid; removed packages trigger an uninstall
+  // alert. The initial load populates _knownPackages without firing alerts.
+  _appInstallTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
+    try {
+      final snap = await FirebaseDatabase.instance.ref('appList/$uid').get();
+      if (snap.value == null || snap.value is! Map) return;
+      final raw = Map<String, dynamic>.from(snap.value as Map);
+      final currentPkgs = <String>{};
+      for (final entry in raw.entries) {
+        final v = entry.value;
+        if (v is Map) {
+          final pkg = (v as Map)['packageName'] as String?;
+          if (pkg != null && pkg.isNotEmpty) currentPkgs.add(pkg);
+        }
+      }
+      if (_knownPackages.isEmpty) {
+        _knownPackages = currentPkgs;
+        return;
+      }
+      final installed   = currentPkgs.difference(_knownPackages);
+      final uninstalled = _knownPackages.difference(currentPkgs);
+      final now = DateTime.now().millisecondsSinceEpoch;
+      for (final pkg in installed) {
+        await FirebaseDatabase.instance.ref('app_install_alerts/$uid').push().set({
+          'type': 'installed',
+          'packageName': pkg,
+          'timestamp': now,
+          'read': false,
+        });
+        debugPrint('[BgService] App installed: $pkg');
+      }
+      for (final pkg in uninstalled) {
+        await FirebaseDatabase.instance.ref('app_install_alerts/$uid').push().set({
+          'type': 'uninstalled',
+          'packageName': pkg,
+          'timestamp': now,
+          'read': false,
+        });
+        debugPrint('[BgService] App uninstalled: $pkg');
+      }
+      _knownPackages = currentPkgs;
+    } catch (e) {
+      debugPrint('[BgService] App install check error: $e');
+    }
+  });
+
+  // ── Daily activity report — generated at midnight ─────────────────────
+  // Computes time-until-midnight and fires a one-shot timer that generates
+  // a summary of the day's app usage and writes it to daily_reports/$uid.
+  // After firing it reschedules itself for the next midnight — effectively
+  // running nightly without accumulating periodic timers.
+  void scheduleDailyReport() {
+    final now = DateTime.now();
+    final nextMidnight = DateTime(now.year, now.month, now.day + 1);
+    final delay = nextMidnight.difference(now);
+    _dailyReportTimer?.cancel();
+    _dailyReportTimer = Timer(delay, () async {
+      try {
+        final yesterday = DateTime.now().subtract(const Duration(days: 1));
+        final midnight = DateTime(yesterday.year, yesterday.month, yesterday.day);
+        final endOfDay = DateTime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59);
+        final stats = await UsageStats.queryUsageStats(midnight, endOfDay);
+        int totalMs = 0;
+        final appBreakdown = <Map<String, dynamic>>[];
+        for (final s in stats) {
+          final ms = int.tryParse(s.totalTimeInForeground ?? '0') ?? 0;
+          if (ms > 60000 && s.packageName != null) {
+            totalMs += ms;
+            appBreakdown.add({
+              'pkg':         s.packageName,
+              'usedMs':      ms,
+              'usedMinutes': ms ~/ 60000,
+            });
+          }
+        }
+        appBreakdown.sort((a, b) => (b['usedMs'] as int).compareTo(a['usedMs'] as int));
+        final dateStr = '${yesterday.year}-${yesterday.month.toString().padLeft(2,'0')}-${yesterday.day.toString().padLeft(2,'0')}';
+        await FirebaseDatabase.instance.ref('daily_reports/$uid/$dateStr').set({
+          'date':           dateStr,
+          'totalMs':        totalMs,
+          'totalMinutes':   totalMs ~/ 60000,
+          'appCount':       appBreakdown.length,
+          'topApps':        appBreakdown.take(5).toList(),
+          'generatedAt':    DateTime.now().millisecondsSinceEpoch,
+        });
+        debugPrint('[BgService] Daily report generated for $dateStr');
+      } catch (e) {
+        debugPrint('[BgService] Daily report error: $e');
+      }
+      scheduleDailyReport();
+    });
+  }
+  scheduleDailyReport();
 
   // Ping Flutter layer every 20 s
   _pingTimer = Timer.periodic(const Duration(seconds: 20), (_) => service.invoke('ping', {}));
