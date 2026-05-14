@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "l1Yt6NsVvuYeVUqEIFUsS"
+uri = "file://AUDIT.md"
+type = "text"
+title = "Family Monitor — Full Production Audit"
