@@ -17,6 +17,7 @@ android {
         "28.2.13676358"
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility =
             JavaVersion.VERSION_17
 
