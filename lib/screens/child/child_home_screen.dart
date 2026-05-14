@@ -406,7 +406,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     });
   }
 
-  void _autoStartStreaming(String uid, StreamMode _mode) {
+  void _autoStartStreaming(String uid, StreamMode mode) {
     if (mode == StreamMode.screen) {
       SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {});
     } else {
