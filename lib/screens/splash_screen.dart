@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/auth_service.dart';
 
@@ -72,7 +74,32 @@ class _SplashScreenState extends State<SplashScreen> {
         Navigator.pushReplacementNamed(context, '/child/home');
         break;
       case UserRole.unknown:
-        Navigator.pushReplacementNamed(context, '/role-select');
+        // HIGH-02: When the authenticated user's role is absent from
+        // SharedPreferences (device transfer, factory reset without full wipe,
+        // or crash during sign-out), fall back to the authoritative RTDB record
+        // rather than sending them to role-select and losing session context.
+        // If RTDB also has no role, fall through to role-select normally.
+        try {
+          final snap = await FirebaseDatabase.instance
+              .ref('users/${user.uid}/role')
+              .get();
+          final remoteRole = snap.value as String?;
+          if (!mounted) return;
+          if (remoteRole == 'parent' || remoteRole == 'child') {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('user_role', remoteRole!);
+            if (!mounted) return;
+            Navigator.pushReplacementNamed(
+              context,
+              remoteRole == 'parent' ? '/parent/dashboard' : '/child/home',
+            );
+          } else {
+            Navigator.pushReplacementNamed(context, '/role-select');
+          }
+        } catch (_) {
+          if (!mounted) return;
+          Navigator.pushReplacementNamed(context, '/role-select');
+        }
         break;
     }
   }

@@ -349,20 +349,26 @@ Future<void> _setupMonitoringSession(
   // This prevents timer/listener accumulation when the watchdog restarts the session.
   _cancelSessionResources();
 
-  // Restore online presence after potential process death
-  await FirebaseDatabase.instance.ref('users/$uid/isOnline').set(true);
+  // HIGH-01: Do NOT write isOnline here. PresenceService (UI isolate) is the
+  // sole authority for users/$uid/isOnline. Writing from two isolates causes
+  // rapid online↔offline flips on the parent dashboard: when one connection
+  // drops (e.g. background service restarts), its onDisconnect fires 'false',
+  // then the UI isolate's connection immediately rewrites 'true' — visible as
+  // a child flickering offline/online every network transition.
+  // Only update lastSeen (benign, non-conflicting) and service-specific nodes.
   await FirebaseDatabase.instance.ref('users/$uid/lastSeen').set(ServerValue.timestamp);
 
-  // FIX-03: Register onDisconnect for users/$uid/isOnline here, in the
-  // background isolate. Firebase executes onDisconnect server-side when the
-  // socket closes, so this is reliable even if the client process is killed.
+  // FIX-03: Register onDisconnect for calls/$uid/status in the background
+  // isolate — Firebase executes this server-side when the socket closes.
+  // serviceLastSeen acts as a background-only heartbeat so the parent can
+  // distinguish "app foregrounded" from "background service running".
+  // isOnline is intentionally NOT written or registered here.
   _connectedSub = FirebaseDatabase.instance.ref('.info/connected').onValue.listen((event) async {
     final connected = event.snapshot.value as bool? ?? false;
     if (connected) {
       try {
-        final userRef = FirebaseDatabase.instance.ref('users/$uid');
-        await userRef.child('isOnline').onDisconnect().set(false);
-        await userRef.child('isOnline').set(true);
+        await FirebaseDatabase.instance.ref('users/$uid/serviceLastSeen')
+            .set(ServerValue.timestamp);
         final statusRef = FirebaseDatabase.instance.ref('calls/$uid/status');
         await statusRef.onDisconnect().set('offline');
         await statusRef.set('online');
@@ -494,6 +500,16 @@ Future<void> _setupMonitoringSession(
       final midnight = DateTime(now.year, now.month, now.day);
       final stats = await UsageStats.queryUsageStats(midnight, now);
 
+      // P6-A: Read the blocked_packages cache ONCE here rather than doing one
+      // Firebase get() per under-limit app inside the loop. The cache is kept
+      // fresh by _appLocksSub which writes to SharedPreferences within seconds
+      // of any lock state change from Firebase.
+      final prefs = await SharedPreferences.getInstance();
+      final blockedPackages = (prefs.getString('blocked_packages') ?? '')
+          .split(',')
+          .where((s) => s.isNotEmpty)
+          .toSet();
+
       for (final entry in limits.entries) {
         final pkg = entry.key;
         final limitMinutes = (entry.value as num?)?.toInt() ?? 0;
@@ -522,13 +538,19 @@ Future<void> _setupMonitoringSession(
           debugPrint(
               '[BgService] Screen time limit hit for $pkg: ${usedMinutes}m >= ${limitMinutes}m');
         } else {
-          // Check if previously auto-locked by screen time and unlock if today's
-          // usage is now under limit (handles cases where the clock rolled over).
-          final lockSnap = await blockRef.get();
-          if (lockSnap.value is Map) {
-            final lockData = Map<String, dynamic>.from(lockSnap.value as Map);
-            if (lockData['reason'] == 'screen_time_limit') {
-              await blockRef.remove();
+          // P6-A: Use the in-memory blocked_packages cache (maintained by
+          // _appLocksSub) instead of a per-app Firebase get() call. This
+          // eliminates N sequential reads per timer tick for under-limit apps
+          // (e.g. 10 apps × read latency ~150 ms = 1.5 s blocked per cycle).
+          // Only hit Firebase when the local cache confirms the app IS blocked,
+          // reducing reads from N-per-tick to at-most-overLimit-per-tick.
+          if (blockedPackages.contains(pkg)) {
+            final lockSnap = await blockRef.get();
+            if (lockSnap.value is Map) {
+              final lockData = Map<String, dynamic>.from(lockSnap.value as Map);
+              if (lockData['reason'] == 'screen_time_limit') {
+                await blockRef.remove();
+              }
             }
           }
         }
@@ -621,8 +643,13 @@ Future<void> _setupMonitoringSession(
           .ref('commands/$uid/syncAppList')
           .set({'requested': true, 'at': DateTime.now().millisecondsSinceEpoch});
 
-      // Give the child device ~10 s to respond before reading the list.
-      await Future.delayed(const Duration(seconds: 10));
+      // MEDIUM-03: The previous 10-second Future.delayed blocked this isolate's
+      // entire event loop for 10 s every 5 minutes — deferring heartbeat writes,
+      // watchdog checks, and WebRTC incoming call responses. Removed entirely.
+      // The appList/$uid node is populated by the child device via the listener
+      // in ChildHomeScreen._listenForCommandsSafe(). When the UI is in the
+      // foreground the response typically arrives within 1–3 s; when backgrounded
+      // the listener is inactive and no delay would help anyway.
 
       final snap = await FirebaseDatabase.instance.ref('appList/$uid').get();
       if (snap.value == null || snap.value is! Map) return;

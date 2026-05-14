@@ -90,6 +90,60 @@
         ".write": "auth.uid === $childUid"
       }
     },
+    "geofence_state": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid",
+        ".write": "auth.uid === $childUid"
+      }
+    },
+    "app_usage": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth.uid === $childUid"
+      }
+    },
+    "daily_reports": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth.uid === $childUid"
+      }
+    },
+    "app_install_alerts": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth.uid === $childUid"
+      }
+    },
+    "hourly_usage": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth.uid === $childUid"
+      }
+    },
+    "keyword_alerts": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth.uid === $childUid"
+      }
+    },
+    "panic_alerts": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth.uid === $childUid"
+      }
+    },
+    "weekly_summary": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth.uid === $childUid"
+      }
+    },
+    "alert_settings": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid",
+        ".write": "auth.uid === $childUid"
+      }
+    },
     "config": {
       "turnServers": {
         ".read":  "auth != null",

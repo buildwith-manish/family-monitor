@@ -181,15 +181,22 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     _screenErrorSub?.cancel();
     _webrtc.onRemoteStream = null;
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    // LC-02: Only send endCall from dispose if _endSession() was NOT already
-    // called (i.e. the user used a system back gesture bypassing _endSession).
-    // Without this guard, endCall fires twice — once from _endSession and
-    // once from dispose — which can produce a second 'ended' write that
-    // races with a new session the parent immediately starts.
+    // P5-B: Chain endCall → dispose so the Firebase 'ended' write reaches the
+    // child's _callsSub before the peer connection is torn down. The old
+    // fire-and-forget approach called dispose() immediately after endCall(),
+    // which cancelled all subscriptions (including _statusSub) before the
+    // write could propagate — leaving the child's camera active for up to 30 s.
+    // Using whenComplete() defers WebRTC teardown until after the write settles
+    // (or fails) while still calling super.dispose() synchronously, which is
+    // correct: the widget framework considers the widget disposed immediately,
+    // and the async WebRTC cleanup runs safely after.
     if (!_callEnded) {
-      _webrtc.endCall(widget.childUid).catchError((_) {});
+      _webrtc.endCall(widget.childUid)
+          .catchError((_) {})
+          .whenComplete(() => _webrtc.dispose());
+    } else {
+      _webrtc.dispose();
     }
-    _webrtc.dispose();
     super.dispose();
   }
 

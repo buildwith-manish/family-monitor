@@ -281,12 +281,34 @@ class AuthService {
       final Map<String, dynamic> childData =
           Map<String, dynamic>.from(rawChild);
 
+      // PHANTOM-NODE: Write connectedParent on the child side so that
+      // ChildHomeScreen._listenForConnectedParent() actually finds data.
+      // Previously this node was read but never written, causing the child
+      // home screen to always fall through to _loadConnectedParentFromApproved()
+      // on every launch — an extra Firebase read on every cold start.
+      //
+      // The parent's name and email were written into pendingParentRequests by
+      // sendParentRequest() (parent side), so we read them from childData here
+      // rather than fetching users/$parentUid (which the child may not have
+      // permission to read under the deployed security rules).
+      final pendingRequests = childData['pendingParentRequests'];
+      final pendingEntry = (pendingRequests is Map && pendingRequests[parentUid] is Map)
+          ? Map<String, dynamic>.from(pendingRequests[parentUid] as Map)
+          : <String, dynamic>{};
+      final parentName  = pendingEntry['parentName']  as String? ?? '';
+      final parentEmail = pendingEntry['parentEmail'] as String? ?? '';
+
       // Single atomic multi-path update — if the app is killed between
       // any of these writes, the partial state is avoided. Firebase RTDB
       // applies all keys in one operation or rolls back on network failure.
       await _db.update({
         'users/$childUid/pendingParentRequests/$parentUid/status': 'approved',
         'users/$childUid/approvedParents/$parentUid': true,
+        'users/$childUid/connectedParent': {
+          'uid':         parentUid,
+          'parentName':  parentName,
+          'parentEmail': parentEmail,
+        },
         'users/$parentUid/children/$childUid': {
           'childName':  childData['childName'],
           'deviceName': childData['deviceName'],
