@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
@@ -245,9 +246,19 @@ class ScreenCaptureService : Service() {
     }
 
     private fun buildNotification(): Notification {
+        // getLaunchIntentForPackage returns null when LauncherAlias is disabled (icon hidden).
+        // Always fall back to a direct MainActivity intent so PendingIntent.getActivity()
+        // never receives a null Intent and never crashes.
+        val launchIntent: Intent = try {
+            packageManager.getLaunchIntentForPackage(packageName)
+        } catch (_: Exception) { null }
+            ?: Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+
         val openIntent = PendingIntent.getActivity(
             this, 0,
-            packageManager.getLaunchIntentForPackage(packageName),
+            launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
