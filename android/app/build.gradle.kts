@@ -69,10 +69,10 @@ android {
                 keyPassword   = ksKPwd
             } else {
                 // Fallback to debug cert in dev; DO NOT publish without setting the env vars.
-                storeFile     = signingConfigs.getByName("debug").storeFile
-                storePassword = signingConfigs.getByName("debug").storePassword
-                keyAlias      = signingConfigs.getByName("debug").keyAlias
-                keyPassword   = signingConfigs.getByName("debug").keyPassword
+                storeFile     = file(System.getProperty("user.home") + "/.android/debug.keystore")
+                storePassword = "android"
+                keyAlias      = "androiddebugkey"
+                keyPassword   = "android"
             }
         }
     }
