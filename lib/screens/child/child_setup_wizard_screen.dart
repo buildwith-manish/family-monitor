@@ -888,37 +888,37 @@ class _PageFeatures extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          const _InfoRow(
+          const _InfoIconRow(
             icon: Icons.videocam,
             text:
                 'Live camera streaming',
           ),
 
-          const _InfoRow(
+          const _InfoIconRow(
             icon: Icons.screen_share,
             text: 'Live screen viewing',
           ),
 
-          const _InfoRow(
+          const _InfoIconRow(
             icon:
                 Icons.record_voice_over,
             text:
                 'Microphone monitoring',
           ),
 
-          const _InfoRow(
+          const _InfoIconRow(
             icon: Icons.lock_clock,
             text:
                 'Screen time limits',
           ),
 
-          const _InfoRow(
+          const _InfoIconRow(
             icon: Icons.location_on,
             text:
                 'Location tracking',
           ),
 
-          const _InfoRow(
+          const _InfoIconRow(
             icon: Icons.block,
             text:
                 'App and content filtering',
@@ -2133,17 +2133,17 @@ class _PageDeviceAdmin extends StatelessWidget {
           const SizedBox(height: 32),
 
           if (!adminActive) ...[
-            _InfoRow(
+            _InfoIconRow(
               icon: Icons.block,
               color: const Color(0xFFEA4335),
               text: 'Prevents silent uninstallation',
             ),
-            _InfoRow(
+            _InfoIconRow(
               icon: Icons.restart_alt,
               color: const Color(0xFF1A73E8),
               text: 'Allows auto-restart after reboot',
             ),
-            _InfoRow(
+            _InfoIconRow(
               icon: Icons.lock_outline,
               color: const Color(0xFF34A853),
               text: 'Keeps monitoring running 24/7',
@@ -2218,3 +2218,44 @@ class _PageDeviceAdmin extends StatelessWidget {
   }
 }
 
+class _InfoIconRow extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String text;
+
+  const _InfoIconRow({
+    required this.icon,
+    required this.color,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: const Color(0xFF2D3748),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
