@@ -402,12 +402,18 @@ class _ChildSetupWizardScreenState
               ? 'My Phone'
               : _deviceCtrl.text.trim();
 
+      // P2-C: Do NOT touch pendingParentRequests here. Profile fields and
+      // relationship fields must never be written from the same .update() call
+      // because a concurrent parent QR-scan can write to pendingParentRequests
+      // during the async gap, and overwriting it with a stale snapshot silently
+      // deletes the parent's pending request (TOCTOU race on Firebase RTDB).
+      // pendingParentRequests is written exclusively by the parent QR flow and
+      // read by the wizard's _requestSub listener — never overwritten here.
       final updates = <String, dynamic>{
         'childName': _nameCtrl.text.trim(),
         'deviceName': deviceName,
         'role': 'child',
         'isOnline': false,
-        'pendingParentRequests': await _existingRequests(uid),
       };
 
       final existingSnap = await FirebaseDatabase.instance
@@ -432,23 +438,6 @@ class _ChildSetupWizardScreenState
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOut,
     );
-  }
-
-  Future<Map<String, dynamic>>
-      _existingRequests(String uid) async {
-    try {
-      final snap = await FirebaseDatabase.instance
-          .ref('users/$uid/pendingParentRequests')
-          .get();
-
-      if (snap.value != null) {
-        return Map<String, dynamic>.from(
-          snap.value as Map,
-        );
-      }
-    } catch (_) {}
-
-    return {};
   }
 
   void _prev() {

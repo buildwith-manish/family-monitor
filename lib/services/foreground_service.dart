@@ -1,11 +1,8 @@
 import 'dart:ui';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class MonitoringForegroundService {
   static final MonitoringForegroundService _instance =
@@ -144,18 +141,20 @@ void _startCallback() {
 
 // ARCH-01: The foreground task handler no longer owns WebRTC.  After the
 // ARCH-01 fix, the background-service isolate (background_monitoring_service.dart)
-// drives SilentWebRTCService directly.  This handler's sole responsibilities are:
+// drives SilentWebRTCService directly.  This handler's sole responsibility is:
 //   1. Keeping the persistent "Monitoring active" notification alive.
-//   2. Writing a lastSeen heartbeat to Firebase every 30 s.
-//   3. Cleaning up stale call sessions every ~10 minutes.
 //
 // ARCH-03: isOnline is intentionally NOT written here.  PresenceService (via
 // .info/connected) is the sole owner of the isOnline flag.  Writing it here
 // caused a race condition that masked true disconnections.
+//
+// P3-C: _cleanupStaleSessions removed (Option A). The foreground task had no
+// reliable way to distinguish an active session (parent monitoring, age > 10 min)
+// from an abandoned one (parent app crashed). It was terminating valid sessions
+// every 10 minutes by deleting calls/$uid when startedAt age exceeded threshold.
+// Stale-session cleanup is owned exclusively by background_monitoring_service.dart
+// (_setupMonitoringSession startup cleanup).
 class _MonitoringTaskHandler extends TaskHandler {
-  int _heartbeatCount = 0;
-  String? _childUid;
-
   // ── Lifecycle ──────────────────────────────────────────────
 
   @override
@@ -170,28 +169,15 @@ class _MonitoringTaskHandler extends TaskHandler {
         debugPrint('[TaskHandler] Firebase init error: $e');
       }
     }
-    await _loadUid();
   }
 
   @override
   Future<void> onRepeatEvent(DateTime timestamp) async {
-    _heartbeatCount++;
     // FIX-07: Do NOT write lastSeen here — the background-service isolate
     // (background_monitoring_service.dart _heartbeatTimer) already writes it
     // every 30 s. Writing it here too creates a race condition and doubles
-    // Firebase write costs. Stale-session cleanup is retained as it is low-
-    // frequency (every 20 ticks = ~10 min) and harmless to run twice.
-    if (_childUid == null) {
-      await _loadUid();
-    }
-    try {
-      final uid = _childUid;
-      if (uid != null && _heartbeatCount % 20 == 0) {
-        await _cleanupStaleSessions(uid);
-      }
-    } catch (e) {
-      debugPrint('[TaskHandler] cleanup error: $e');
-    }
+    // Firebase write costs.
+    // P3-C: Stale-session cleanup removed — see class comment above.
   }
 
   @override
@@ -204,33 +190,4 @@ class _MonitoringTaskHandler extends TaskHandler {
     FlutterForegroundTask.launchApp('/child/home');
   }
 
-  // ── Internal helpers ───────────────────────────────────────
-
-  Future<void> _loadUid() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      _childUid = prefs.getString('child_uid')
-          ?? FirebaseAuth.instance.currentUser?.uid;
-    } catch (e) {
-      debugPrint('[TaskHandler] UID load error: $e');
-    }
-  }
-
-  Future<void> _cleanupStaleSessions(String uid) async {
-    try {
-      final ref = FirebaseDatabase.instance.ref('calls/$uid');
-      final snap = await ref.get();
-      if (snap.value == null) return;
-      final data = Map<String, dynamic>.from(snap.value as Map);
-      final status = data['status'] as String?;
-      final ts = data['startedAt'] as int?;
-      if (status == 'calling' && ts != null) {
-        final age = DateTime.now().millisecondsSinceEpoch - ts;
-        if (age > 10 * 60 * 1000) {
-          debugPrint('[TaskHandler] Cleaning stale session');
-          await ref.remove();
-        }
-      }
-    } catch (_) {}
-  }
 }

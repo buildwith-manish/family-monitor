@@ -45,6 +45,21 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
+    // P1-B: Force a server round-trip to validate the cached token.
+    // Catches deleted/disabled accounts and revoked tokens that would
+    // otherwise appear authenticated until the local cache expires (~1 h).
+    // Only FirebaseAuthException (auth-specific) triggers sign-out —
+    // generic network errors are swallowed so offline users are not
+    // logged out during brief connectivity gaps.
+    try {
+      await user.getIdToken(true);
+    } on FirebaseAuthException {
+      await FirebaseAuth.instance.signOut();
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/role-select');
+      return;
+    }
+
     final role = await AuthService().getSavedRole();
 
     if (!mounted) return;

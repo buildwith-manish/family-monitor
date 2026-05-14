@@ -19,6 +19,11 @@ class LocationService {
   Timer? _geofenceCheckTimer;
   String? _activeUid;
 
+  // P3-B: Mutex prevents concurrent _checkGeofences() invocations.
+  // GPS position events can arrive faster than the ~200 ms Firebase round-trip
+  // for the geofences read, causing duplicate alert writes.
+  bool _checkingGeofences = false;
+
   final _db = FirebaseDatabase.instance.ref();
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -97,6 +102,11 @@ class LocationService {
 
   Future<void> _checkGeofences(
       String uid, double lat, double lng) async {
+    // P3-B: Mutex guard — drop concurrent invocations. Position events can
+    // arrive within a single Firebase round-trip (~200 ms), causing two
+    // identical reads + writes and duplicate geofence alert entries.
+    if (_checkingGeofences) return;
+    _checkingGeofences = true;
     try {
       final snap = await _db.child('geofences/$uid').get();
       if (snap.value == null || snap.value is! Map) return;
@@ -132,6 +142,8 @@ class LocationService {
       }
     } catch (e) {
       debugPrint('[Location] geofence check error: $e');
+    } finally {
+      _checkingGeofences = false;
     }
   }
 

@@ -12,12 +12,21 @@
 # ── Firebase ───────────────────────────────────────────────────────────────────
 -keep class com.google.firebase.** { *; }
 -keep class com.google.android.gms.** { *; }
+# P10-A: Keep type signatures for Firebase generics (StorageEngine, etc.) and
+# preserve all annotations so Firebase Crashlytics stack traces are deobfuscated.
+-keepattributes Signature
+-keepattributes *Annotation*
 -dontwarn com.google.firebase.**
 -dontwarn com.google.android.gms.**
 
 # ── WebRTC (flutter_webrtc) ────────────────────────────────────────────────────
+# P10-A: Both packages are required — org.webrtc is the Google WebRTC library;
+# com.cloudwebrtc is the flutter_webrtc plugin wrapper that bridges Dart to JNI.
+# R8 renames both sets of classes → ClassNotFoundException at peer-connection init.
 -keep class org.webrtc.** { *; }
+-keep class com.cloudwebrtc.** { *; }
 -dontwarn org.webrtc.**
+-dontwarn com.cloudwebrtc.**
 
 # ── Native Kotlin classes (method channels, services, receivers) ───────────────
 -keep class com.example.family_monitor.** { *; }

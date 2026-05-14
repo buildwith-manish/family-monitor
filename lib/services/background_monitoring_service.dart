@@ -18,6 +18,9 @@ const String _kUidKey              = 'child_uid';
 const String _kWizardKey           = 'wizard_done';
 const String _kPermKey             = 'permissions_granted';
 const String _kMonitoringActiveKey = 'monitoring_active';
+// P9-A: Persist the known-packages baseline so watchdog restarts do not
+// re-fire install alerts for every app already present on the device.
+const String _kKnownPackagesKey    = 'bg_known_packages';
 
 class BackgroundMonitoringService {
   static final FlutterBackgroundService _svc = FlutterBackgroundService();
@@ -146,12 +149,13 @@ void _onStart(ServiceInstance service) async {
     }
   }
 
-  // FIX-04: Enable offline persistence so Firebase RTDB survives brief
-  // network gaps without dropping listeners. Must be called once before
-  // any FirebaseDatabase reference is created.
-  try {
-    FirebaseDatabase.instance.setPersistenceEnabled(true);
-  } catch (_) {}
+  // P3-A: Do NOT call setPersistenceEnabled() here. Firebase RTDB persistence
+  // is a process-level Android SDK setting. main_child.dart already calls it
+  // before any DatabaseReference is created. The background isolate shares the
+  // same Java-level FirebaseDatabase instance (same Android process) and
+  // inherits the persistence setting automatically. Calling it again throws
+  // DatabaseException (caught silently) and can destabilise the Dart plugin
+  // layer's event channels in this isolate.
 
   // ── UID guard ──────────────────────────────────────────
   final prefs = await SharedPreferences.getInstance();
@@ -161,6 +165,13 @@ void _onStart(ServiceInstance service) async {
     service.stopSelf();
     return;
   }
+
+  // P9-A: Restore known-packages baseline persisted by the previous session.
+  // Without this, every watchdog-triggered restart would see _knownPackages
+  // as empty and fire an "installed" alert for every app on the device.
+  final savedPkgs = prefs.getString(_kKnownPackagesKey) ?? '';
+  _knownPackages = savedPkgs.isEmpty ? {} : savedPkgs.split(',').toSet();
+  debugPrint('[BgService] Known-packages restored: ${_knownPackages.length} entries');
 
   // ── Foreground notification ────────────────────────────
   if (service is AndroidServiceInstance) {
@@ -626,6 +637,9 @@ Future<void> _setupMonitoringSession(
       }
       if (_knownPackages.isEmpty) {
         _knownPackages = currentPkgs;
+        // P9-A: Persist baseline so the next service restart doesn't re-alert.
+        final p = await SharedPreferences.getInstance();
+        await p.setString(_kKnownPackagesKey, _knownPackages.join(','));
         debugPrint('[BgService] App install baseline set: ${currentPkgs.length} packages');
         return;
       }
@@ -651,6 +665,9 @@ Future<void> _setupMonitoringSession(
         debugPrint('[BgService] App uninstalled: $pkg');
       }
       _knownPackages = currentPkgs;
+      // P9-A: Persist updated baseline so the next service restart picks it up.
+      final p = await SharedPreferences.getInstance();
+      await p.setString(_kKnownPackagesKey, _knownPackages.join(','));
     } catch (e) {
       debugPrint('[BgService] App install check error: $e');
     }
@@ -841,6 +858,11 @@ Future<void> _setupMonitoringSession(
           );
           await Future.delayed(const Duration(seconds: 2));
           await _setupMonitoringSession(service, uid);
+          // P4-B: Reset the flag on the SUCCESS path. Previously it was only
+          // reset in the catch block, so a successful restart left
+          // _watchdogRestarting = true permanently — suppressing all future
+          // watchdog restarts for the lifetime of the service process.
+          _watchdogRestarting = false;
         }
       } else {
         healthFailures = 0;

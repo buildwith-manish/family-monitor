@@ -38,8 +38,18 @@ class NotificationService {
   // recreates a subscription, which would produce duplicate notifications.
   final Map<String, Set<String>> _seenAlerts = {};
 
-  Set<String> _seenFor(String key) =>
-      _seenAlerts.putIfAbsent(key, () => {});
+  // P8-A: Bounded LRU-style pruning prevents unbounded memory growth over
+  // long monitoring sessions. Firebase push keys are lexicographically ordered
+  // by timestamp — removing the oldest 50 % when over 500 entries keeps memory
+  // bounded while still deduplicating any alert from the last ~30 days.
+  Set<String> _seenFor(String key) {
+    final set = _seenAlerts.putIfAbsent(key, () => <String>{});
+    if (set.length > 500) {
+      final sorted = set.toList()..sort();
+      set.removeAll(sorted.take(250));
+    }
+    return set;
+  }
 
   bool _initialized = false;
   int _notifId = 1000;

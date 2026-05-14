@@ -35,6 +35,12 @@ class WebRTCService {
   bool _answerSet = false;
   bool _disposed = false;
 
+  // P5-A: Mutex prevents concurrent _scheduleReconnect() invocations.
+  // Multiple ICE failure callbacks can fire within the same event-loop tick,
+  // each calling _scheduleReconnect(). Without this guard every callback would
+  // schedule its own Timer, consuming its own reconnect-attempts budget.
+  bool _reconnecting = false;
+
   // Promoted from local closure variable so it survives async gaps and can be
   // properly reset in _cancelSubs(), preventing offer reprocessing on error.
   bool _offerProcessed = false;
@@ -410,6 +416,12 @@ class WebRTCService {
   }) {
     if (_disposed) return;
 
+    // P5-A: Mutex guard — drop concurrent calls. Multiple ICE failure/state
+    // callbacks can fire in the same event-loop tick; each would otherwise
+    // schedule its own Timer and burn through _reconnectAttempts independently.
+    if (_reconnecting) return;
+    _reconnecting = true;
+
     _reconnectTimer?.cancel();
 
     _reconnectAttempts++;
@@ -418,6 +430,7 @@ class WebRTCService {
     // peer is permanently gone (app killed, no network, device offline).
     if (_reconnectAttempts > _maxReconnectAttempts) {
       debugPrint('[WebRTC] Max reconnect attempts reached — stopping.');
+      _reconnecting = false;
       return;
     }
 
@@ -430,6 +443,9 @@ class WebRTCService {
     );
 
     _reconnectTimer = Timer(delay, () async {
+      // Release the mutex before the async reconnect so that failures inside
+      // startAsChild/startAsParent can themselves schedule the next attempt.
+      _reconnecting = false;
       if (_disposed) return;
 
       if (isChild && mode != null) {
