@@ -4,7 +4,6 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'device_event_service.dart';
 
 /// Manages FCM token registration, local notification display, and
 /// writing alert triggers to Firebase so the child-side can push them

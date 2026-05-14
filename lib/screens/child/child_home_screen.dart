@@ -391,7 +391,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
               .get();
           final String modeStr =
               modeSnap.value is String ? modeSnap.value as String : 'camera';
-          final StreamMode mode =
+          final StreamMode _mode =
               modeStr == 'screen' ? StreamMode.screen : StreamMode.camera;
           // WEB-02 / ARCH-01: The background-service isolate now drives
           // SilentWebRTCService directly. Calling _autoStartStreaming() here
@@ -406,7 +406,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     });
   }
 
-  void _autoStartStreaming(String uid, StreamMode mode) {
+  void _autoStartStreaming(String uid, StreamMode _mode) {
     if (mode == StreamMode.screen) {
       SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {});
     } else {
