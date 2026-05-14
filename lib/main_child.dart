@@ -33,6 +33,11 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       }
     }
     if (message.data['type'] == 'call') {
+      // initialize() MUST be called before startService() so the plugin has
+      // the AndroidConfiguration it needs to build the foreground notification.
+      // Skipping this caused a crash when FCM arrived in a fresh process where
+      // the Flutter engine had not yet run main().
+      await BackgroundMonitoringService.initialize();
       final service = FlutterBackgroundService();
       if (!await service.isRunning()) {
         await service.startService();

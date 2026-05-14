@@ -103,6 +103,18 @@
         android:usesCleartextTraffic="true">
 
         <!-- ── Main Activity ─────────────────────────────── -->
+        <!--
+             The MAIN+LAUNCHER filter below must stay on MainActivity directly.
+             flutter_background_service calls getLaunchIntentForPackage() to build
+             the notification tap PendingIntent.  If the only LAUNCHER component is
+             the LauncherAlias and that alias is disabled (icon-hiding mode), the
+             package manager returns null and the service crashes with a
+             NullPointerException inside BackgroundService.updateNotificationInfo().
+             Keeping MAIN+LAUNCHER here guarantees a non-null intent at all times.
+             The LauncherAlias below still controls launcher-icon visibility —
+             most launchers deduplicate entries that share the same target activity,
+             so only one icon appears when both are enabled.
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -111,12 +123,19 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme"/>
         </activity>
 
-        <!-- Launcher alias — disabled after setup to hide the icon -->
+        <!-- Launcher alias — disabled after setup to hide the icon.
+             Disabling this alias removes the icon from the launcher drawer while
+             MainActivity's own MAIN+LAUNCHER filter (above) ensures the background
+             service can always build a valid notification PendingIntent. -->
         <activity-alias
             android:name=".LauncherAlias"
             android:targetActivity=".MainActivity"

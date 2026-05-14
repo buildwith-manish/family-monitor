@@ -216,20 +216,28 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
           .get();
       if (snap.value is Map && mounted) {
         final map = Map<String, dynamic>.from(snap.value as Map);
+        if (map.isEmpty) return;
         final firstEntry = map.entries.first;
         final parentUid = firstEntry.key as String;
-        final data = Map<String, dynamic>.from(firstEntry.value as Map);
-        String? parentName = data['parentName'] as String?;
-        String? parentEmail = data['parentEmail'] as String?;
-        bool parentOnline = false;
 
+        // approvedParents/$parentUid may be stored as `true` (boolean) rather
+        // than a Map — guard against the type mismatch before casting.
+        String? parentName;
+        String? parentEmail;
+        if (firstEntry.value is Map) {
+          final data = Map<String, dynamic>.from(firstEntry.value as Map);
+          parentName = data['parentName'] as String?;
+          parentEmail = data['parentEmail'] as String?;
+        }
+
+        bool parentOnline = false;
         try {
           final parentSnap = await FirebaseDatabase.instance
               .ref('users/$parentUid')
               .get();
           if (parentSnap.value is Map) {
             final pd = Map<String, dynamic>.from(parentSnap.value as Map);
-            parentName ??= pd['parentName'] as String?;
+            parentName ??= pd['displayName'] as String? ?? pd['parentName'] as String?;
             parentEmail ??= pd['email'] as String?;
             parentOnline = pd['online'] == true;
           }
@@ -255,6 +263,9 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
       if (raw is Map) {
         for (final entry in raw.entries) {
+          // Guard: value must be a Map — skip malformed or non-Map entries
+          // to prevent a type-cast crash when data is unexpected.
+          if (entry.value is! Map) continue;
           final parentUid = entry.key as String;
           final data = Map<String, dynamic>.from(entry.value as Map);
           final status = data['status'] as String?;

@@ -106,9 +106,15 @@ class RemoteLockService {
   ) {
     final DateTime now = DateTime.now();
 
+    // weekday is 1 (Mon) – 7 (Sun); convert to 0-based index.
     final int todayIndex = now.weekday - 1;
 
-    if (!schedule.activeDays[todayIndex]) {
+    // Guard: activeDays may have fewer than 7 entries if the data came from an
+    // older app version or was partially written — treat missing days as inactive
+    // to avoid a RangeError that would crash the lock-state listener.
+    if (todayIndex < 0 ||
+        todayIndex >= schedule.activeDays.length ||
+        !schedule.activeDays[todayIndex]) {
       return false;
     }
 
