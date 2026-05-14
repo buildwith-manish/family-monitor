@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'forgot_password_screen.dart';
 
 class ParentAuthScreen extends StatefulWidget {
   const ParentAuthScreen({super.key});
@@ -207,7 +208,36 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                   },
                 ).animate(delay: 300.ms).fadeIn().slideX(begin: -0.1, end: 0),
 
-                const SizedBox(height: 28),
+                // Forgot password link (login mode only)
+                if (_isLogin) ...[
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ForgotPasswordScreen(),
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        'Forgot password?',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: const Color(0xFF1A73E8),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+
+                const SizedBox(height: 20),
 
                 // Submit
                 SizedBox(

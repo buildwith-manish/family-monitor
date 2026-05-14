@@ -25,6 +25,7 @@ import 'app_install_alerts_screen.dart';
 import 'weekly_summary_screen.dart';
 import 'keyword_alert_screen.dart';
 import '../../services/panic_service.dart';
+import 'change_password_screen.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});
@@ -229,6 +230,13 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
                     if (mounted) {
                       Navigator.pushReplacementNamed(context, '/role-select');
                     }
+                  } else if (v == 'change-password') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ChangePasswordScreen(),
+                      ),
+                    );
                   }
                 },
                 itemBuilder: (_) => [
@@ -239,6 +247,14 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
                       leading: const Icon(Icons.account_circle_outlined),
                       title: Text(user?.displayName ?? 'Parent'),
                       subtitle: Text(user?.email ?? ''),
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'change-password',
+                    child: ListTile(
+                      dense: true,
+                      leading: Icon(Icons.lock_outline),
+                      title: Text('Change password'),
                     ),
                   ),
                   const PopupMenuItem(

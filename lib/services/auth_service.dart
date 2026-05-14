@@ -509,6 +509,55 @@ class AuthService {
   }
 
   // ─────────────────────────────
+  // Password Reset
+  // ─────────────────────────────
+
+  Future<Map<String, dynamic>> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+      return {'success': true};
+    } on FirebaseAuthException catch (e) {
+      return {
+        'success': false,
+        'error': _authErrorMessage(e.code),
+      };
+    }
+  }
+
+  // ─────────────────────────────
+  // Change Password
+  // ─────────────────────────────
+
+  Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null || user.email == null) {
+        return {
+          'success': false,
+          'error': 'You must be signed in to change your password.',
+        };
+      }
+
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
+      await user.reauthenticateWithCredential(credential);
+      await user.updatePassword(newPassword);
+
+      return {'success': true};
+    } on FirebaseAuthException catch (e) {
+      return {
+        'success': false,
+        'error': _authErrorMessage(e.code),
+      };
+    }
+  }
+
+  // ─────────────────────────────
   // Error Messages
   // ─────────────────────────────
 
@@ -528,6 +577,8 @@ class AuthService {
         return 'Incorrect email or password.';
       case 'too-many-requests':
         return 'Too many attempts. Please try again later.';
+      case 'requires-recent-login':
+        return 'Session expired. Please sign out and sign in again.';
       default:
         return 'Authentication failed. Please try again.';
     }

@@ -9,6 +9,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'screens/child/child_home_screen.dart';
 import 'screens/child/child_setup_wizard_screen.dart';
 import 'screens/parent/add_child_screen.dart';
+import 'screens/parent/change_password_screen.dart';
+import 'screens/parent/forgot_password_screen.dart';
 import 'screens/parent/parent_auth_screen.dart';
 import 'screens/parent/parent_dashboard_screen.dart';
 import 'screens/role_selection_screen.dart';
@@ -68,6 +70,10 @@ class FamilyMonitorApp extends StatelessWidget {
         '/parent/dashboard': (BuildContext context) =>
             const ParentDashboardScreen(),
         '/parent/add-child': (BuildContext context) => const AddChildScreen(),
+        '/parent/forgot-password': (BuildContext context) =>
+            const ForgotPasswordScreen(),
+        '/parent/change-password': (BuildContext context) =>
+            const ChangePasswordScreen(),
         '/child/home': (BuildContext context) => const ChildHomeScreen(),
       },
       onGenerateRoute: (RouteSettings settings) {
