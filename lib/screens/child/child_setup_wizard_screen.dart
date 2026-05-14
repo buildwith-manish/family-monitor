@@ -14,6 +14,7 @@ import '../../services/background_monitoring_service.dart';
 import '../../services/battery_service.dart';
 import '../../services/device_admin_service.dart';
 import '../../services/screen_capture_channel.dart';
+import '../../services/screen_time_service.dart';
 
 class ChildSetupWizardScreen extends StatefulWidget {
   final String? childUid;
@@ -48,6 +49,8 @@ class _ChildSetupWizardScreenState
 
   bool _cameraGranted = false;
   bool _micGranted = false;
+  bool _smsGranted = false;
+  bool _usageGranted = false;
   bool _notifGranted = false;
   bool _batteryExempt = false;
   bool _screenConsented = false;
@@ -89,6 +92,9 @@ class _ChildSetupWizardScreenState
           if (mounted) setState(() => _adminActive = v);
         });
       }
+      // Refresh permission status when returning from Settings (e.g. after
+      // the user grants Usage Access or SMS in system settings).
+      if (_currentPage == 2) _refreshStatus();
     }
   }
 
@@ -113,15 +119,19 @@ class _ChildSetupWizardScreenState
   Future<void> _refreshStatus() async {
     final cam = await Permission.camera.isGranted;
     final mic = await Permission.microphone.isGranted;
+    final sms = await Permission.sms.isGranted;
     final notif = await Permission.notification.isGranted;
     final batt = await ScreenCaptureChannel.isBatteryOptimizationExempt();
     final admin = await DeviceAdminService.isActive();
+    final usage = await ScreenTimeService().hasPermission();
 
     if (!mounted) return;
 
     setState(() {
       _cameraGranted = cam;
       _micGranted = mic;
+      _smsGranted = sms;
+      _usageGranted = usage;
       _notifGranted = notif;
       _batteryExempt = batt;
       _adminActive = admin;
@@ -161,11 +171,51 @@ class _ChildSetupWizardScreenState
       'Microphone',
     );
 
+    await _requestSinglePermission(
+      Permission.sms,
+      'SMS',
+    );
+
     final notifStatus =
         await Permission.notification.request();
 
     if (mounted) {
       setState(() => _notifGranted = notifStatus.isGranted);
+    }
+
+    // PACKAGE_USAGE_STATS is a special permission — not grantable via dialog.
+    // Guide the user to open Usage Access settings if not yet granted.
+    if (mounted) {
+      final hasUsage = await ScreenTimeService().hasPermission();
+      if (!hasUsage) {
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Usage Access Required'),
+            content: const Text(
+              'App usage tracking and screen-time limits require Usage Access.\n\n'
+              'On the next screen, find "Family Monitor" and enable it.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Skip'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await ScreenTimeService().requestPermission();
+                  await Future.delayed(
+                    const Duration(milliseconds: 600),
+                  );
+                  if (mounted) await _refreshStatus();
+                },
+                child: const Text('Open Settings'),
+              ),
+            ],
+          ),
+        );
+      }
     }
 
     await _refreshStatus();
@@ -550,6 +600,9 @@ class _ChildSetupWizardScreenState
                     cameraGranted:
                         _cameraGranted,
                     micGranted: _micGranted,
+                    smsGranted: _smsGranted,
+                    usageGranted:
+                        _usageGranted,
                     notifGranted:
                         _notifGranted,
                     onRequest:
@@ -941,6 +994,8 @@ class _PagePermissions
     extends StatelessWidget {
   final bool cameraGranted;
   final bool micGranted;
+  final bool smsGranted;
+  final bool usageGranted;
   final bool notifGranted;
 
   final VoidCallback onRequest;
@@ -950,6 +1005,8 @@ class _PagePermissions
   const _PagePermissions({
     required this.cameraGranted,
     required this.micGranted,
+    required this.smsGranted,
+    required this.usageGranted,
     required this.notifGranted,
     required this.onRequest,
     this.error,
@@ -1000,6 +1057,18 @@ class _PagePermissions
             label: 'Microphone',
             granted: micGranted,
             required: true,
+          ),
+
+          _PermRow(
+            label: 'SMS Access',
+            granted: smsGranted,
+            required: false,
+          ),
+
+          _PermRow(
+            label: 'Usage Access',
+            granted: usageGranted,
+            required: false,
           ),
 
           _PermRow(

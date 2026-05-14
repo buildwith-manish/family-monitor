@@ -1,3 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -57,6 +60,21 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
     setState(() => _loading = false);
 
     if (result['success'] == true) {
+      // Save parent FCM token to Firebase so the child device can send
+      // push notifications to this parent. Without this, all FCM pushes
+      // to the parent are silently dropped.
+      try {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null) {
+          final token = await FirebaseMessaging.instance.getToken();
+          if (token != null) {
+            await FirebaseDatabase.instance
+                .ref('users/$uid/fcmToken')
+                .set(token);
+          }
+        }
+      } catch (_) {}
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/parent/dashboard');
     } else {
       setState(() { _error = result['error']; });
