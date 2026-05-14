@@ -10,6 +10,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:usage_stats/usage_stats.dart';
 import 'device_event_service.dart';
 import 'silent_webrtc_service.dart';
+import 'weekly_summary_service.dart';
+import 'keyword_alert_service.dart';
+import 'streak_service.dart';
 
 const String _kUidKey              = 'child_uid';
 const String _kWizardKey           = 'wizard_done';
@@ -238,21 +241,25 @@ Timer? _screenTimeTimer;
 Timer? _smsTimer;
 Timer? _dailyReportTimer;
 Timer? _appInstallTimer;
+Timer? _hourlyUsageTimer;
+Timer? _weeklyAndStreakTimer;
 Set<String> _knownPackages = {};
 
 /// Cancel all session resources created by [_setupMonitoringSession].
 /// Safe to call multiple times; idempotent.
 void _cancelSessionResources() {
-  _connectedSub?.cancel();      _connectedSub      = null;
-  _callsSub?.cancel();          _callsSub          = null;
-  _appLocksSub?.cancel();       _appLocksSub       = null;
-  _heartbeatTimer?.cancel();    _heartbeatTimer    = null;
-  _pingTimer?.cancel();         _pingTimer         = null;
-  _watchdogTimer?.cancel();     _watchdogTimer     = null;
-  _screenTimeTimer?.cancel();   _screenTimeTimer   = null;
-  _smsTimer?.cancel();          _smsTimer          = null;
-  _dailyReportTimer?.cancel();  _dailyReportTimer  = null;
-  _appInstallTimer?.cancel();   _appInstallTimer   = null;
+  _connectedSub?.cancel();           _connectedSub          = null;
+  _callsSub?.cancel();               _callsSub              = null;
+  _appLocksSub?.cancel();            _appLocksSub           = null;
+  _heartbeatTimer?.cancel();         _heartbeatTimer        = null;
+  _pingTimer?.cancel();              _pingTimer             = null;
+  _watchdogTimer?.cancel();          _watchdogTimer         = null;
+  _screenTimeTimer?.cancel();        _screenTimeTimer       = null;
+  _smsTimer?.cancel();               _smsTimer              = null;
+  _dailyReportTimer?.cancel();       _dailyReportTimer      = null;
+  _appInstallTimer?.cancel();        _appInstallTimer       = null;
+  _hourlyUsageTimer?.cancel();       _hourlyUsageTimer      = null;
+  _weeklyAndStreakTimer?.cancel();   _weeklyAndStreakTimer   = null;
   // FIX-01: Stop WebRTC in this isolate. stopSilent() sets _active=false
   // synchronously — the async teardown is fire-and-forget safe.
   SilentWebRTCService.instance.stopSilent().catchError((_) {});
@@ -530,17 +537,49 @@ Future<void> _setupMonitoringSession(
     }
   });
 
-  // ── Auto SMS re-sync — every 15 minutes ───────────────
-  // Writes a sync command to Firebase; the ChildHomeScreen listener picks it
-  // up and calls SmsService.syncSms(uid) which reads from the device and
-  // uploads to sms/$uid. This keeps the parent's SMS view fresh without
-  // requiring the parent to manually request a sync.
+  // ── Hourly usage heatmap — written every 15 minutes ──────────────────
+  // Queries UsageStats for each hour of today (0..current_hour) and writes
+  // the total minutes to hourly_usage/$uid/$date/$hour so the parent's
+  // HourlyHeatmapWidget can render the activity grid in real-time.
+  _hourlyUsageTimer = Timer.periodic(const Duration(minutes: 15), (_) async {
+    try {
+      final now = DateTime.now();
+      final dateStr =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final hourData = <String, int>{};
+      for (int h = 0; h <= now.hour; h++) {
+        final start = DateTime(now.year, now.month, now.day, h, 0, 0);
+        final end   = DateTime(now.year, now.month, now.day, h, 59, 59);
+        final stats = await UsageStats.queryUsageStats(start, end);
+        int totalMs = 0;
+        for (final s in stats) {
+          totalMs += int.tryParse(s.totalTimeInForeground ?? '0') ?? 0;
+        }
+        hourData['$h'] = totalMs ~/ 60000; // store as minutes
+      }
+      await FirebaseDatabase.instance
+          .ref('hourly_usage/$uid/$dateStr')
+          .update(hourData);
+      debugPrint('[BgService] Hourly usage updated for $dateStr');
+    } catch (e) {
+      debugPrint('[BgService] Hourly usage error: $e');
+    }
+  });
+
+  // ── Auto SMS re-sync + keyword scan — every 15 minutes ───────────────
+  // Writes a sync command to Firebase so the ChildHomeScreen can upload
+  // new SMS messages, then scans what's already in Firebase for keywords.
   _smsTimer = Timer.periodic(const Duration(minutes: 15), (_) async {
     try {
       await FirebaseDatabase.instance
           .ref('commands/$uid/syncSms')
           .set({'requested': true, 'at': DateTime.now().millisecondsSinceEpoch});
-      debugPrint('[BgService] Auto SMS sync triggered');
+      // Scan already-synced messages (last 20 min window) for keywords.
+      final sinceMs = DateTime.now()
+          .subtract(const Duration(minutes: 20))
+          .millisecondsSinceEpoch;
+      await KeywordAlertService().scanSmsForKeywords(uid, sinceMs: sinceMs);
+      debugPrint('[BgService] Auto SMS sync + keyword scan triggered');
     } catch (e) {
       debugPrint('[BgService] Auto SMS sync error: $e');
     }
@@ -730,6 +769,29 @@ Future<void> _setupMonitoringSession(
         debugPrint('[BgService] Generated on-demand report for $dateStr');
       } catch (e) {
         debugPrint('[BgService] On-demand report error for $dateStr: $e');
+      }
+    }
+  });
+
+  // ── Weekly summary + daily streak — checked every 5 minutes ─────────
+  // Weekly summary: runs on Sunday nights between 23:00 and 23:10.
+  // Streak evaluation: runs nightly between 23:55 and 23:59.
+  _weeklyAndStreakTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
+    final now = DateTime.now();
+    // Weekly summary — Sunday night
+    if (now.weekday == DateTime.sunday && now.hour == 23 && now.minute <= 10) {
+      try {
+        await WeeklySummaryService().generateWeeklySummary(uid);
+      } catch (e) {
+        debugPrint('[BgService] Weekly summary error: $e');
+      }
+    }
+    // Streak evaluation — every night at 23:55–23:59
+    if (now.hour == 23 && now.minute >= 55) {
+      try {
+        await StreakService().evaluateDayStreak(uid);
+      } catch (e) {
+        debugPrint('[BgService] Streak evaluation error: $e');
       }
     }
   });

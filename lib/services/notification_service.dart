@@ -87,17 +87,18 @@ class NotificationService {
     _watchGeofenceAlerts(childUid, childName);
     _watchOffline(childUid, childName);
     _watchServiceCrash(childUid, childName);
+    _watchPanicAlerts(childUid, childName);
+    _watchKeywordAlerts(childUid, childName);
   }
 
   void unwatchChild(String childUid) {
-    _subs['battery_$childUid']?.cancel();
-    _subs['geofence_$childUid']?.cancel();
-    _subs['offline_$childUid']?.cancel();
-    _subs['crash_$childUid']?.cancel();
-    _subs.remove('battery_$childUid');
-    _subs.remove('geofence_$childUid');
-    _subs.remove('offline_$childUid');
-    _subs.remove('crash_$childUid');
+    for (final k in [
+      'battery_$childUid', 'geofence_$childUid', 'offline_$childUid',
+      'crash_$childUid',   'panic_$childUid',    'keyword_$childUid',
+    ]) {
+      _subs[k]?.cancel();
+      _subs.remove(k);
+    }
   }
 
   void dispose() {
@@ -264,6 +265,71 @@ class NotificationService {
       );
     });
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Panic alerts
+  // ─────────────────────────────────────────────────────────────────────────
+
+  void _watchPanicAlerts(String childUid, String childName) {
+    final key = 'panic_$childUid';
+    _subs[key]?.cancel();
+    final Set<String> seen = {};
+    _subs[key] = _db
+        .child('panic_alerts/$childUid')
+        .onChildAdded
+        .listen((event) {
+      final alertKey = event.snapshot.key;
+      if (alertKey == null || seen.contains(alertKey)) return;
+      seen.add(alertKey);
+      final v = event.snapshot.value;
+      if (v == null || v is! Map) return;
+      final m = Map<String, dynamic>.from(v);
+      final ts = (m['timestamp'] as num?)?.toInt() ?? 0;
+      // Ignore alerts older than 30 s to avoid re-notifying on reconnect.
+      if (DateTime.now().millisecondsSinceEpoch - ts > 30000) return;
+      _show(
+        '🚨 $childName — SOS!',
+        '$childName pressed the panic button. Tap to see location.',
+        channelId: 'family_monitor_alerts',
+      );
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Keyword alerts
+  // ─────────────────────────────────────────────────────────────────────────
+
+  void _watchKeywordAlerts(String childUid, String childName) {
+    final key = 'keyword_$childUid';
+    _subs[key]?.cancel();
+    final Set<String> seen = {};
+    _subs[key] = _db
+        .child('keyword_alerts/$childUid')
+        .onChildAdded
+        .listen((event) {
+      final alertKey = event.snapshot.key;
+      if (alertKey == null || seen.contains(alertKey)) return;
+      seen.add(alertKey);
+      final v = event.snapshot.value;
+      if (v == null || v is! Map) return;
+      final m = Map<String, dynamic>.from(v);
+      final ts = (m['timestamp'] as num?)?.toInt() ?? 0;
+      if (DateTime.now().millisecondsSinceEpoch - ts > 30000) return;
+      final word = m['keyword'] as String? ?? 'flagged word';
+      _show(
+        '$childName — Keyword Alert',
+        'Message with "$word" detected',
+        channelId: 'family_monitor_alerts',
+      );
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Manual / one-shot notifications
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> showImmediate(String title, String body) =>
+      _show(title, body);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Show a local notification

@@ -22,6 +22,9 @@ import '../../services/device_event_service.dart';
 import 'crash_report_screen.dart';
 import 'daily_report_screen.dart';
 import 'app_install_alerts_screen.dart';
+import 'weekly_summary_screen.dart';
+import 'keyword_alert_screen.dart';
+import '../../services/panic_service.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});
@@ -997,6 +1000,54 @@ class _ChildCard extends StatelessWidget {
                 ),
 
                 const SizedBox(height: 8),
+                _sectionLabel('Intelligence & Alerts'),
+                const SizedBox(height: 8),
+
+                _FeatureRow(
+                  icon: Icons.calendar_view_week,
+                  label: 'Weekly Summary',
+                  subtitle: 'Weekly screen-time digest — auto-generated Sunday nights',
+                  color: const Color(0xFF1565C0),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => WeeklySummaryScreen(
+                        childUid: childUid,
+                        childName: childData['childName'] as String? ?? name,
+                      ),
+                    ));
+                  },
+                ),
+
+                _FeatureRow(
+                  icon: Icons.search,
+                  label: 'Keyword Alerts',
+                  subtitle: 'Flag SMS messages containing specific words',
+                  color: const Color(0xFFEA4335),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => KeywordAlertScreen(
+                        childUid: childUid,
+                        childName: childData['childName'] as String? ?? name,
+                      ),
+                    ));
+                  },
+                ),
+
+                _FeatureRow(
+                  icon: Icons.sos_outlined,
+                  label: 'Panic / SOS Alerts',
+                  subtitle: 'View SOS alerts sent from the child\'s panic button',
+                  color: const Color(0xFFFF3D00),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showPanicAlertsSheet(context, childUid,
+                        childData['childName'] as String? ?? name);
+                  },
+                ),
+
+                const SizedBox(height: 8),
                 _sectionLabel('Parental Controls'),
                 const SizedBox(height: 8),
 
@@ -1025,6 +1076,30 @@ class _ChildCard extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  // ── Panic alerts bottom-sheet ─────────────────────────────────────────
+
+  void _showPanicAlertsSheet(
+      BuildContext context, String childUid, String childName) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        maxChildSize: 0.92,
+        builder: (_, ctrl) => _PanicAlertsSheet(
+          childUid: childUid,
+          childName: childName,
+          scrollCtrl: ctrl,
+        ),
+      ),
     );
   }
 
@@ -1124,5 +1199,212 @@ class _FeatureRow extends StatelessWidget {
       trailing: const Icon(Icons.chevron_right, color: Colors.grey),
       onTap: onTap,
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Panic Alerts bottom-sheet (inline, no extra file needed)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PanicAlertsSheet extends StatefulWidget {
+  final String childUid;
+  final String childName;
+  final ScrollController scrollCtrl;
+
+  const _PanicAlertsSheet({
+    required this.childUid,
+    required this.childName,
+    required this.scrollCtrl,
+  });
+
+  @override
+  State<_PanicAlertsSheet> createState() => _PanicAlertsSheetState();
+}
+
+class _PanicAlertsSheetState extends State<_PanicAlertsSheet> {
+  List<Map<String, dynamic>> _alerts = [];
+  bool _loading = true;
+  StreamSubscription? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = PanicService()
+        .watchPanicAlerts(widget.childUid)
+        .listen((a) {
+      if (mounted) setState(() { _alerts = a; _loading = false; });
+    });
+  }
+
+  @override
+  void dispose() { _sub?.cancel(); super.dispose(); }
+
+  String _timeAgo(int ts) {
+    final d = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(ts));
+    if (d.inSeconds < 60) return '${d.inSeconds}s ago';
+    if (d.inMinutes < 60) return '${d.inMinutes}m ago';
+    if (d.inHours < 24)   return '${d.inHours}h ago';
+    return '${d.inDays}d ago';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final unread = _alerts.where((a) => a['read'] != true).length;
+
+    return Column(children: [
+      const SizedBox(height: 12),
+      Container(width: 40, height: 4,
+          decoration: BoxDecoration(color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2))),
+      const SizedBox(height: 16),
+
+      // Header
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Row(children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFCE8E6),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.sos_outlined, color: Color(0xFFEA4335), size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('SOS / Panic Alerts',
+                style: GoogleFonts.plusJakartaSans(
+                    fontSize: 17, fontWeight: FontWeight.w700)),
+            Text(widget.childName,
+                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
+          ])),
+          if (unread > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEA4335),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text('$unread new',
+                  style: const TextStyle(color: Colors.white, fontSize: 11,
+                      fontWeight: FontWeight.w700)),
+            ),
+        ]),
+      ),
+      const SizedBox(height: 12),
+      const Divider(height: 1),
+
+      // List
+      Expanded(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _alerts.isEmpty
+                ? Center(
+                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(Icons.sentiment_satisfied_alt_outlined,
+                          size: 56, color: Colors.grey.shade300),
+                      const SizedBox(height: 12),
+                      Text('No SOS alerts',
+                          style: GoogleFonts.plusJakartaSans(
+                              fontSize: 16, color: Colors.grey)),
+                      const SizedBox(height: 6),
+                      Text('Your child hasn\'t pressed the panic button',
+                          style: GoogleFonts.inter(fontSize: 13,
+                              color: Colors.grey.shade400)),
+                    ]))
+                : ListView.builder(
+                    controller: widget.scrollCtrl,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _alerts.length,
+                    itemBuilder: (_, i) {
+                      final a   = _alerts[i];
+                      final key = a['_key'] as String? ?? '';
+                      final ts  = (a['timestamp'] as num?)?.toInt() ?? 0;
+                      final lat = (a['lat'] as num?)?.toDouble();
+                      final lng = (a['lng'] as num?)?.toDouble();
+                      final read = a['read'] as bool? ?? false;
+
+                      return GestureDetector(
+                        onTap: () => PanicService().markRead(widget.childUid, key),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: read ? Colors.white : const Color(0xFFFFF3E0),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: read
+                                    ? Colors.grey.shade100
+                                    : Colors.orange.shade200),
+                            boxShadow: [BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 6, offset: const Offset(0, 2))],
+                          ),
+                          child: Row(children: [
+                            Container(
+                              width: 40, height: 40,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFCE8E6),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.sos, color: Color(0xFFEA4335)),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              Text('SOS Alert',
+                                  style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14, fontWeight: FontWeight.w700,
+                                      color: const Color(0xFFEA4335))),
+                              const SizedBox(height: 2),
+                              if (lat != null && lng != null)
+                                Text(
+                                  'Location: ${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
+                                  style: GoogleFonts.robotoMono(
+                                      fontSize: 11, color: Colors.grey.shade600),
+                                )
+                              else
+                                Text('Location unavailable',
+                                    style: GoogleFonts.inter(
+                                        fontSize: 11, color: Colors.grey)),
+                              const SizedBox(height: 2),
+                              Text(ts > 0 ? _timeAgo(ts) : 'Unknown time',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 11, color: Colors.grey)),
+                            ])),
+                            if (!read)
+                              Container(
+                                width: 8, height: 8,
+                                decoration: const BoxDecoration(
+                                    color: Color(0xFFEA4335),
+                                    shape: BoxShape.circle),
+                              ),
+                          ]),
+                        ),
+                      );
+                    },
+                  ),
+      ),
+
+      // Clear button
+      if (_alerts.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => PanicService().clearAlerts(widget.childUid),
+              style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFFEA4335)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12))),
+              child: Text('Clear All Alerts',
+                  style: GoogleFonts.inter(
+                      color: const Color(0xFFEA4335), fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ),
+    ]);
   }
 }

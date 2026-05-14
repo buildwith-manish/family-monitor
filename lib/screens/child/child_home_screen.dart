@@ -11,7 +11,9 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../services/alert_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/location_service.dart';
+import '../../services/panic_service.dart';
 import '../../services/presence_service.dart';
+import '../../widgets/streak_card_widget.dart';
 import 'child_qr_screen.dart';
 import '../../services/background_monitoring_service.dart';
 import '../../services/battery_service.dart';
@@ -518,15 +520,27 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
                       const SizedBox(height: 14),
                     ],
 
+                    // Screen-time streak card (child read-only view)
+                    StreakCardWidget(childUid: uid)
+                        .animate().fadeIn(delay: 240.ms),
+
+                    const SizedBox(height: 14),
+
                     // Device ID card
                     _DeviceIdCard(uid: uid)
-                        .animate().fadeIn(delay: 260.ms),
+                        .animate().fadeIn(delay: 280.ms),
 
                     const SizedBox(height: 14),
 
                     // QR button
                     _ShowQrButton(uid: uid, childName: childName)
-                        .animate().fadeIn(delay: 300.ms),
+                        .animate().fadeIn(delay: 320.ms),
+
+                    const SizedBox(height: 14),
+
+                    // SOS panic button
+                    _PanicButton(uid: uid)
+                        .animate().fadeIn(delay: 360.ms),
                   ]),
                 ),
               ),
@@ -1280,6 +1294,155 @@ class _LockOverlay extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────
+// SOS / Panic Button
+// ─────────────────────────────────────────────────
+
+class _PanicButton extends StatefulWidget {
+  final String uid;
+  const _PanicButton({required this.uid});
+
+  @override
+  State<_PanicButton> createState() => _PanicButtonState();
+}
+
+class _PanicButtonState extends State<_PanicButton>
+    with SingleTickerProviderStateMixin {
+  bool _sending = false;
+  bool _holding = false;
+  double _progress = 0;
+  late AnimationController _anim;
+
+  static const _kHoldSeconds = 3;
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: _kHoldSeconds),
+    )..addListener(() {
+        if (mounted) setState(() => _progress = _anim.value);
+      });
+    _anim.addStatusListener((status) {
+      if (status == AnimationStatus.completed) _firePanic();
+    });
+  }
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
+
+  void _startHold() {
+    if (_sending) return;
+    setState(() => _holding = true);
+    _anim.forward(from: 0);
+  }
+
+  void _cancelHold() {
+    _anim.stop();
+    _anim.reset();
+    if (mounted) setState(() { _holding = false; _progress = 0; });
+  }
+
+  Future<void> _firePanic() async {
+    setState(() { _holding = false; _sending = true; _progress = 0; });
+    try {
+      await PanicService().sendPanic(widget.uid);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('🚨 SOS alert sent to your parent with your location'),
+          backgroundColor: Color(0xFFEA4335),
+          duration: Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to send SOS: $e'),
+          backgroundColor: Colors.grey,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onLongPressStart: (_) => _startHold(),
+      onLongPressEnd: (_) => _cancelHold(),
+      onLongPressCancel: _cancelHold,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: double.infinity,
+        height: 56,
+        decoration: BoxDecoration(
+          color: _holding
+              ? const Color(0xFFEA4335)
+              : const Color(0xFFFCE8E6),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+              color: const Color(0xFFEA4335).withValues(alpha: 0.5)),
+        ),
+        child: Stack(children: [
+          // Hold-progress fill
+          if (_holding)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: LinearProgressIndicator(
+                  value: _progress,
+                  backgroundColor: const Color(0xFFEA4335),
+                  valueColor: const AlwaysStoppedAnimation(Color(0xFFFF7043)),
+                  minHeight: double.infinity,
+                ),
+              ),
+            ),
+          Center(
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              if (_sending)
+                const SizedBox(
+                  width: 18, height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Color(0xFFEA4335)),
+                )
+              else
+                Icon(
+                  Icons.sos_outlined,
+                  size: 22,
+                  color: _holding
+                      ? Colors.white
+                      : const Color(0xFFEA4335),
+                ),
+              const SizedBox(width: 10),
+              Text(
+                _sending
+                    ? 'Sending SOS…'
+                    : _holding
+                        ? 'Hold to send SOS…'
+                        : 'Hold 3s to send SOS',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: _holding
+                      ? Colors.white
+                      : const Color(0xFFEA4335),
+                ),
+              ),
+            ]),
+          ),
+        ]),
       ),
     );
   }
