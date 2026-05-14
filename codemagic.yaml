@@ -14,6 +14,8 @@ workflows:
     environment:
       flutter: stable
       java: 17
+      groups:
+        - firebase_credentials   # FIREBASE_TOKEN must be added in Codemagic → Teams → Environment variable groups
 
     cache:
       cache_paths:
@@ -74,14 +76,44 @@ workflows:
       - name: Get dependencies
         script: flutter pub get
 
+      # ── GATE 1: Dart format check ─────────────────────────────────────────────
+      # Fails immediately if any Dart file has formatting issues.
+      # Runs before analyze and build so formatting problems are caught first.
+      - name: Dart format check
+        script: |
+          echo "Checking Dart formatting..."
+          UNFORMATTED=$(dart format --output=none --set-exit-if-changed lib/ 2>&1 || true)
+          if echo "$UNFORMATTED" | grep -q "Formatted"; then
+            echo ""
+            echo "ERROR: The following Dart files are not formatted correctly:"
+            echo "$UNFORMATTED"
+            echo ""
+            echo "Run 'dart format lib/' locally and commit the result."
+            exit 1
+          fi
+          echo "All Dart files are correctly formatted."
+
+      # ── GATE 2: Flutter analyze ───────────────────────────────────────────────
+      # Catches Dart type errors, missing imports, and lint issues before
+      # the 3-minute Gradle build even starts — saving significant CI time.
+      - name: Flutter analyze
+        script: |
+          echo "Running flutter analyze..."
+          flutter analyze --no-pub 2>&1 | tee /tmp/analyze.log
+          # Fail only on errors, not on info/warnings
+          if grep -qE "^  error •" /tmp/analyze.log; then
+            echo ""
+            echo "ERROR: flutter analyze found errors. Fix them before building."
+            exit 1
+          fi
+          echo "Flutter analyze passed."
+
+      # ── GATE 3: Validate Gradle KTS syntax + manifest ────────────────────────
       - name: Validate Gradle KTS syntax
         script: |
           echo "Scanning .gradle.kts files for Groovy-style syntax..."
           ERRORS=0
 
-          # Detect bare double-quoted strings used as dependency notation (Groovy style)
-          # Valid KTS uses:  implementation("...")
-          # Invalid Groovy:  implementation "..."
           GROOVY_DEPS=$(grep -rn --include="*.gradle.kts" \
             -E '^\s*(implementation|api|compileOnly|runtimeOnly|testImplementation|androidTestImplementation|annotationProcessor|kapt|ksp|coreLibraryDesugaring)\s+"' \
             android/ || true)
@@ -95,7 +127,6 @@ workflows:
             ERRORS=$((ERRORS + 1))
           fi
 
-          # Detect single-quoted strings (also Groovy style)
           SINGLE_QUOTED=$(grep -rn --include="*.gradle.kts" \
             -E "^\s*(implementation|api|compileOnly|runtimeOnly|testImplementation|androidTestImplementation|annotationProcessor|kapt|ksp|coreLibraryDesugaring)\s+'" \
             android/ || true)
@@ -109,7 +140,6 @@ workflows:
             ERRORS=$((ERRORS + 1))
           fi
 
-          # Detect apply plugin Groovy style
           APPLY_PLUGIN=$(grep -rn --include="*.gradle.kts" \
             -E "^apply plugin\s*:" \
             android/ || true)
@@ -123,7 +153,6 @@ workflows:
             ERRORS=$((ERRORS + 1))
           fi
 
-          # Detect duplicate uses-permission entries in AndroidManifest.xml
           echo "Scanning AndroidManifest.xml for duplicate permissions..."
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST" ]; then
@@ -146,12 +175,21 @@ workflows:
             exit 1
           fi
 
+      # ── BUILD: Parent APK ─────────────────────────────────────────────────────
       - name: Build Parent APK
         script: |
+          # Auto version code: total git commit count ensures every build is unique
+          # and traceable back to a specific commit without manual bumping.
+          GIT_COMMIT_COUNT=$(git rev-list --count HEAD)
+          GIT_SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "Version code: $GIT_COMMIT_COUNT  |  SHA: $GIT_SHORT_SHA"
+
           flutter build apk --release \
             --flavor parent \
             --target lib/main_parent.dart \
-            --no-tree-shake-icons
+            --no-tree-shake-icons \
+            --build-number="$GIT_COMMIT_COUNT" \
+            --build-name="1.0.$GIT_COMMIT_COUNT"
 
           mkdir -p build/app/outputs/flutter-apk
 
@@ -167,12 +205,19 @@ workflows:
           cp "$PARENT_APK" build/app/outputs/flutter-apk/parent-release.apk
           du -h build/app/outputs/flutter-apk/parent-release.apk
 
+      # ── BUILD: Child APK ──────────────────────────────────────────────────────
       - name: Build Child APK
         script: |
+          GIT_COMMIT_COUNT=$(git rev-list --count HEAD)
+          GIT_SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "Version code: $GIT_COMMIT_COUNT  |  SHA: $GIT_SHORT_SHA"
+
           flutter build apk --release \
             --flavor child \
             --target lib/main_child.dart \
-            --no-tree-shake-icons
+            --no-tree-shake-icons \
+            --build-number="$GIT_COMMIT_COUNT" \
+            --build-name="1.0.$GIT_COMMIT_COUNT"
 
           mkdir -p build/app/outputs/flutter-apk
 
@@ -189,6 +234,53 @@ workflows:
           echo "Found child APK at: $CHILD_APK"
           cp "$CHILD_APK" build/app/outputs/flutter-apk/child-release.apk
           du -h build/app/outputs/flutter-apk/child-release.apk
+
+      # ── DISTRIBUTE: Firebase App Distribution ────────────────────────────────
+      # Uploads both APKs to Firebase App Distribution after a successful build.
+      # Testers receive an email with a download link automatically.
+      #
+      # SETUP REQUIRED (one-time):
+      #   1. In Firebase Console → Family Monitor project → App Distribution
+      #      → enable it for both the parent and child apps.
+      #   2. Run `firebase login:ci` locally, copy the token.
+      #   3. In Codemagic → Teams → Global variables → add a group called
+      #      "firebase_credentials" with variable FIREBASE_TOKEN = <your token>.
+      #   4. Replace PARENT_APP_ID and CHILD_APP_ID below with the actual
+      #      Firebase App IDs from the Firebase Console (Project Settings → Apps).
+      - name: Distribute to Firebase App Distribution
+        script: |
+          # Replace these with your real Firebase App IDs from the Firebase Console:
+          #   Project Settings → Your Apps → App ID
+          PARENT_APP_ID="1:758644747673:android:ea45b7a53b3f2f2e22f708"
+          CHILD_APP_ID="1:758644747673:android:32a2141244fb9c3222f708"
+
+          GIT_SHORT_SHA=$(git rev-parse --short HEAD)
+          GIT_MSG=$(git log -1 --pretty=format:"%s")
+          RELEASE_NOTES="Build from commit $GIT_SHORT_SHA: $GIT_MSG"
+
+          # Install Firebase CLI if not already cached
+          if ! command -v firebase &> /dev/null; then
+            echo "Installing Firebase CLI..."
+            npm install -g firebase-tools@latest --silent
+          fi
+
+          echo "Uploading Parent APK to Firebase App Distribution..."
+          firebase appdistribution:distribute \
+            build/app/outputs/flutter-apk/parent-release.apk \
+            --app "$PARENT_APP_ID" \
+            --release-notes "$RELEASE_NOTES" \
+            --groups "testers" \
+            --token "$FIREBASE_TOKEN"
+
+          echo "Uploading Child APK to Firebase App Distribution..."
+          firebase appdistribution:distribute \
+            build/app/outputs/flutter-apk/child-release.apk \
+            --app "$CHILD_APP_ID" \
+            --release-notes "$RELEASE_NOTES" \
+            --groups "testers" \
+            --token "$FIREBASE_TOKEN"
+
+          echo "Both APKs distributed successfully."
 
     artifacts:
       - build/app/outputs/flutter-apk/parent-release.apk
