@@ -6,3 +6,15 @@ id = "l1Yt6NsVvuYeVUqEIFUsS"
 uri = "file://AUDIT.md"
 type = "text"
 title = "Family Monitor — Full Production Audit"
+
+[[outputs]]
+id = "vmzwj25v43qj_ezZEbdG0"
+uri = "file://assets/images/icon_child_preview.png"
+type = "image"
+title = "Child App Logo"
+
+[[outputs]]
+id = "OxMIkQYaEHn6kJIAeA-vX"
+uri = "file://assets/images/icon_parent_preview.png"
+type = "image"
+title = "Parent App Logo"
