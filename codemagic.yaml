@@ -235,6 +235,39 @@ workflows:
           cp "$CHILD_APK" build/app/outputs/flutter-apk/child-release.apk
           du -h build/app/outputs/flutter-apk/child-release.apk
 
+      # ── MAPPING: Archive ProGuard/R8 mapping files ───────────────────────────
+      # The Gradle Crashlytics plugin uploads mapping files automatically during
+      # the build (mappingFileUploadEnabled = true in build.gradle.kts).
+      # This step copies them to a known location for artifact archiving and
+      # prints a confirmation so it's easy to verify in the build log.
+      - name: Archive ProGuard mapping files
+        script: |
+          echo "Locating R8 mapping files..."
+          MAPPING_DIR="build/app/outputs/mapping"
+          mkdir -p "$MAPPING_DIR"
+
+          # Parent mapping
+          PARENT_MAP=$(find android/app/build/outputs/mapping -name "mapping.txt" \
+            -path "*parent*" 2>/dev/null | head -1)
+          if [ -n "$PARENT_MAP" ]; then
+            cp "$PARENT_MAP" "$MAPPING_DIR/parent-release-mapping.txt"
+            echo "Parent mapping: $(wc -l < "$MAPPING_DIR/parent-release-mapping.txt") lines"
+          else
+            echo "WARNING: Parent mapping file not found (mapping upload still handled by Gradle plugin)"
+          fi
+
+          # Child mapping
+          CHILD_MAP=$(find android/app/build/outputs/mapping -name "mapping.txt" \
+            -path "*child*" 2>/dev/null | head -1)
+          if [ -n "$CHILD_MAP" ]; then
+            cp "$CHILD_MAP" "$MAPPING_DIR/child-release-mapping.txt"
+            echo "Child mapping: $(wc -l < "$MAPPING_DIR/child-release-mapping.txt") lines"
+          else
+            echo "WARNING: Child mapping file not found (mapping upload still handled by Gradle plugin)"
+          fi
+
+          echo "Mapping files archived to $MAPPING_DIR"
+
       # ── DISTRIBUTE: Firebase App Distribution ────────────────────────────────
       # Uploads both APKs to Firebase App Distribution after a successful build.
       # Testers receive an email with a download link automatically.
@@ -285,3 +318,5 @@ workflows:
     artifacts:
       - build/app/outputs/flutter-apk/parent-release.apk
       - build/app/outputs/flutter-apk/child-release.apk
+      - build/app/outputs/mapping/parent-release-mapping.txt
+      - build/app/outputs/mapping/child-release-mapping.txt

@@ -126,9 +126,6 @@ android {
             signingConfig = signingConfigs.getByName("release")
 
             // SEC-03: Enable R8 code shrinking and obfuscation.
-            // Removes dead code, shrinks resources, and obfuscates names —
-            // making the APK significantly harder to reverse-engineer and
-            // hiding sensitive strings from casual inspection.
             isMinifyEnabled   = true
             isShrinkResources = true
 
@@ -136,11 +133,19 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+
+            // Upload the R8 mapping file to Firebase Crashlytics automatically
+            // so obfuscated stack traces in the console are deobfuscated.
+            configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
+                mappingFileUploadEnabled = true
+                nativeSymbolUploadEnabled = false
+            }
         }
 
         debug {
             configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
                 mappingFileUploadEnabled = false
+                nativeSymbolUploadEnabled = false
             }
         }
     }
