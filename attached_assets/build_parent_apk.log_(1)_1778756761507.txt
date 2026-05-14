@@ -1,0 +1,38 @@
+Running Gradle task 'assembleParentRelease'...                  
+e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
+    1. Kotlin compile daemon is ready
+e: file:///Users/builder/clone/android/app/build.gradle.kts:217:20: Unexpected tokens (use ';' to separate expressions on the same line)
+e: file:///Users/builder/clone/android/app/build.gradle.kts:217:5: Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public val NamedDomainObjectContainer<Configuration>.implementation: NamedDomainObjectProvider<Configuration> defined in org.gradle.kotlin.dsl
+
+FAILURE: Build failed with an exception.
+
+* Where:
+Build file '/Users/builder/clone/android/app/build.gradle.kts' line: 217
+
+* What went wrong:
+Script compilation errors:
+
+  Line 217:     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
+                               ^ Unexpected tokens (use ';' to separate expressions on the same line)
+
+  Line 217:     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
+                ^ Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+                    public val NamedDomainObjectContainer<Configuration>.implementation: NamedDomainObjectProvider<Configuration> defined in org.gradle.kotlin.dsl
+
+2 errors
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 41s
+Running Gradle task 'assembleParentRelease'...                     42.6s
+Gradle task assembleParentRelease failed with exit code 1
+ERROR: Parent APK not found
+
+
+Build failed :|
+Step 6 script `Build Parent APK` exited with status code 1
