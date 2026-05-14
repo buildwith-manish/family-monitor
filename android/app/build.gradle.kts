@@ -16,6 +16,13 @@ android {
     ndkVersion =
         "28.2.13676358"
 
+    // AGP 8.x disabled BuildConfig generation by default.
+    // Re-enable it so WatchdogService and WatchdogWorker can reference
+    // BuildConfig.FLAVOR and BuildConfig.BUILD_TYPE at runtime.
+    buildFeatures {
+        buildConfig = true
+    }
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility =
