@@ -24,26 +24,93 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
   bool _loading = true;
   String _sortBy = 'usage';
 
+  StreamSubscription? _usageSub;
   StreamSubscription? _limitsSub;
 
   @override
   void initState() {
     super.initState();
-    _loadApps();
+    _listenUsage();
     _requestSync();
     _listenLimits();
   }
 
   @override
   void dispose() {
+    _usageSub?.cancel();
     _limitsSub?.cancel();
     super.dispose();
   }
 
+  /// Request a fresh sync of the app list from the child device.
+  /// This also kicks off a screen-time upload within 60 s.
   Future<void> _requestSync() async {
     await _db
         .child('commands/${widget.childUid}/syncAppList/requested')
         .set(true);
+  }
+
+  /// Live-stream app usage from app_usage/$uid/daily.
+  /// The background service uploads this every 60 seconds so the parent
+  /// sees near-real-time data without manually refreshing.
+  /// Falls back to appList/$uid if the daily node is empty (first run).
+  void _listenUsage() {
+    _usageSub = _db
+        .child('app_usage/${widget.childUid}/daily')
+        .onValue
+        .listen((event) async {
+      if (!mounted) return;
+
+      final raw = event.snapshot.value;
+      if (raw != null && raw is Map) {
+        final rawMap = Map<String, dynamic>.from(raw);
+        final list = <Map<String, dynamic>>[];
+        for (final entry in rawMap.entries) {
+          if (entry.key.startsWith('_')) continue; // skip _date, _updatedAt
+          if (entry.value is Map) {
+            final m = Map<String, dynamic>.from(entry.value as Map);
+            final pkg = m['pkg'] as String? ??
+                entry.key.replaceAll('_', '.'); // key uses underscores
+            final ms = (m['usedMs'] as num?)?.toInt() ?? 0;
+            list.add({'packageName': pkg, 'totalTimeMs': ms});
+          }
+        }
+        _sortList(list);
+        if (mounted) {
+          setState(() {
+            _apps
+              ..clear()
+              ..addAll(list);
+            _loading = false;
+          });
+        }
+        return;
+      }
+
+      // Fallback: read from appList/$uid (legacy / first-run path).
+      final fallbackSnap =
+          await _db.child('appList/${widget.childUid}').get();
+      if (!mounted) return;
+      if (fallbackSnap.value != null && fallbackSnap.value is Map) {
+        final rawFb = Map<String, dynamic>.from(fallbackSnap.value as Map);
+        final list = rawFb.values
+            .where((v) => v is Map)
+            .map((v) => Map<String, dynamic>.from(v as Map))
+            .toList();
+        _sortList(list);
+        setState(() {
+          _apps
+            ..clear()
+            ..addAll(list);
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          _apps.clear();
+          _loading = false;
+        });
+      }
+    });
   }
 
   void _listenLimits() {
@@ -51,28 +118,6 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
         _screenTimeSvc.watchLimits(widget.childUid).listen((limits) {
       if (mounted) setState(() => _limits = limits);
     });
-  }
-
-  Future<void> _loadApps() async {
-    setState(() => _loading = true);
-    final snap = await _db.child('appList/${widget.childUid}').get();
-    if (!mounted) return;
-    if (snap.value != null) {
-      final raw = Map<String, dynamic>.from(snap.value as Map);
-      final list = raw.values
-          .map((v) => Map<String, dynamic>.from(v as Map))
-          .toList();
-      _sortList(list);
-      setState(() {
-        _apps..clear()..addAll(list);
-        _loading = false;
-      });
-    } else {
-      setState(() {
-        _apps.clear();
-        _loading = false;
-      });
-    }
   }
 
   void _sortList(List<Map<String, dynamic>> list) {
@@ -242,9 +287,16 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
         actions: [
           IconButton(
               icon: const Icon(Icons.refresh),
+              tooltip: 'Request sync',
               onPressed: () {
                 _requestSync();
-                _loadApps();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Sync requested — data updates every 60s'),
+                    behavior: SnackBarBehavior.floating,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
               }),
           PopupMenuButton<String>(
             onSelected: (v) {
@@ -273,9 +325,21 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
                         style: GoogleFonts.plusJakartaSans(
                             fontSize: 16, color: Colors.grey)),
                     const SizedBox(height: 8),
-                    Text('Data syncs when child device is active',
+                    Text('Data syncs every 60 s when child device is active',
                         style: GoogleFonts.inter(
                             fontSize: 13, color: Colors.grey.shade400)),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: _requestSync,
+                      icon: const Icon(Icons.sync),
+                      label: const Text('Request Sync'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1A73E8),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
                   ]))
               : Column(
                   children: [

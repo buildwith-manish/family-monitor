@@ -16,8 +16,6 @@ import 'monitoring_screen.dart';
 import '../../services/webrtc_service.dart';
 import 'app_usage_screen.dart';
 import 'app_lock_screen.dart';
-import 'content_filter_screen.dart';
-import 'schedule_lock_screen.dart';
 import 'snapshots_screen.dart';
 import 'sms_call_log_screen.dart';
 import '../../services/device_event_service.dart';
@@ -1022,45 +1020,6 @@ class _ChildCard extends StatelessWidget {
                   },
                 ),
 
-                _FeatureRow(
-                  icon: Icons.block,
-                  label: 'Content Filter',
-                  subtitle: 'Block websites & categories',
-                  color: const Color(0xFF9334E6),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ContentFilterScreen(
-                          childUid: childUid,
-                          childName:
-                              childData['childName'] as String? ?? name,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                _FeatureRow(
-                  icon: Icons.schedule,
-                  label: 'Schedule & Lock',
-                  subtitle: 'Set bedtime schedule & lock device',
-                  color: const Color(0xFF9C27B0),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ScheduleLockScreen(
-                          childUid: childUid,
-                          childName:
-                              childData['childName'] as String? ?? name,
-                        ),
-                      ),
-                    );
-                  },
-                ),
               ],
             ),
           ),

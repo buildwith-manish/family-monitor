@@ -258,6 +258,55 @@ void _cancelSessionResources() {
   SilentWebRTCService.instance.stopSilent().catchError((_) {});
 }
 
+/// Generates a daily report for yesterday if one doesn't already exist.
+/// Called at service startup to handle the case where the nightly midnight
+/// timer never fired because the service was killed before midnight.
+Future<void> _generateYesterdayReportIfMissing(String uid) async {
+  try {
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    final dateStr =
+        '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
+
+    final existing =
+        await FirebaseDatabase.instance.ref('daily_reports/$uid/$dateStr').get();
+    if (existing.value != null) return; // report already exists
+
+    final midnight =
+        DateTime(yesterday.year, yesterday.month, yesterday.day);
+    final endOfDay = DateTime(
+        yesterday.year, yesterday.month, yesterday.day, 23, 59, 59);
+
+    final stats = await UsageStats.queryUsageStats(midnight, endOfDay);
+    int totalMs = 0;
+    final appBreakdown = <Map<String, dynamic>>[];
+    for (final s in stats) {
+      final ms = int.tryParse(s.totalTimeInForeground ?? '0') ?? 0;
+      if (ms > 60000 && s.packageName != null) {
+        totalMs += ms;
+        appBreakdown.add({
+          'pkg': s.packageName,
+          'usedMs': ms,
+          'usedMinutes': ms ~/ 60000,
+        });
+      }
+    }
+    appBreakdown
+        .sort((a, b) => (b['usedMs'] as int).compareTo(a['usedMs'] as int));
+
+    await FirebaseDatabase.instance.ref('daily_reports/$uid/$dateStr').set({
+      'date': dateStr,
+      'totalMs': totalMs,
+      'totalMinutes': totalMs ~/ 60000,
+      'appCount': appBreakdown.length,
+      'topApps': appBreakdown.take(5).toList(),
+      'generatedAt': DateTime.now().millisecondsSinceEpoch,
+    });
+    debugPrint('[BgService] Back-filled daily report for $dateStr');
+  } catch (e) {
+    debugPrint('[BgService] _generateYesterdayReportIfMissing error: $e');
+  }
+}
+
 /// Sets up all Firebase listeners and periodic timers for a monitoring session.
 /// Cancels any previously running resources first to prevent proliferation.
 Future<void> _setupMonitoringSession(
@@ -498,12 +547,22 @@ Future<void> _setupMonitoringSession(
   });
 
   // ── App install/uninstall alerts — checked every 5 minutes ────────────
-  // Reads the installed launcher-visible package list from Firebase appList
-  // and compares against the last known set. New packages trigger an alert
-  // written to app_install_alerts/$uid; removed packages trigger an uninstall
-  // alert. The initial load populates _knownPackages without firing alerts.
+  // Requests a fresh appList sync so that the parent's view stays current,
+  // then compares the resulting Firebase appList/$uid against the last known
+  // set. New packages trigger an alert written to app_install_alerts/$uid;
+  // removed packages trigger an uninstall alert.
+  // The initial load populates _knownPackages without firing alerts.
   _appInstallTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
     try {
+      // Request the child device to upload its current package list so that
+      // appList/$uid is fresh before we read it.
+      await FirebaseDatabase.instance
+          .ref('commands/$uid/syncAppList')
+          .set({'requested': true, 'at': DateTime.now().millisecondsSinceEpoch});
+
+      // Give the child device ~10 s to respond before reading the list.
+      await Future.delayed(const Duration(seconds: 10));
+
       final snap = await FirebaseDatabase.instance.ref('appList/$uid').get();
       if (snap.value == null || snap.value is! Map) return;
       final raw = Map<String, dynamic>.from(snap.value as Map);
@@ -517,6 +576,7 @@ Future<void> _setupMonitoringSession(
       }
       if (_knownPackages.isEmpty) {
         _knownPackages = currentPkgs;
+        debugPrint('[BgService] App install baseline set: ${currentPkgs.length} packages');
         return;
       }
       final installed   = currentPkgs.difference(_knownPackages);
@@ -593,6 +653,11 @@ Future<void> _setupMonitoringSession(
     });
   }
   scheduleDailyReport();
+
+  // Generate yesterday's report immediately if one hasn't been created yet.
+  // This handles the common case where the service was killed before midnight
+  // and the nightly report was never generated.
+  _generateYesterdayReportIfMissing(uid);
 
   // Ping Flutter layer every 20 s
   _pingTimer = Timer.periodic(const Duration(seconds: 20), (_) => service.invoke('ping', {}));

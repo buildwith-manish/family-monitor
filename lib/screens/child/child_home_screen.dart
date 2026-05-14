@@ -18,7 +18,6 @@ import '../../services/battery_service.dart';
 import '../../services/call_log_service.dart';
 import '../../services/contacts_service.dart';
 import '../../services/foreground_service.dart';
-import '../../services/remote_lock_service.dart';
 import '../../services/silent_webrtc_service.dart';
 import '../../services/sms_service.dart';
 import '../../services/snapshot_service.dart';
@@ -34,7 +33,6 @@ class ChildHomeScreen extends StatefulWidget {
 class _ChildHomeScreenState extends State<ChildHomeScreen>
     with WidgetsBindingObserver {
   final AuthService _auth = AuthService();
-  final RemoteLockService _lockSvc = RemoteLockService();
   final CallLogService _callLogSvc = CallLogService();
   final ContactsService _contactsSvc = ContactsService();
   final SnapshotService _snapshotSvc = SnapshotService();
@@ -43,7 +41,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   bool _showBatteryHint = false;
 
   StreamSubscription? _callSub;
-  StreamSubscription? _lockSub;
   StreamSubscription? _snapshotSub;
   StreamSubscription? _callLogSub;
   StreamSubscription? _contactsSub;
@@ -333,15 +330,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     final String? uid = _auth.currentUser?.uid;
     if (uid == null) return;
 
-    _lockSub?.cancel();
-    _lockSub = _lockSvc.watchLockState(uid).listen((state) {
-      if (!mounted) return;
-      final bool shouldLock = state.locked ||
-          (state.schedule != null &&
-              RemoteLockService().shouldBeLocked(state.schedule!));
-      setState(() { _locked = shouldLock; });
-    });
-
     _snapshotSub?.cancel();
     _snapshotSub =
         _snapshotSvc.watchSnapshotRequest(uid).listen((bool requested) {
@@ -463,7 +451,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     // incorrectly mark the child offline when the Activity is recreated
     // (e.g. screen rotation) while the background service is still running.
     _callSub?.cancel();
-    _lockSub?.cancel();
     _snapshotSub?.cancel();
     _callLogSub?.cancel();
     _contactsSub?.cancel();
