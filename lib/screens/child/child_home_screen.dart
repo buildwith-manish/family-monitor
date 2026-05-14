@@ -397,7 +397,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
           // SilentWebRTCService directly. Calling _autoStartStreaming() here
           // would start a second, conflicting WebRTC connection from the UI
           // isolate. The background service's _callsSub already handles this.
-          _ = mode; // suppress unused-variable warning
         } else if (status == 'ended' || status == null) {
           // WEB-02: Background service handles the stop — calling stopSilent()
           // here races with the background-isolate cleanup and can leave the
