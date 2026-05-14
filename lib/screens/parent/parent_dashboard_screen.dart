@@ -7,6 +7,8 @@ import '../../services/auth_service.dart';
 import '../../services/presence_service.dart';
 import 'add_child_screen.dart';
 import '../../services/battery_service.dart';
+import 'battery_alerts_screen.dart';
+import 'geofence_screen.dart';
 import 'monitoring_screen.dart';
 import '../../services/webrtc_service.dart';
 import 'app_usage_screen.dart';
@@ -731,6 +733,50 @@ class _ChildCard extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => SnapshotsScreen(
+                          childUid: childUid,
+                          childName:
+                              childData['childName'] as String? ?? name,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 8),
+                _sectionLabel('Safety & Alerts'),
+                const SizedBox(height: 8),
+
+                _FeatureRow(
+                  icon: Icons.location_on_outlined,
+                  label: 'Location & Geofences',
+                  subtitle: 'Track location, set safe zones, get breach alerts',
+                  color: const Color(0xFF00897B),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => GeofenceScreen(
+                          childUid: childUid,
+                          childName:
+                              childData['childName'] as String? ?? name,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                _FeatureRow(
+                  icon: Icons.battery_alert,
+                  label: 'Battery Alerts',
+                  subtitle: 'Get notified when battery drops below a threshold',
+                  color: const Color(0xFFFF6D00),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BatteryAlertsScreen(
                           childUid: childUid,
                           childName:
                               childData['childName'] as String? ?? name,

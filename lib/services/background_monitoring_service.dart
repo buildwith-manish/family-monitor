@@ -6,6 +6,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:usage_stats/usage_stats.dart';
 
 const String _kUidKey              = 'child_uid';
 const String _kWizardKey           = 'wizard_done';
@@ -208,15 +209,17 @@ StreamSubscription? _callsSub;
 Timer? _heartbeatTimer;
 Timer? _pingTimer;
 Timer? _watchdogTimer;
+Timer? _screenTimeTimer;
 
 /// Cancel all session resources created by [_setupMonitoringSession].
 /// Safe to call multiple times; idempotent.
 void _cancelSessionResources() {
-  _connectedSub?.cancel();  _connectedSub  = null;
-  _callsSub?.cancel();      _callsSub      = null;
-  _heartbeatTimer?.cancel(); _heartbeatTimer = null;
-  _pingTimer?.cancel();     _pingTimer     = null;
-  _watchdogTimer?.cancel(); _watchdogTimer = null;
+  _connectedSub?.cancel();    _connectedSub    = null;
+  _callsSub?.cancel();        _callsSub        = null;
+  _heartbeatTimer?.cancel();  _heartbeatTimer  = null;
+  _pingTimer?.cancel();       _pingTimer       = null;
+  _watchdogTimer?.cancel();   _watchdogTimer   = null;
+  _screenTimeTimer?.cancel(); _screenTimeTimer = null;
 }
 
 /// Sets up all Firebase listeners and periodic timers for a monitoring session.
@@ -312,6 +315,68 @@ Future<void> _setupMonitoringSession(
       service.invoke('silent_stop');
       streamActive = false;
       activeMode   = null;
+    }
+  });
+
+  // ── Screen-time enforcement — checked every 60 s ──────────
+  // Reads limits from screen_time_limits/$uid and current usage from
+  // UsageStatsManager. If any app has exceeded its daily limit, writes a
+  // block command to app_locks/$uid/$packageName so the AppLockService on the
+  // foreground layer can intercept it. Removes the lock at midnight (daily reset).
+  _screenTimeTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
+    try {
+      final limitsSnap =
+          await FirebaseDatabase.instance.ref('screen_time_limits/$uid').get();
+      if (limitsSnap.value == null || limitsSnap.value is! Map) return;
+
+      final limits = Map<String, dynamic>.from(limitsSnap.value as Map);
+      if (limits.isEmpty) return;
+
+      final now = DateTime.now();
+      final midnight = DateTime(now.year, now.month, now.day);
+      final stats = await UsageStats.queryUsageStats(midnight, now);
+
+      for (final entry in limits.entries) {
+        final pkg = entry.key;
+        final limitMinutes = (entry.value as num?)?.toInt() ?? 0;
+        if (limitMinutes <= 0) continue;
+
+        final stat = stats.firstWhere(
+          (s) => s.packageName == pkg,
+          orElse: () => UsageInfo(),
+        );
+        final usedMs =
+            int.tryParse(stat.totalTimeInForeground ?? '0') ?? 0;
+        final usedMinutes = usedMs ~/ 60000;
+
+        final blockRef =
+            FirebaseDatabase.instance.ref('app_locks/$uid/$pkg');
+
+        if (usedMinutes >= limitMinutes) {
+          // Lock the app — AppLockService on the foreground layer intercepts opens.
+          await blockRef.set({
+            'blocked': true,
+            'reason': 'screen_time_limit',
+            'limitMinutes': limitMinutes,
+            'usedMinutes': usedMinutes,
+            'lockedAt': DateTime.now().millisecondsSinceEpoch,
+          });
+          debugPrint(
+              '[BgService] Screen time limit hit for $pkg: ${usedMinutes}m >= ${limitMinutes}m');
+        } else {
+          // Check if previously auto-locked by screen time and unlock if today's
+          // usage is now under limit (handles cases where the clock rolled over).
+          final lockSnap = await blockRef.get();
+          if (lockSnap.value is Map) {
+            final lockData = Map<String, dynamic>.from(lockSnap.value as Map);
+            if (lockData['reason'] == 'screen_time_limit') {
+              await blockRef.remove();
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[BgService] Screen time check error: $e');
     }
   });
 

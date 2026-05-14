@@ -7,7 +7,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../services/alert_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/location_service.dart';
 import '../../services/presence_service.dart';
 import 'child_qr_screen.dart';
 import '../../services/background_monitoring_service.dart';
@@ -70,6 +72,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     try { await _setOnline(true); } catch (_) {}
     try { await _startExtraServices(); } catch (_) {}
     try { await _askPermissions(); } catch (_) {}
+    try { await _startLocationAndAlerts(); } catch (_) {}
 
     final String? uid = _auth.currentUser?.uid;
     if (uid != null) {
@@ -101,8 +104,24 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         Permission.camera,
         Permission.microphone,
         Permission.notification,
+        Permission.location,
       ].request();
     } catch (_) {}
+  }
+
+  Future<void> _startLocationAndAlerts() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    // Start GPS tracking if permission is available.
+    final hasLoc = await LocationService.instance.hasPermission();
+    if (hasLoc) {
+      await LocationService.instance.startTracking(uid);
+    }
+
+    // Start battery alert monitoring (reads threshold from Firebase and fires
+    // alerts when battery drops to or below the parent-configured level).
+    AlertService.instance.startBatteryMonitoring(uid);
   }
 
   Future<void> _setOnline(bool online) async {
@@ -384,6 +403,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     _pendingSub?.cancel();
     _parentSub?.cancel();
     SilentWebRTCService.instance.stopSilent();
+    LocationService.instance.stopTracking();
+    AlertService.instance.stopBatteryMonitoring();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
