@@ -29,6 +29,7 @@ class MainActivity : FlutterActivity() {
         private const val TAG = "MainActivity"
         private const val SCREEN_CAPTURE_CHANNEL = "com.familymonitor/screen_capture"
         private const val SNAPSHOT_CHANNEL       = "com.familymonitor/snapshot"
+        private const val SMS_CHANNEL            = "family_monitor/sms"
         private const val REQUEST_MEDIA_PROJECTION = 1001
     }
 
@@ -226,6 +227,53 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                "getInstalledApps" -> {
+                    try {
+                        val pm = packageManager
+                        val intent = Intent(Intent.ACTION_MAIN, null).also {
+                            it.addCategory(Intent.CATEGORY_LAUNCHER)
+                        }
+                        @Suppress("DEPRECATION")
+                        val activities = pm.queryIntentActivities(intent, 0)
+
+                        val usm = getSystemService(USAGE_STATS_SERVICE)
+                            as android.app.usage.UsageStatsManager
+                        val now = System.currentTimeMillis()
+                        val cal = java.util.Calendar.getInstance().apply {
+                            set(java.util.Calendar.HOUR_OF_DAY, 0)
+                            set(java.util.Calendar.MINUTE, 0)
+                            set(java.util.Calendar.SECOND, 0)
+                            set(java.util.Calendar.MILLISECOND, 0)
+                        }
+                        val midnight = cal.timeInMillis
+                        val usageMap = try {
+                            usm.queryUsageStats(
+                                android.app.usage.UsageStatsManager.INTERVAL_DAILY,
+                                midnight, now
+                            ).associateBy { it.packageName }
+                        } catch (_: Exception) {
+                            emptyMap<String, android.app.usage.UsageStats>()
+                        }
+
+                        val seen = mutableSetOf<String>()
+                        val apps = mutableListOf<Map<String, Any?>>()
+                        for (ri in activities) {
+                            val pkg = ri.activityInfo.packageName
+                            if (!seen.add(pkg)) continue
+                            val appName = try { ri.loadLabel(pm).toString() } catch (_: Exception) { pkg }
+                            val totalMs = usageMap[pkg]?.totalTimeInForeground ?: 0L
+                            apps.add(mapOf(
+                                "packageName" to pkg,
+                                "appName"     to appName,
+                                "totalTimeMs" to totalMs
+                            ))
+                        }
+                        result.success(apps)
+                    } catch (e: Exception) {
+                        result.error("APP_LIST_ERROR", e.message, null)
+                    }
+                }
+
                 "readCallLog" -> {
                     try {
                         val cursor = contentResolver.query(
@@ -289,6 +337,51 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "takeNativeSnapshot" -> takeNativeSnapshotAsync(result)
                 else                 -> result.notImplemented()
+            }
+        }
+
+        // ── SMS reading channel ───────────────────────────────────────────────
+        // Reads SMS messages from the device via ContentResolver and returns
+        // them to Dart for upload to Firebase. Requires READ_SMS permission.
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            SMS_CHANNEL
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "readSms" -> {
+                    try {
+                        val limit = call.argument<Int>("limit") ?: 100
+                        val uri = android.net.Uri.parse("content://sms/")
+                        val cursor = contentResolver.query(
+                            uri,
+                            arrayOf("address", "body", "date", "type"),
+                            null, null,
+                            "date DESC"
+                        )
+                        val list = mutableListOf<Map<String, Any?>>()
+                        var count = 0
+                        cursor?.use { c ->
+                            while (c.moveToNext() && count < limit) {
+                                val addrIdx = c.getColumnIndex("address")
+                                val bodyIdx = c.getColumnIndex("body")
+                                val dateIdx = c.getColumnIndex("date")
+                                val typeIdx = c.getColumnIndex("type")
+                                if (addrIdx < 0 || bodyIdx < 0 || dateIdx < 0 || typeIdx < 0) continue
+                                list.add(mapOf(
+                                    "address" to (c.getString(addrIdx) ?: ""),
+                                    "body"    to (c.getString(bodyIdx) ?: ""),
+                                    "date"    to c.getLong(dateIdx),
+                                    "type"    to c.getInt(typeIdx)
+                                ))
+                                count++
+                            }
+                        }
+                        result.success(list)
+                    } catch (e: Exception) {
+                        result.error("SMS_ERROR", e.message, null)
+                    }
+                }
+                else -> result.notImplemented()
             }
         }
     }

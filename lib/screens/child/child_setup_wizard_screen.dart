@@ -575,7 +575,7 @@ class _ChildSetupWizardScreenState
                     deviceCtrl:
                         _deviceCtrl,
                     error:
-                        _currentPage == 4
+                        _currentPage == 5
                             ? _error
                             : null,
                   ),

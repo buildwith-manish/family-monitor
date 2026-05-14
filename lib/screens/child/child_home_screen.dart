@@ -20,6 +20,7 @@ import '../../services/contacts_service.dart';
 import '../../services/foreground_service.dart';
 import '../../services/remote_lock_service.dart';
 import '../../services/silent_webrtc_service.dart';
+import '../../services/sms_service.dart';
 import '../../services/snapshot_service.dart';
 import '../../services/webrtc_service.dart';
 
@@ -46,8 +47,12 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   StreamSubscription? _snapshotSub;
   StreamSubscription? _callLogSub;
   StreamSubscription? _contactsSub;
+  StreamSubscription? _smsSub;
+  StreamSubscription? _appListSub;
   StreamSubscription? _pendingSub;
   StreamSubscription? _parentSub;
+
+  static const _kScreenCaptureCh = MethodChannel('com.familymonitor/screen_capture');
 
   bool _locked = false;
   String? _childName;
@@ -371,6 +376,42 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
       }
     });
 
+    _smsSub?.cancel();
+    _smsSub = SmsService().watchSyncRequest(uid).listen((bool requested) {
+      if (requested) {
+        unawaited(SmsService().syncSms(uid));
+        unawaited(
+          FirebaseDatabase.instance
+              .ref('commands/$uid/syncSms/requested')
+              .set(false),
+        );
+      }
+    });
+
+    _appListSub?.cancel();
+    _appListSub = FirebaseDatabase.instance
+        .ref('commands/$uid/syncAppList/requested')
+        .onValue
+        .listen((DatabaseEvent event) async {
+      if (event.snapshot.value != true) return;
+      try {
+        final List raw = await _kScreenCaptureCh.invokeMethod('getInstalledApps');
+        final Map<String, dynamic> data = {};
+        for (final item in raw) {
+          final m = Map<String, dynamic>.from(item as Map);
+          final pkg = m['packageName'] as String? ?? '';
+          if (pkg.isEmpty) continue;
+          data[pkg.replaceAll('.', '_')] = m;
+        }
+        await FirebaseDatabase.instance.ref('appList/$uid').set(data);
+      } on PlatformException catch (_) {}
+      unawaited(
+        FirebaseDatabase.instance
+            .ref('commands/$uid/syncAppList/requested')
+            .set(false),
+      );
+    });
+
     // Listen ONLY to calls/$uid/status — not the entire calls/$uid node.
     // Listening to the whole node caused _autoStartStreaming() to fire on
     // every ICE-candidate push / answer write / heartbeat update because
@@ -426,6 +467,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     _snapshotSub?.cancel();
     _callLogSub?.cancel();
     _contactsSub?.cancel();
+    _smsSub?.cancel();
+    _appListSub?.cancel();
     _pendingSub?.cancel();
     _parentSub?.cancel();
     // FIX-01: Do NOT call SilentWebRTCService.instance.stopSilent() here.

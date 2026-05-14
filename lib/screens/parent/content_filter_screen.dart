@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -25,6 +27,8 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
   Set<String> _blockedCategories = {};
   late TabController _tabs;
   final _domainCtrl = TextEditingController();
+  StreamSubscription? _domainsSub;
+  StreamSubscription? _categoriesSub;
 
   static const _categoryIcons = {
     'Adult Content': (Icons.no_adult_content, Color(0xFFEA4335)),
@@ -38,17 +42,20 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
   void initState() {
     super.initState();
     _tabs = TabController(length: 2, vsync: this);
-    _svc.watchBlockedDomains(widget.childUid).listen((data) {
+    _domainsSub = _svc.watchBlockedDomains(widget.childUid).listen((data) {
       if (!mounted) return;
-    setState(() { _blocked = data; });
+      setState(() { _blocked = data; });
     });
-    _svc.watchBlockedCategories(widget.childUid).listen((data) {
+    _categoriesSub = _svc.watchBlockedCategories(widget.childUid).listen((data) {
       if (!mounted) return;
-    setState(() { _blockedCategories = data; });    });
+      setState(() { _blockedCategories = data; });
+    });
   }
 
   @override
   void dispose() {
+    _domainsSub?.cancel();
+    _categoriesSub?.cancel();
     _tabs.dispose();
     _domainCtrl.dispose();
     super.dispose();

@@ -35,8 +35,15 @@ class _AppLockScreenState extends State<AppLockScreen> {
   @override
   void initState() {
     super.initState();
+    _requestSync();
     _loadApps();
     _listenBlocked();
+  }
+
+  Future<void> _requestSync() async {
+    await _db
+        .child('commands/${widget.childUid}/syncAppList/requested')
+        .set(true);
   }
 
   @override
