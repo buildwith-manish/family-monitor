@@ -4,6 +4,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'device_event_service.dart';
 
 /// Manages FCM token registration, local notification display, and
 /// writing alert triggers to Firebase so the child-side can push them
@@ -85,15 +86,18 @@ class NotificationService {
     _watchBatteryAlerts(childUid, childName);
     _watchGeofenceAlerts(childUid, childName);
     _watchOffline(childUid, childName);
+    _watchServiceCrash(childUid, childName);
   }
 
   void unwatchChild(String childUid) {
     _subs['battery_$childUid']?.cancel();
     _subs['geofence_$childUid']?.cancel();
     _subs['offline_$childUid']?.cancel();
+    _subs['crash_$childUid']?.cancel();
     _subs.remove('battery_$childUid');
     _subs.remove('geofence_$childUid');
     _subs.remove('offline_$childUid');
+    _subs.remove('crash_$childUid');
   }
 
   void dispose() {
@@ -198,6 +202,66 @@ class NotificationService {
         );
       }
       _lastOnline = online;
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Service crash / device health alerts
+  // ─────────────────────────────────────────────────────────────────────────
+
+  void _watchServiceCrash(String childUid, String childName) {
+    final key = 'crash_$childUid';
+    _subs[key]?.cancel();
+
+    final Set<String> seen = {};
+    // Subtract 5 s so we do not miss events written just before we subscribed,
+    // but skip anything older that belongs to a previous session.
+    final int startMs = DateTime.now().millisecondsSinceEpoch - 5000;
+
+    _subs[key] = _db
+        .child('device_events/$childUid')
+        .onChildAdded
+        .listen((event) {
+      final alertKey = event.snapshot.key;
+      if (alertKey == null || seen.contains(alertKey)) return;
+      seen.add(alertKey);
+
+      final v = event.snapshot.value;
+      if (v == null || v is! Map) return;
+      final m = Map<String, dynamic>.from(v);
+
+      final severity = m['severity'] as String? ?? 'info';
+      if (severity == 'info') return;
+
+      // Skip pre-existing events from earlier sessions.
+      final ts = (m['timestamp'] as int?) ?? 0;
+      if (ts > 0 && ts < startMs) return;
+
+      final type    = m['type']    as String? ?? '';
+      final message = m['message'] as String? ?? '';
+
+      final String title;
+      switch (type) {
+        case 'service_crash':
+          title = '$childName \u2014 Monitoring Crashed';
+          break;
+        case 'service_restored':
+          title = '$childName \u2014 Monitoring Restored';
+          break;
+        case 'monitoring_error':
+          title = '$childName \u2014 Monitoring Error';
+          break;
+        case 'flutter_error':
+          title = '$childName \u2014 App Error';
+          break;
+        default:
+          title = '$childName \u2014 Device Alert';
+      }
+
+      _show(
+        title,
+        message.isNotEmpty ? message : 'Check Device Health for details.',
+      );
     });
   }
 

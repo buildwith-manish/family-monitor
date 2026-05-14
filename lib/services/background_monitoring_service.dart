@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:usage_stats/usage_stats.dart';
+import 'device_event_service.dart';
 
 const String _kUidKey              = 'child_uid';
 const String _kWizardKey           = 'wizard_done';
@@ -152,6 +153,14 @@ void _onStart(ServiceInstance service) async {
   // unclean exit on next startup and automatically re-join the session.
   await prefs.setBool(_kMonitoringActiveKey, true);
 
+  // Inform the parent dashboard that monitoring has started successfully.
+  DeviceEventService.writeEvent(
+    childUid: uid,
+    type: 'service_started',
+    message: 'Background monitoring service started successfully.',
+    severity: 'info',
+  );
+
   // ── Stop command listener ──────────────────────────────
   // Registered before session setup so the service is always stoppable.
   service.on('stop').listen((_) async {
@@ -190,6 +199,12 @@ void _onStart(ServiceInstance service) async {
   if (!setupOk) {
     debugPrint('[BgService] Monitoring setup failed after recovery — stopping.');
     await prefs.setBool(_kMonitoringActiveKey, false);
+    DeviceEventService.writeEvent(
+      childUid: uid,
+      type: 'service_crash',
+      message: 'Monitoring setup failed after recovery attempt. Service stopped.',
+      severity: 'error',
+    );
     service.stopSelf();
   }
 }
@@ -407,6 +422,12 @@ Future<void> _setupMonitoringSession(
           // _setupMonitoringSession will create fresh ones — no recursion risk
           // because _watchdogTimer is null after _cancelSessionResources().
           _cancelSessionResources();
+          DeviceEventService.writeEvent(
+            childUid: uid,
+            type: 'service_restored',
+            message: 'Monitoring session restarted by health watchdog after repeated connectivity failures.',
+            severity: 'warning',
+          );
           await Future.delayed(const Duration(seconds: 2));
           await _setupMonitoringSession(service, uid);
         }

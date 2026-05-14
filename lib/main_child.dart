@@ -13,12 +13,31 @@ import 'screens/child/child_auth_screen.dart';
 import 'screens/child/child_home_screen.dart';
 import 'screens/child/child_setup_wizard_screen.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'services/auth_service.dart';
 import 'services/background_monitoring_service.dart';
+import 'services/device_event_service.dart';
 import 'services/foreground_service.dart';
 import 'services/silent_webrtc_service.dart';
 
 final GlobalKey<NavigatorState> childNavKey = GlobalKey<NavigatorState>();
+
+// Write a health event to Firebase so the parent can see it in Device Health.
+// Fire-and-forget — errors are silently swallowed to avoid any recursion risk.
+Future<void> _writeChildCrashEvent(String type, String message) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final uid = prefs.getString('child_uid');
+    if (uid == null || uid.isEmpty) return;
+    await DeviceEventService.writeEvent(
+      childUid: uid,
+      type: type,
+      message: message,
+      severity: 'error',
+    );
+  } catch (_) {}
+}
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -67,9 +86,13 @@ Future<void> main() async {
   }
 
   // Wire error handlers AFTER Firebase is ready
-  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  FlutterError.onError = (details) {
+    FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+    _writeChildCrashEvent('flutter_error', details.exceptionAsString());
+  };
   PlatformDispatcher.instance.onError = (error, stack) {
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    _writeChildCrashEvent('flutter_error', error.toString());
     return true;
   };
 

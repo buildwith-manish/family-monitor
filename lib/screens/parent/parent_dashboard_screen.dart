@@ -19,6 +19,8 @@ import 'content_filter_screen.dart';
 import 'schedule_lock_screen.dart';
 import 'snapshots_screen.dart';
 import 'sms_call_log_screen.dart';
+import '../../services/device_event_service.dart';
+import 'crash_report_screen.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});
@@ -36,6 +38,8 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
   final Map<String, StreamSubscription> _batterySubs = {};
   final Map<String, StreamSubscription> _presenceSubs = {};
   final Map<String, bool> _presenceMap = {};
+  final Map<String, int> _crashCounts = {};
+  final Map<String, StreamSubscription> _crashCountSubs = {};
 
   StreamSubscription? _childrenSub;
 
@@ -68,6 +72,9 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
       s.cancel();
     }
     for (final s in _presenceSubs.values) {
+      s.cancel();
+    }
+    for (final s in _crashCountSubs.values) {
       s.cancel();
     }
     NotificationService.instance.dispose();
@@ -119,6 +126,13 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
             ?? (newChildren[uid] as Map?)?['displayName'] as String?
             ?? 'Child';
         NotificationService.instance.watchChild(uid, childName);
+        if (!_crashCountSubs.containsKey(uid)) {
+          _crashCountSubs[uid] =
+              DeviceEventService.watchUnreadCount(uid).listen((count) {
+            if (!mounted) return;
+            setState(() => _crashCounts[uid] = count);
+          });
+        }
       }
 
       final removed = _batterySubs.keys
@@ -132,6 +146,9 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
         _presenceSubs.remove(uid);
         _presenceMap.remove(uid);
         NotificationService.instance.unwatchChild(uid);
+        _crashCountSubs[uid]?.cancel();
+        _crashCountSubs.remove(uid);
+        _crashCounts.remove(uid);
       }
     }, onError: (_) {
       if (mounted) {
@@ -262,6 +279,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
                       delay: index * 80,
                       deviceInfo: _deviceInfo,
                       isOnline: _presenceMap[childUid] ?? false,
+                      crashCount: _crashCounts[childUid] ?? 0,
                       onRemove: () async {
                         await _auth.removeChild(childUid);
                       },
@@ -352,6 +370,7 @@ class _ChildCard extends StatelessWidget {
   // Live presence fed from PresenceService.watchChildPresence stream.
   // True = device is online right now (Firebase .info/connected confirmed).
   final bool isOnline;
+  final int crashCount;
   final Future<void> Function() onRemove;
 
   const _ChildCard({
@@ -360,6 +379,7 @@ class _ChildCard extends StatelessWidget {
     required this.delay,
     required this.deviceInfo,
     required this.isOnline,
+    required this.crashCount,
     required this.onRemove,
   });
 
@@ -435,6 +455,31 @@ class _ChildCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (crashCount > 0)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEA4335),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: Colors.white, width: 1.5),
+                          ),
+                          child: Center(
+                            child: Text(
+                              crashCount > 9 ? '!' : '$crashCount',
+                              style: GoogleFonts.inter(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(width: 14),
@@ -879,6 +924,28 @@ class _ChildCard extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => BatteryAlertsScreen(
+                          childUid: childUid,
+                          childName:
+                              childData['childName'] as String? ?? name,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                _FeatureRow(
+                  icon: Icons.health_and_safety_outlined,
+                  label: 'Device Health',
+                  subtitle: crashCount > 0
+                      ? 'Crash & service events \u00b7 $crashCount unread'
+                      : 'Crash reports & service health events',
+                  color: const Color(0xFFEA4335),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CrashReportScreen(
                           childUid: childUid,
                           childName:
                               childData['childName'] as String? ?? name,
