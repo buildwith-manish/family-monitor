@@ -74,6 +74,63 @@ workflows:
       - name: Get dependencies
         script: flutter pub get
 
+      - name: Validate Gradle KTS syntax
+        script: |
+          echo "Scanning .gradle.kts files for Groovy-style syntax..."
+          ERRORS=0
+
+          # Detect bare double-quoted strings used as dependency notation (Groovy style)
+          # Valid KTS uses:  implementation("...")
+          # Invalid Groovy:  implementation "..."
+          GROOVY_DEPS=$(grep -rn --include="*.gradle.kts" \
+            -E '^\s*(implementation|api|compileOnly|runtimeOnly|testImplementation|androidTestImplementation|annotationProcessor|kapt|ksp|coreLibraryDesugaring)\s+"' \
+            android/ || true)
+
+          if [ -n "$GROOVY_DEPS" ]; then
+            echo ""
+            echo "ERROR: Groovy-style dependency syntax found in .gradle.kts file(s)."
+            echo "Use parentheses in Kotlin DSL:  implementation(\"...\")  not  implementation \"...\""
+            echo ""
+            echo "$GROOVY_DEPS"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          # Detect single-quoted strings (also Groovy style)
+          SINGLE_QUOTED=$(grep -rn --include="*.gradle.kts" \
+            -E "^\s*(implementation|api|compileOnly|runtimeOnly|testImplementation|androidTestImplementation|annotationProcessor|kapt|ksp|coreLibraryDesugaring)\s+'" \
+            android/ || true)
+
+          if [ -n "$SINGLE_QUOTED" ]; then
+            echo ""
+            echo "ERROR: Single-quoted dependency syntax found in .gradle.kts file(s)."
+            echo "Use double-quoted strings inside parentheses:  implementation(\"...\")"
+            echo ""
+            echo "$SINGLE_QUOTED"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          # Detect apply plugin Groovy style
+          APPLY_PLUGIN=$(grep -rn --include="*.gradle.kts" \
+            -E "^apply plugin\s*:" \
+            android/ || true)
+
+          if [ -n "$APPLY_PLUGIN" ]; then
+            echo ""
+            echo "ERROR: Groovy-style 'apply plugin:' found in .gradle.kts file(s)."
+            echo "Use Kotlin DSL:  apply(plugin = \"...\")"
+            echo ""
+            echo "$APPLY_PLUGIN"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          if [ "$ERRORS" -eq 0 ]; then
+            echo "All .gradle.kts files passed syntax validation."
+          else
+            echo ""
+            echo "Fix the $ERRORS error(s) above before building."
+            exit 1
+          fi
+
       - name: Build Parent APK
         script: |
           flutter build apk --release \
