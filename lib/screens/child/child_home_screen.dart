@@ -53,7 +53,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
   static const _kScreenCaptureCh = MethodChannel('com.familymonitor/screen_capture');
 
-  bool _locked = false;
+  final bool _locked = false;
   String? _childName;
   String? _deviceName;
 

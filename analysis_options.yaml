@@ -23,11 +23,6 @@ linter:
     use_build_context_synchronously: false
     curly_braces_in_flow_control_structures: false
     sort_child_properties_last: false
-    unnecessary_cast: false
-    unused_local_variable: false
-    unused_element: false
-    unused_field: false
     avoid_unnecessary_containers: false
     sized_box_for_whitespace: false
     use_key_in_widget_constructors: false
-    deprecated_member_use: false

@@ -156,7 +156,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
       }
     }, onError: (_) {
       if (mounted) {
-        Future.delayed(const Duration(seconds: 3), _reattachChildrenListener);
+        Future.delayed(const Duration(seconds: 3), _reattachChildrenListenerIfNeeded);
       }
     });
   }
