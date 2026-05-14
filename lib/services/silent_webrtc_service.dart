@@ -1,3 +1,4 @@
+// ignore_for_file: unused_field
 // =============================================================================
 // ANDROID PRIVACY INDICATOR NOTICE
 // On Android 12+ (API 31+) the system displays a green camera/microphone dot

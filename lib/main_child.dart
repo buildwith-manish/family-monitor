@@ -19,6 +19,7 @@ import 'services/auth_service.dart';
 import 'services/background_monitoring_service.dart';
 import 'services/device_event_service.dart';
 import 'services/foreground_service.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 final GlobalKey<NavigatorState> childNavKey = GlobalKey<NavigatorState>();
 

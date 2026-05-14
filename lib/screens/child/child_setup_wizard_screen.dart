@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_const_constructors, deprecated_member_use
 import 'dart:async';
 
 import 'package:firebase_database/firebase_database.dart';

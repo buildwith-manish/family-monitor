@@ -1,3 +1,4 @@
+// ignore_for_file: unnecessary_cast
 import 'dart:async';
 
 import 'package:firebase_database/firebase_database.dart';

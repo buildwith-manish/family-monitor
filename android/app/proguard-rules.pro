@@ -38,3 +38,32 @@
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
+
+# Flutter engine
+-keep class io.flutter.** { *; }
+-keep class io.flutter.embedding.** { *; }
+-keep class io.flutter.plugin.** { *; }
+-keep class io.flutter.util.** { *; }
+-keep class io.flutter.view.** { *; }
+-dontwarn io.flutter.**
+
+# GeneratedPluginRegistrant
+-keep class com.example.family_monitor.GeneratedPluginRegistrant { *; }
+-keep class com.example.family_monitor.parent.GeneratedPluginRegistrant { *; }
+
+# WorkManager Workers
+-keep class * extends androidx.work.Worker { *; }
+-keep class * extends androidx.work.CoroutineWorker { *; }
+-keep class * extends androidx.work.ListenableWorker {
+    public <init>(android.content.Context, androidx.work.WorkerParameters);
+}
+
+# WatchdogWorker and WatchdogService
+-keep class com.example.family_monitor.WatchdogWorker { *; }
+-keep class com.example.family_monitor.WatchdogService { *; }
+-keep class com.example.family_monitor.WatchdogScheduler { *; }
+
+# Kotlin coroutines
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+-dontwarn kotlinx.coroutines.**
