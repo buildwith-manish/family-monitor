@@ -504,7 +504,7 @@ class SilentWebRTCService {
     _heartbeatTimer?.cancel();
 
     _heartbeatTimer = Timer.periodic(
-      const Duration(seconds: 10),
+      const Duration(seconds: 30),
       (_) async {
         if (!_active) {
           _heartbeatTimer?.cancel();

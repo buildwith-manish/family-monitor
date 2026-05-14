@@ -13,3 +13,9 @@ nvm/
 android/local.properties
 android/.gradle/
 *.zip
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+*.jks
+*.keystore
+key.properties
+android/key.properties

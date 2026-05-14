@@ -59,13 +59,12 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _reattachChildrenListener();
+      _reattachChildrenListenerIfNeeded();
     }
   }
 
-  void _reattachChildrenListener() {
-    _childrenSub?.cancel();
-    _childrenSub = null;
+  void _reattachChildrenListenerIfNeeded() {
+    if (_childrenSub != null) return;
     _listenForChildren();
   }
 

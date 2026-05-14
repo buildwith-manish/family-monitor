@@ -35,6 +35,7 @@ class _ChildSetupWizardScreenState
 
   int _currentPage = 0;
   bool _loading = false;
+  bool _navigationLock = false;
   String? _error;
 
   final _nameCtrl = TextEditingController();
@@ -321,6 +322,8 @@ class _ChildSetupWizardScreenState
   }
 
   void _next() {
+    if (_navigationLock || _loading) return;
+
     if (_currentPage == 2 &&
         !_canProceedFromPermissions) {
       setState(() {
@@ -334,7 +337,10 @@ class _ChildSetupWizardScreenState
     setState(() => _error = null);
 
     if (_currentPage == 5) {
-      _saveProfileFirst();
+      _navigationLock = true;
+      _saveProfileFirst().whenComplete(() {
+        if (mounted) setState(() => _navigationLock = false);
+      });
       return;
     }
 
@@ -391,17 +397,24 @@ class _ChildSetupWizardScreenState
               ? 'My Phone'
               : _deviceCtrl.text.trim();
 
-      await FirebaseDatabase.instance
-          .ref('users/$uid')
-          .update({
+      final updates = <String, dynamic>{
         'childName': _nameCtrl.text.trim(),
         'deviceName': deviceName,
         'role': 'child',
         'isOnline': false,
-        'pendingParentRequests':
-            await _existingRequests(uid),
-        'approvedParents': {},
-      });
+        'pendingParentRequests': await _existingRequests(uid),
+      };
+
+      final existingSnap = await FirebaseDatabase.instance
+          .ref('users/$uid/approvedParents')
+          .get();
+      if (existingSnap.value == null) {
+        updates['approvedParents'] = {};
+      }
+
+      await FirebaseDatabase.instance
+          .ref('users/$uid')
+          .update(updates);
     } catch (_) {}
 
     if (!mounted) return;

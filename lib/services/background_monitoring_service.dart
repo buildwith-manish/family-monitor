@@ -42,12 +42,22 @@ class BackgroundMonitoringService {
     );
   }
 
+  static Completer<void>? _startCompleter;
+
   static Future<void> startService() async {
+    if (_startCompleter != null) {
+      return _startCompleter!.future;
+    }
+    _startCompleter = Completer<void>();
     try {
       final running = await _svc.isRunning();
       if (!running) await _svc.startService();
+      _startCompleter!.complete();
     } catch (e) {
       debugPrint('[BackgroundService] startService error: $e');
+      _startCompleter!.completeError(e);
+    } finally {
+      _startCompleter = null;
     }
   }
 
@@ -234,6 +244,7 @@ void _onStart(ServiceInstance service) async {
 StreamSubscription? _connectedSub;
 StreamSubscription? _callsSub;
 StreamSubscription? _appLocksSub;
+StreamSubscription? _generateReportSub;
 Timer? _heartbeatTimer;
 Timer? _pingTimer;
 Timer? _watchdogTimer;
@@ -244,6 +255,7 @@ Timer? _appInstallTimer;
 Timer? _hourlyUsageTimer;
 Timer? _weeklyAndStreakTimer;
 Set<String> _knownPackages = {};
+bool _watchdogRestarting = false;
 
 /// Cancel all session resources created by [_setupMonitoringSession].
 /// Safe to call multiple times; idempotent.
@@ -251,6 +263,7 @@ void _cancelSessionResources() {
   _connectedSub?.cancel();           _connectedSub          = null;
   _callsSub?.cancel();               _callsSub              = null;
   _appLocksSub?.cancel();            _appLocksSub           = null;
+  _generateReportSub?.cancel();      _generateReportSub     = null;
   _heartbeatTimer?.cancel();         _heartbeatTimer        = null;
   _pingTimer?.cancel();              _pingTimer             = null;
   _watchdogTimer?.cancel();          _watchdogTimer         = null;
@@ -260,6 +273,7 @@ void _cancelSessionResources() {
   _appInstallTimer?.cancel();        _appInstallTimer       = null;
   _hourlyUsageTimer?.cancel();       _hourlyUsageTimer      = null;
   _weeklyAndStreakTimer?.cancel();   _weeklyAndStreakTimer   = null;
+  _watchdogRestarting = false;
   // FIX-01: Stop WebRTC in this isolate. stopSilent() sets _active=false
   // synchronously — the async teardown is fire-and-forget safe.
   SilentWebRTCService.instance.stopSilent().catchError((_) {});
@@ -546,21 +560,18 @@ Future<void> _setupMonitoringSession(
       final now = DateTime.now();
       final dateStr =
           '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      final hourData = <String, int>{};
-      for (int h = 0; h <= now.hour; h++) {
-        final start = DateTime(now.year, now.month, now.day, h, 0, 0);
-        final end   = DateTime(now.year, now.month, now.day, h, 59, 59);
-        final stats = await UsageStats.queryUsageStats(start, end);
-        int totalMs = 0;
-        for (final s in stats) {
-          totalMs += int.tryParse(s.totalTimeInForeground ?? '0') ?? 0;
-        }
-        hourData['$h'] = totalMs ~/ 60000; // store as minutes
+      final h = now.hour;
+      final start = DateTime(now.year, now.month, now.day, h, 0, 0);
+      final end   = DateTime(now.year, now.month, now.day, h, 59, 59);
+      final stats = await UsageStats.queryUsageStats(start, end);
+      int totalMs = 0;
+      for (final s in stats) {
+        totalMs += int.tryParse(s.totalTimeInForeground ?? '0') ?? 0;
       }
       await FirebaseDatabase.instance
-          .ref('hourly_usage/$uid/$dateStr')
-          .update(hourData);
-      debugPrint('[BgService] Hourly usage updated for $dateStr');
+          .ref('hourly_usage/$uid/$dateStr/$h')
+          .set(totalMs ~/ 60000);
+      debugPrint('[BgService] Hourly usage updated for $dateStr hour $h');
     } catch (e) {
       debugPrint('[BgService] Hourly usage error: $e');
     }
@@ -702,7 +713,7 @@ Future<void> _setupMonitoringSession(
   // Listens for commands/$uid/generateReport/$date entries written by the
   // parent's Generate Report sheet.  Processes each date in turn, then
   // removes the command node so it only runs once.
-  FirebaseDatabase.instance
+  _generateReportSub = FirebaseDatabase.instance
       .ref('commands/$uid/generateReport')
       .onValue
       .listen((event) async {
@@ -805,6 +816,7 @@ Future<void> _setupMonitoringSession(
   int healthFailures = 0;
 
   _watchdogTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+    if (_watchdogRestarting) return;
     try {
       final connected = (await FirebaseDatabase.instance
           .ref('.info/connected')
@@ -818,10 +830,8 @@ Future<void> _setupMonitoringSession(
 
         if (healthFailures >= 3) {
           healthFailures = 0;
+          _watchdogRestarting = true;
           debugPrint('[BgService] Restarting session after repeated failures');
-          // Cancel all current resources (including this watchdog timer).
-          // _setupMonitoringSession will create fresh ones — no recursion risk
-          // because _watchdogTimer is null after _cancelSessionResources().
           _cancelSessionResources();
           DeviceEventService.writeEvent(
             childUid: uid,
@@ -837,6 +847,7 @@ Future<void> _setupMonitoringSession(
       }
     } catch (e) {
       debugPrint('[BgService] Watchdog error: $e');
+      _watchdogRestarting = false;
     }
   });
 }

@@ -222,9 +222,10 @@ class WebRTCService {
         },
       );
 
+      bool _offerProcessed = false;
       _offerSub =
           _db.child('calls/$childUid/offer').onValue.listen((event) async {
-        if (_disposed) return;
+        if (_disposed || _offerProcessed) return;
 
         final value = event.snapshot.value;
 
@@ -233,6 +234,8 @@ class WebRTCService {
         final map = Map<String, dynamic>.from(value);
 
         if (map['sdp'] == null) return;
+
+        _offerProcessed = true;
 
         try {
           await _peerConnection?.setRemoteDescription(
@@ -252,6 +255,7 @@ class WebRTCService {
           });
         } catch (e) {
           debugPrint('[WebRTC] answer error: $e');
+          _offerProcessed = false;
         }
       });
 

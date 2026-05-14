@@ -45,13 +45,6 @@ Future<void> main() async {
   runApp(const FamilyMonitorApp());
 }
 
-// ---------------------------------------------------------------------------
-// Temporary test helper – wire to a debug button, then REMOVE before release.
-// Usage: call testCrashlytics(), restart the app, check the Firebase console.
-// ---------------------------------------------------------------------------
-void testCrashlytics() {
-  FirebaseCrashlytics.instance.crash();
-}
 
 class FamilyMonitorApp extends StatelessWidget {
   const FamilyMonitorApp({super.key});
