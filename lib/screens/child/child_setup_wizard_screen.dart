@@ -2182,7 +2182,7 @@ class _InfoIconRow extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: (color ?? const Color(0xFF34A853)).withOpacity(0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, size: 18, color: color ?? const Color(0xFF34A853)),
