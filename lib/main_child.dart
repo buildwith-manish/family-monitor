@@ -122,7 +122,8 @@ class _ChildAppState extends State<ChildApp> {
   Future<Widget> _getStartScreen() async {
     final auth = AuthService();
     if (!auth.isLoggedIn) return const ChildAuthScreen();
-    final String uid = auth.currentUser!.uid;
+    final String? uid = auth.currentUser?.uid;
+    if (uid == null) return const ChildAuthScreen();
     final bool wizardDone = await BackgroundMonitoringService.isWizardDone();
     if (!wizardDone) return ChildSetupWizardScreen(childUid: uid);
     return const ChildHomeScreen();

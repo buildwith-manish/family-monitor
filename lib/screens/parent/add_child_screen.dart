@@ -34,7 +34,12 @@ class _AddChildScreenState extends State<AddChildScreen> {
       return;
     }
 
-    if (uid == _auth.currentUser!.uid) {
+    final currentUid = _auth.currentUser?.uid;
+    if (currentUid == null) {
+      setState(() { _error = 'You are not signed in.'; });
+      return;
+    }
+    if (uid == currentUid) {
       setState(() { _error = 'You cannot add your own account'; });
       return;
     }
@@ -63,7 +68,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final myUid = _auth.currentUser!.uid;
+    final myUid = _auth.currentUser?.uid ?? '';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFB),

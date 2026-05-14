@@ -15,6 +15,7 @@ class SnapshotService {
   final _storage = FirebaseStorage.instance;
   final _uuid = const Uuid();
   CameraController? _ctrl;
+  bool _capturing = false;
 
   static const MethodChannel _snapshotChannel =
       MethodChannel('com.familymonitor/snapshot');
@@ -56,6 +57,9 @@ class SnapshotService {
   ///   2. Flutter CameraController fallback — used only when the Activity
   ///      is in the foreground and the native channel is unavailable.
   Future<void> captureAndUpload(String childUid) async {
+    // Guard against concurrent calls overwriting _ctrl before disposal.
+    if (_capturing) return;
+    _capturing = true;
     try {
       await _db.child('commands/$childUid/snapshot/requested').set(false);
 
@@ -73,17 +77,24 @@ class SnapshotService {
         (c) => c.lensDirection == CameraLensDirection.front,
         orElse: () => cameras.first,
       );
-      _ctrl = CameraController(cam, ResolutionPreset.medium, enableAudio: false);
-      await _ctrl!.initialize();
-      await Future.delayed(const Duration(milliseconds: 500));
-      final xFile = await _ctrl!.takePicture();
-      await _ctrl!.dispose();
-      _ctrl = null;
-      final bytes = await File(xFile.path).readAsBytes();
-      await _uploadPhoto(childUid, bytes);
+      // Use a local controller to avoid singleton field race conditions.
+      final ctrl = CameraController(cam, ResolutionPreset.medium, enableAudio: false);
+      _ctrl = ctrl;
+      try {
+        await ctrl.initialize();
+        await Future.delayed(const Duration(milliseconds: 500));
+        final xFile = await ctrl.takePicture();
+        final bytes = await File(xFile.path).readAsBytes();
+        await _uploadPhoto(childUid, bytes);
+      } finally {
+        await ctrl.dispose();
+        if (_ctrl == ctrl) _ctrl = null;
+      }
     } catch (_) {
-      _ctrl?.dispose();
+      await _ctrl?.dispose();
       _ctrl = null;
+    } finally {
+      _capturing = false;
     }
   }
 
@@ -104,7 +115,9 @@ class SnapshotService {
       final raw = event.snapshot.value;
       if (raw == null) return <SnapshotEntry>[];
       final map = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
-      return map.entries.map((e) => SnapshotEntry.fromMap(e.key, Map<String, dynamic>.from(e.value as Map)))
+      return map.entries
+          .where((e) => e.value is Map)
+          .map((e) => SnapshotEntry.fromMap(e.key, Map<String, dynamic>.from(e.value as Map)))
           .toList()..sort((a, b) => b.timestamp.compareTo(a.timestamp));
     });
   }
@@ -120,7 +133,7 @@ class SnapshotEntry {
   final DateTime timestamp;
   const SnapshotEntry({required this.key, required this.url, required this.storagePath, required this.timestamp});
   factory SnapshotEntry.fromMap(String key, Map<String, dynamic> m) => SnapshotEntry(
-    key: key, url: m['url'] as String, storagePath: m['path'] as String? ?? '',
+    key: key, url: m['url'] as String? ?? '', storagePath: m['path'] as String? ?? '',
     timestamp: DateTime.fromMillisecondsSinceEpoch((m['timestamp'] as num?)?.toInt() ?? 0));
   String get timeLabel { final d=DateTime.now().difference(timestamp); if(d.inMinutes<1)return 'Just now'; if(d.inHours<1)return '${d.inMinutes}m ago'; if(d.inDays<1)return '${d.inHours}h ago'; return '${timestamp.day}/${timestamp.month}'; }
 }

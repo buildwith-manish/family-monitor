@@ -232,7 +232,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                 // Toggle login/register
                 TextButton(
                   onPressed: () => setState(() {
-                    setState(() { _isLogin = !_isLogin; });
+                    _isLogin = !_isLogin;
                     _error = null;
                   }),
                   child: Text(

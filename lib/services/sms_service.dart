@@ -32,9 +32,13 @@ class SmsService {
   static Stream<List<SmsEntry>> watchMessages(String childUid) {
     return FirebaseDatabase.instance.ref('sms/$childUid').orderByChild('date').limitToLast(200)
         .onValue.map((e) {
-      if (e.snapshot.value == null) return <SmsEntry>[];
-      final map = Map<String, dynamic>.from(e.snapshot.value as Map);
-      final list = map.values.map((v) => SmsEntry.fromMap(Map<String, dynamic>.from(v as Map))).toList();
+      final raw = e.snapshot.value;
+      if (raw == null || raw is! Map) return <SmsEntry>[];
+      final map = Map<String, dynamic>.from(raw);
+      final list = map.values
+          .where((v) => v is Map)
+          .map((v) => SmsEntry.fromMap(Map<String, dynamic>.from(v as Map)))
+          .toList();
       list.sort((a, b) => b.date.compareTo(a.date));
       return list;
     });

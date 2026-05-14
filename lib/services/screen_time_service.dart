@@ -117,13 +117,12 @@ class ScreenTimeService {
 
   Stream<Map<String, int>> watchLimits(String childUid) {
     return _db.child('screen_time_limits/$childUid').onValue.map((event) {
-      if (event.snapshot.value == null) {
-        return <String, int>{};
-      }
+      final raw = event.snapshot.value;
+      if (raw == null || raw is! Map) return <String, int>{};
 
       return Map<String, int>.from(
-        (event.snapshot.value as Map).map(
-          (k, v) => MapEntry(k.toString(), v as int),
+        raw.map(
+          (k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0),
         ),
       );
     });

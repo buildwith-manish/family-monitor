@@ -247,7 +247,9 @@ class SilentWebRTCService {
         }
 
         try {
-          final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+          final raw = event.snapshot.value;
+          if (raw is! Map) return;
+          final data = Map<String, dynamic>.from(raw);
 
           if (data['sdp'] == null) return;
 
@@ -275,8 +277,9 @@ class SilentWebRTCService {
         }
 
         try {
-          final candidate =
-              Map<String, dynamic>.from(event.snapshot.value as Map);
+          final rawCand = event.snapshot.value;
+          if (rawCand is! Map) return;
+          final candidate = Map<String, dynamic>.from(rawCand);
 
           await _pc!.addCandidate(
             RTCIceCandidate(
@@ -294,7 +297,7 @@ class SilentWebRTCService {
           db.child('calls/$childUid/command').onValue.listen((event) async {
         if (!_active) return;
 
-        final command = event.snapshot.value as String?;
+        final command = event.snapshot.value is String ? event.snapshot.value as String : null;
 
         if (command == 'flip') {
           final tracks = _localStream?.getVideoTracks() ?? [];
@@ -317,7 +320,7 @@ class SilentWebRTCService {
 
       _statusSub =
           db.child('calls/$childUid/status').onValue.listen((event) async {
-        final status = event.snapshot.value as String?;
+        final status = event.snapshot.value is String ? event.snapshot.value as String : null;
 
         if (status == 'ended' || status == null) {
           await stopSilent();

@@ -54,32 +54,31 @@ class AuthService {
         password: password,
       );
 
-      await cred.user!
-          .updateDisplayName(
-        displayName,
-      );
+      final user = cred.user;
+      if (user == null) {
+        return {
+          'success': false,
+          'error': 'Registration failed. Please try again.',
+        };
+      }
+
+      await user.updateDisplayName(displayName);
 
       await _db
-          .child(
-        'users/${cred.user!.uid}',
-      )
+          .child('users/${user.uid}')
           .set({
         'role': 'parent',
-        'displayName':
-            displayName,
+        'displayName': displayName,
         'email': email,
-        'createdAt':
-            ServerValue.timestamp,
+        'createdAt': ServerValue.timestamp,
         'children': {},
       });
 
-      await _saveLocalRole(
-        'parent',
-      );
+      await _saveLocalRole('parent');
 
       return {
         'success': true,
-        'user': cred.user,
+        'user': user,
       };
 
     } on FirebaseAuthException
@@ -87,10 +86,7 @@ class AuthService {
 
       return {
         'success': false,
-        'error':
-            _authErrorMessage(
-          e.code,
-        ),
+        'error': _authErrorMessage(e.code),
       };
     }
   }
@@ -113,32 +109,32 @@ class AuthService {
         password: password,
       );
 
-      final DatabaseEvent snap =
-          await _db
-              .child(
-        'users/${cred.user!.uid}/role',
-      )
-              .once();
-
-      if (snap.snapshot.value !=
-          'parent') {
-
-        await _auth.signOut();
-
+      final user = cred.user;
+      if (user == null) {
         return {
           'success': false,
-          'error':
-              'This account is not a parent account.',
+          'error': 'Login failed. Please try again.',
         };
       }
 
-      await _saveLocalRole(
-        'parent',
-      );
+      final DatabaseEvent snap =
+          await _db
+              .child('users/${user.uid}/role')
+              .once();
+
+      if (snap.snapshot.value != 'parent') {
+        await _auth.signOut();
+        return {
+          'success': false,
+          'error': 'This account is not a parent account.',
+        };
+      }
+
+      await _saveLocalRole('parent');
 
       return {
         'success': true,
-        'user': cred.user,
+        'user': user,
       };
 
     } on FirebaseAuthException
@@ -146,10 +142,7 @@ class AuthService {
 
       return {
         'success': false,
-        'error':
-            _authErrorMessage(
-          e.code,
-        ),
+        'error': _authErrorMessage(e.code),
       };
     }
   }
@@ -166,34 +159,33 @@ class AuthService {
     try {
 
       final UserCredential cred =
-          await _auth
-              .signInAnonymously();
+          await _auth.signInAnonymously();
+
+      final user = cred.user;
+      if (user == null) {
+        return {
+          'success': false,
+          'error': 'Setup failed. Please try again.',
+        };
+      }
 
       await _db
-          .child(
-        'users/${cred.user!.uid}',
-      )
+          .child('users/${user.uid}')
           .set({
         'role': 'child',
-        'childName':
-            childName,
-        'deviceName':
-            deviceName,
-        'createdAt':
-            ServerValue.timestamp,
+        'childName': childName,
+        'deviceName': deviceName,
+        'createdAt': ServerValue.timestamp,
         'isOnline': false,
-        'pendingParentRequests':
-            {},
+        'pendingParentRequests': {},
         'approvedParents': {},
       });
 
-      await _saveLocalRole(
-        'child',
-      );
+      await _saveLocalRole('child');
 
       return {
         'success': true,
-        'uid': cred.user!.uid,
+        'uid': user.uid,
       };
 
     } catch (e) {
@@ -215,44 +207,38 @@ class AuthService {
   ) async {
     try {
 
-      final String parentUid =
-          currentUser!.uid;
+      final String? parentUid = currentUser?.uid;
+      if (parentUid == null) {
+        return {
+          'success': false,
+          'error': 'Not authenticated.',
+        };
+      }
 
-      final DatabaseEvent
-          parentSnap =
-          await _db
-              .child(
-        'users/$parentUid',
-      )
-              .once();
+      final DatabaseEvent parentSnap =
+          await _db.child('users/$parentUid').once();
 
-      final Map<String, dynamic>
-          parentData =
-          Map<String,
-              dynamic>.from(
-        parentSnap.snapshot.value
-            as Map,
-      );
+      final Object? rawParent = parentSnap.snapshot.value;
+      if (rawParent == null || rawParent is! Map) {
+        return {
+          'success': false,
+          'error': 'Parent profile not found.',
+        };
+      }
+
+      final Map<String, dynamic> parentData =
+          Map<String, dynamic>.from(rawParent);
 
       await _db
-          .child(
-        'users/$childUid/pendingParentRequests/$parentUid',
-      )
+          .child('users/$childUid/pendingParentRequests/$parentUid')
           .set({
-        'parentName':
-            parentData[
-                'displayName'],
-        'parentEmail':
-            parentData[
-                'email'],
-        'requestedAt':
-            ServerValue.timestamp,
-        'status': 'pending',
+        'parentName':  parentData['displayName'],
+        'parentEmail': parentData['email'],
+        'requestedAt': ServerValue.timestamp,
+        'status':      'pending',
       });
 
-      return {
-        'success': true,
-      };
+      return {'success': true};
 
     } catch (e) {
 
@@ -273,58 +259,46 @@ class AuthService {
   ) async {
     try {
 
-      final String childUid =
-          currentUser!.uid;
+      final String? childUid = currentUser?.uid;
+      if (childUid == null) {
+        return {
+          'success': false,
+          'error': 'Not authenticated.',
+        };
+      }
 
-      final DatabaseEvent
-          childSnap =
-          await _db
-              .child(
-        'users/$childUid',
-      )
-              .once();
+      final DatabaseEvent childSnap =
+          await _db.child('users/$childUid').once();
 
-      final Map<String, dynamic>
-          childData =
-          Map<String,
-              dynamic>.from(
-        childSnap.snapshot.value
-            as Map,
-      );
+      final Object? rawChild = childSnap.snapshot.value;
+      if (rawChild == null || rawChild is! Map) {
+        return {
+          'success': false,
+          'error': 'Child profile not found.',
+        };
+      }
 
-      await _db
-          .child(
-        'users/$childUid/pendingParentRequests/$parentUid/status',
-      )
-          .set(
-        'approved',
-      );
+      final Map<String, dynamic> childData =
+          Map<String, dynamic>.from(rawChild);
 
       await _db
-          .child(
-        'users/$childUid/approvedParents/$parentUid',
-      )
+          .child('users/$childUid/pendingParentRequests/$parentUid/status')
+          .set('approved');
+
+      await _db
+          .child('users/$childUid/approvedParents/$parentUid')
           .set(true);
 
       await _db
-          .child(
-        'users/$parentUid/children/$childUid',
-      )
+          .child('users/$parentUid/children/$childUid')
           .set({
-        'childName':
-            childData[
-                'childName'],
-        'deviceName':
-            childData[
-                'deviceName'],
-        'approvedAt':
-            ServerValue.timestamp,
-        'isOnline': false,
+        'childName':  childData['childName'],
+        'deviceName': childData['deviceName'],
+        'approvedAt': ServerValue.timestamp,
+        'isOnline':   false,
       });
 
-      return {
-        'success': true,
-      };
+      return {'success': true};
 
     } catch (e) {
 
@@ -339,18 +313,14 @@ class AuthService {
   // Decline Parent
   // ─────────────────────────────
 
-  Future<void>
-      declineParentRequest(
+  Future<void> declineParentRequest(
     String parentUid,
   ) async {
-
-    final String childUid =
-        currentUser!.uid;
+    final String? childUid = currentUser?.uid;
+    if (childUid == null) return;
 
     await _db
-        .child(
-      'users/$childUid/pendingParentRequests/$parentUid',
-    )
+        .child('users/$childUid/pendingParentRequests/$parentUid')
         .remove();
   }
 
@@ -358,121 +328,71 @@ class AuthService {
   // Streams
   // ─────────────────────────────
 
-  Stream<DatabaseEvent>
-      getChildrenStream() {
-
-    return _db
-        .child(
-      'users/${currentUser!.uid}/children',
-    )
-        .onValue;
+  Stream<DatabaseEvent> getChildrenStream() {
+    final uid = currentUser?.uid;
+    if (uid == null) {
+      // Return a stream that immediately errors rather than crashing.
+      return Stream.error(Exception('Not authenticated'));
+    }
+    return _db.child('users/$uid/children').onValue;
   }
 
-  Stream<DatabaseEvent>
-      getPendingRequestsStream() {
-
-    return _db
-        .child(
-      'users/${currentUser!.uid}/pendingParentRequests',
-    )
-        .onValue;
+  Stream<DatabaseEvent> getPendingRequestsStream() {
+    final uid = currentUser?.uid;
+    if (uid == null) {
+      return Stream.error(Exception('Not authenticated'));
+    }
+    return _db.child('users/$uid/pendingParentRequests').onValue;
   }
 
   // ─────────────────────────────
   // Online Status
   // ─────────────────────────────
 
-  Future<void>
-      setChildOnlineStatus(
+  Future<void> setChildOnlineStatus(
     bool isOnline,
   ) async {
+    final uid = currentUser?.uid;
+    if (uid == null) return;
 
-    if (currentUser == null) {
-      return;
-    }
-
-    await _db
-        .child(
-      'users/${currentUser!.uid}/isOnline',
-    )
-        .set(
-      isOnline,
-    );
-
-    await _db
-        .child(
-      'users/${currentUser!.uid}/lastSeen',
-    )
-        .set(
-      ServerValue.timestamp,
-    );
+    await _db.child('users/$uid/isOnline').set(isOnline);
+    await _db.child('users/$uid/lastSeen').set(ServerValue.timestamp);
   }
 
   // ─────────────────────────────
   // Saved Role
   // ─────────────────────────────
 
-  Future<UserRole>
-      getSavedRole() async {
+  Future<UserRole> getSavedRole() async {
 
-    final SharedPreferences
-        prefs =
-        await SharedPreferences
-            .getInstance();
+    final SharedPreferences prefs =
+        await SharedPreferences.getInstance();
 
-    final String? role =
-        prefs.getString(
-      'user_role',
-    );
+    final String? role = prefs.getString('user_role');
 
-    if (role == 'parent') {
-      return UserRole.parent;
-    }
-
-    if (role == 'child') {
-      return UserRole.child;
-    }
-
+    if (role == 'parent') return UserRole.parent;
+    if (role == 'child')  return UserRole.child;
     return UserRole.unknown;
   }
 
-  Future<void>
-      _saveLocalRole(
-    String role,
-  ) async {
-
-    final SharedPreferences
-        prefs =
-        await SharedPreferences
-            .getInstance();
-
-    await prefs.setString(
-      'user_role',
-      role,
-    );
+  Future<void> _saveLocalRole(String role) async {
+    final SharedPreferences prefs =
+        await SharedPreferences.getInstance();
+    await prefs.setString('user_role', role);
   }
 
-  Future<void> signOut()
-      async {
-
+  Future<void> signOut() async {
     await _auth.signOut();
-
-    final SharedPreferences
-        prefs =
-        await SharedPreferences
-            .getInstance();
-
-    await prefs.remove(
-      'user_role',
-    );
+    final SharedPreferences prefs =
+        await SharedPreferences.getInstance();
+    await prefs.remove('user_role');
   }
 
   // ─────────────────────────────
   // Child Auth
   // ─────────────────────────────
 
-  Future<Map<String, dynamic>>
-      signUpChild(
+  Future<Map<String, dynamic>> signUpChild(
     String email,
     String password,
     String childName,
@@ -480,47 +400,41 @@ class AuthService {
     try {
 
       final UserCredential cred =
-          await _auth
-              .createUserWithEmailAndPassword(
+          await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      await _db
-          .child(
-        'users/${cred.user!.uid}',
-      )
-          .set({
-        'role': 'child',
-        'email': email,
-        'childName':
-            childName,
-        'createdAt':
-            ServerValue.timestamp,
-        'isOnline': false,
-        'pendingParentRequests':
-            {},
+      final user = cred.user;
+      if (user == null) {
+        return {
+          'success': false,
+          'error': 'Registration failed. Please try again.',
+        };
+      }
+
+      await _db.child('users/${user.uid}').set({
+        'role':     'child',
+        'email':    email,
+        'childName': childName,
+        'createdAt': ServerValue.timestamp,
+        'isOnline':  false,
+        'pendingParentRequests': {},
         'approvedParents': {},
       });
 
-      await _saveLocalRole(
-        'child',
-      );
+      await _saveLocalRole('child');
 
       return {
         'success': true,
-        'uid': cred.user!.uid,
+        'uid': user.uid,
       };
 
-    } on FirebaseAuthException
-    catch (e) {
+    } on FirebaseAuthException catch (e) {
 
       return {
         'success': false,
-        'error':
-            _authErrorMessage(
-          e.code,
-        ),
+        'error': _authErrorMessage(e.code),
       };
 
     } catch (e) {
@@ -532,38 +446,38 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>>
-      signInChild(
+  Future<Map<String, dynamic>> signInChild(
     String email,
     String password,
   ) async {
     try {
 
       final UserCredential cred =
-          await _auth
-              .signInWithEmailAndPassword(
+          await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      await _saveLocalRole(
-        'child',
-      );
+      final user = cred.user;
+      if (user == null) {
+        return {
+          'success': false,
+          'error': 'Login failed. Please try again.',
+        };
+      }
+
+      await _saveLocalRole('child');
 
       return {
         'success': true,
-        'uid': cred.user!.uid,
+        'uid': user.uid,
       };
 
-    } on FirebaseAuthException
-    catch (e) {
+    } on FirebaseAuthException catch (e) {
 
       return {
         'success': false,
-        'error':
-            _authErrorMessage(
-          e.code,
-        ),
+        'error': _authErrorMessage(e.code),
       };
 
     } catch (e) {
@@ -579,32 +493,22 @@ class AuthService {
   // Error Messages
   // ─────────────────────────────
 
-  String _authErrorMessage(
-    String code,
-  ) {
+  String _authErrorMessage(String code) {
     switch (code) {
-
       case 'email-already-in-use':
         return 'This email is already registered.';
-
       case 'invalid-email':
         return 'Invalid email address.';
-
       case 'weak-password':
         return 'Password must be at least 6 characters.';
-
       case 'user-not-found':
         return 'No account found with this email.';
-
       case 'wrong-password':
         return 'Incorrect password.';
-
       case 'invalid-credential':
         return 'Incorrect email or password.';
-
       case 'too-many-requests':
         return 'Too many attempts. Please try again later.';
-
       default:
         return 'Authentication failed. Please try again.';
     }

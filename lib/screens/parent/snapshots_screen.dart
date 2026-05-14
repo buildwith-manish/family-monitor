@@ -22,13 +22,21 @@ class _SnapshotsScreenState extends State<SnapshotsScreen> {
   final _svc = SnapshotService();
   List<SnapshotEntry> _snapshots = [];
   bool _requesting = false;
+  StreamSubscription<List<SnapshotEntry>>? _sub;
 
   @override
   void initState() {
     super.initState();
-    _svc.watchSnapshots(widget.childUid).listen((snaps) {
+    _sub = _svc.watchSnapshots(widget.childUid).listen((snaps) {
       if (!mounted) return;
-    setState(() { _snapshots = snaps; });    });
+      setState(() { _snapshots = snaps; });
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 
   Future<void> _requestSnapshot() async {

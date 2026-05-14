@@ -73,7 +73,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         .onValue
         .listen((e) {
       if (!mounted) return;
-      final msg = e.snapshot.value as String?;
+      final msg = e.snapshot.value is String ? e.snapshot.value as String : null;
       if (msg != null) {
         setState(() {
           _screenError = msg;
@@ -86,7 +86,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         .onValue
         .listen((e) {
       if (!mounted) return;
-      final status = e.snapshot.value as String?;
+      final status = e.snapshot.value is String ? e.snapshot.value as String : null;
       setState(() {
         _isChildOnline = status == 'online' ||
             status == 'calling' ||

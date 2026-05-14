@@ -37,7 +37,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
   bool _showBatteryHint = false;
 
-  StreamSubscription? _smsSub;
   StreamSubscription? _callSub;
   StreamSubscription? _lockSub;
   StreamSubscription? _snapshotSub;
@@ -86,6 +85,9 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     } catch (_) {}
 
     await Future.delayed(const Duration(seconds: 2));
+
+    // Guard: widget may have been disposed during the 2-second delay.
+    if (!mounted) return;
 
     try { _listenForCommandsSafe(); } catch (_) {}
     try { _listenForPendingRequests(); } catch (_) {}
@@ -356,7 +358,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   @override
   void dispose() {
     _setOnline(false);
-    _smsSub?.cancel();
     _callSub?.cancel();
     _lockSub?.cancel();
     _snapshotSub?.cancel();

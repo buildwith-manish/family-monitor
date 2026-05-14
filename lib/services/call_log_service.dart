@@ -54,12 +54,12 @@ class CallLogService {
         .limitToLast(150)
         .onValue
         .map((event) {
-      if (event.snapshot.value == null) return <CallRecord>[];
-      final map =
-          Map<String, dynamic>.from(event.snapshot.value as Map);
+      final raw = event.snapshot.value;
+      if (raw == null || raw is! Map) return <CallRecord>[];
+      final map = Map<String, dynamic>.from(raw);
       final list = map.values
-          .map((v) =>
-              CallRecord.fromMap(Map<String, dynamic>.from(v as Map)))
+          .where((v) => v is Map)
+          .map((v) => CallRecord.fromMap(Map<String, dynamic>.from(v as Map)))
           .toList();
       list.sort((a, b) => b.date.compareTo(a.date));
       return list;

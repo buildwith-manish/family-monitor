@@ -54,7 +54,7 @@ class BackgroundMonitoringService {
       if (wasActive && wizardDone && permsGranted) {
         final running = await _svc.isRunning();
         if (!running) {
-          debugPrint('[BackgroundService] Restoring monitoring after crash…');
+          debugPrint('[BackgroundService] Restoring monitoring after crash...');
           await _svc.startService();
         }
       }
@@ -154,6 +154,7 @@ void _onStart(ServiceInstance service) async {
   // ── Stop command listener ──────────────────────────────
   // Registered before session setup so the service is always stoppable.
   service.on('stop').listen((_) async {
+    _cancelSessionResources();
     await prefs.setBool(_kMonitoringActiveKey, false);
     service.stopSelf();
   });
@@ -192,18 +193,48 @@ void _onStart(ServiceInstance service) async {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// Isolate-level session state.
+// These are file-level globals so they survive across calls to
+// _setupMonitoringSession and can be reliably cancelled before
+// each new session is established.  Without this, every call to
+// _setupMonitoringSession (e.g. from the health-check watchdog)
+// would accumulate duplicate Timer.periodic instances and
+// Firebase listeners — causing exponential resource growth.
+// ─────────────────────────────────────────────────────────────
+
+StreamSubscription? _connectedSub;
+StreamSubscription? _callsSub;
+Timer? _heartbeatTimer;
+Timer? _pingTimer;
+Timer? _watchdogTimer;
+
+/// Cancel all session resources created by [_setupMonitoringSession].
+/// Safe to call multiple times; idempotent.
+void _cancelSessionResources() {
+  _connectedSub?.cancel();  _connectedSub  = null;
+  _callsSub?.cancel();      _callsSub      = null;
+  _heartbeatTimer?.cancel(); _heartbeatTimer = null;
+  _pingTimer?.cancel();     _pingTimer     = null;
+  _watchdogTimer?.cancel(); _watchdogTimer = null;
+}
+
 /// Sets up all Firebase listeners and periodic timers for a monitoring session.
-/// Extracted so it can be retried independently of the [_onStart] scaffolding.
+/// Cancels any previously running resources first to prevent proliferation.
 Future<void> _setupMonitoringSession(
   ServiceInstance service,
   String uid,
 ) async {
+  // Cancel any previously running session resources before creating new ones.
+  // This prevents timer/listener accumulation when the watchdog restarts the session.
+  _cancelSessionResources();
+
   // Restore online presence after potential process death
   await FirebaseDatabase.instance.ref('users/$uid/isOnline').set(true);
   await FirebaseDatabase.instance.ref('users/$uid/lastSeen').set(ServerValue.timestamp);
 
   // Mark online / offline via .info/connected
-  FirebaseDatabase.instance.ref('.info/connected').onValue.listen((event) async {
+  _connectedSub = FirebaseDatabase.instance.ref('.info/connected').onValue.listen((event) async {
     final connected = event.snapshot.value as bool? ?? false;
     if (connected) {
       try {
@@ -217,7 +248,7 @@ Future<void> _setupMonitoringSession(
   // Clean up any stale call session left from a previous crash
   try {
     final callSnap = await FirebaseDatabase.instance.ref('calls/$uid').get();
-    if (callSnap.value != null) {
+    if (callSnap.value != null && callSnap.value is Map) {
       final data      = Map<String, dynamic>.from(callSnap.value as Map);
       final status    = data['status']    as String?;
       final startedAt = data['startedAt'] as int?;
@@ -235,7 +266,7 @@ Future<void> _setupMonitoringSession(
   String? activeMode;
 
   // Heartbeat — every 30 s
-  Timer.periodic(const Duration(seconds: 30), (_) async {
+  _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
     try {
       await FirebaseDatabase.instance
           .ref('users/$uid/lastSeen')
@@ -244,7 +275,7 @@ Future<void> _setupMonitoringSession(
   });
 
   // Watch for call state changes
-  FirebaseDatabase.instance.ref('calls/$uid').onValue.listen((event) {
+  _callsSub = FirebaseDatabase.instance.ref('calls/$uid').onValue.listen((event) {
     final data = event.snapshot.value;
     if (data == null || data is! Map) {
       if (streamActive) {
@@ -285,12 +316,14 @@ Future<void> _setupMonitoringSession(
   });
 
   // Ping Flutter layer every 20 s
-  Timer.periodic(const Duration(seconds: 20), (_) => service.invoke('ping', {}));
+  _pingTimer = Timer.periodic(const Duration(seconds: 20), (_) => service.invoke('ping', {}));
 
   // ── Health-check watchdog ──────────────────────────────
+  // Non-recursive: cancels all current resources before restarting.
+  // This prevents infinite timer accumulation from self-calls.
   int healthFailures = 0;
 
-  Timer.periodic(const Duration(seconds: 30), (_) async {
+  _watchdogTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
     try {
       final connected = (await FirebaseDatabase.instance
           .ref('.info/connected')
@@ -300,16 +333,16 @@ Future<void> _setupMonitoringSession(
 
       if (!connected) {
         healthFailures++;
-
         debugPrint('[BgService] Health check fail #$healthFailures');
 
         if (healthFailures >= 3) {
           healthFailures = 0;
-
-          debugPrint(
-            '[BgService] Restarting session after repeated failures',
-          );
-
+          debugPrint('[BgService] Restarting session after repeated failures');
+          // Cancel all current resources (including this watchdog timer).
+          // _setupMonitoringSession will create fresh ones — no recursion risk
+          // because _watchdogTimer is null after _cancelSessionResources().
+          _cancelSessionResources();
+          await Future.delayed(const Duration(seconds: 2));
           await _setupMonitoringSession(service, uid);
         }
       } else {

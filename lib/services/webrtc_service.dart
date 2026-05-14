@@ -153,9 +153,9 @@ class WebRTCService {
 
         final value = event.snapshot.value;
 
-        if (value == null) return;
+        if (value == null || value is! Map) return;
 
-        final map = Map<String, dynamic>.from(value as Map);
+        final map = Map<String, dynamic>.from(value);
 
         if (map['sdp'] == null) return;
 
@@ -177,9 +177,9 @@ class WebRTCService {
 
         final value = event.snapshot.value;
 
-        if (value == null) return;
+        if (value == null || value is! Map) return;
 
-        final map = Map<String, dynamic>.from(value as Map);
+        final map = Map<String, dynamic>.from(value);
 
         try {
           await _peerConnection?.addCandidate(
@@ -260,9 +260,9 @@ class WebRTCService {
 
         final value = event.snapshot.value;
 
-        if (value == null) return;
+        if (value == null || value is! Map) return;
 
-        final map = Map<String, dynamic>.from(value as Map);
+        final map = Map<String, dynamic>.from(value);
 
         if (map['sdp'] == null) return;
 
@@ -295,9 +295,9 @@ class WebRTCService {
 
         final value = event.snapshot.value;
 
-        if (value == null) return;
+        if (value == null || value is! Map) return;
 
-        final map = Map<String, dynamic>.from(value as Map);
+        final map = Map<String, dynamic>.from(value);
 
         try {
           await _peerConnection?.addCandidate(
