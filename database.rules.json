@@ -1,0 +1,100 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read":  "$uid === auth.uid || root.child('users/' + auth.uid + '/children/' + $uid).exists()",
+        ".write": "$uid === auth.uid"
+      }
+    },
+    "calls": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid",
+        ".write": "root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid"
+      }
+    },
+    "deviceInfo": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth.uid === $childUid"
+      }
+    },
+    "device_events": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth.uid === $childUid"
+      }
+    },
+    "sms": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth.uid === $childUid"
+      }
+    },
+    "location": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth.uid === $childUid"
+      }
+    },
+    "contacts": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth.uid === $childUid"
+      }
+    },
+    "call_logs": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth.uid === $childUid"
+      }
+    },
+    "screen_time_limits": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid",
+        ".write": "root.child('users/' + auth.uid + '/children/' + $childUid).exists()"
+      }
+    },
+    "app_locks": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid",
+        ".write": "root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid"
+      }
+    },
+    "battery_alerts": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth.uid === $childUid"
+      }
+    },
+    "geofence_alerts": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth.uid === $childUid"
+      }
+    },
+    "geofences": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid",
+        ".write": "root.child('users/' + auth.uid + '/children/' + $childUid).exists()"
+      }
+    },
+    "commands": {
+      "$childUid": {
+        ".read":  "auth.uid === $childUid",
+        ".write": "root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid"
+      }
+    },
+    "snapshots": {
+      "$childUid": {
+        ".read":  "root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth.uid === $childUid"
+      }
+    },
+    "config": {
+      "turnServers": {
+        ".read":  "auth != null",
+        ".write": false
+      }
+    }
+  }
+}

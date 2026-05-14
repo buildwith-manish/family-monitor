@@ -34,7 +34,11 @@ class ScreenCaptureService : Service() {
         @Volatile var savedResultCode: Int             = 0
         @Volatile var savedResultData: Intent?         = null
         @Volatile var projectionToken: MediaProjection? = null
-        @Volatile private var starting: Boolean        = false
+        // AND-04: AtomicBoolean + compareAndSet prevents a TOCTOU race where two
+        // concurrent onStartCommand deliveries both pass the boolean check before
+        // either sets it to true, resulting in a double-start and duplicate
+        // MediaProjection tokens.
+        private val starting = java.util.concurrent.atomic.AtomicBoolean(false)
     }
 
     inner class LocalBinder : Binder() { fun getService() = this@ScreenCaptureService }
@@ -101,8 +105,8 @@ class ScreenCaptureService : Service() {
     }
 
     private fun startCaptureSafe() {
-        if (starting) return
-        starting = true
+        // compareAndSet is atomic — no race between the check and the set.
+        if (!starting.compareAndSet(false, true)) return
         try {
             startFg()
             val pm   = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
@@ -131,7 +135,7 @@ class ScreenCaptureService : Service() {
             Log.e(TAG, "startCaptureSafe failed: $e")
             requestPermissionViaUi()
         } finally {
-            starting = false
+            starting.set(false)
         }
     }
 

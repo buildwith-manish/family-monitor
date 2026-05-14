@@ -16,6 +16,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'turn_config_service.dart';
 
 class SilentWebRTCService {
   static SilentWebRTCService? _instance;
@@ -61,32 +62,11 @@ class SilentWebRTCService {
 
   DateTime? _lastIceActivity;
 
-  static const _ice = {
-    'iceServers': [
-      {
-        'urls': [
-          'stun:stun.l.google.com:19302',
-          'stun:stun1.l.google.com:19302',
-          'stun:stun2.l.google.com:19302',
-        ],
-      },
-      {
-        'urls': [
-          'turn:openrelay.metered.ca:80',
-          'turn:openrelay.metered.ca:443',
-        ],
-        'username': 'openrelayproject',
-        'credential': 'openrelayproject',
-      },
-      {
-        'urls': 'turn:openrelay.metered.ca:443?transport=tcp',
-        'username': 'openrelayproject',
-        'credential': 'openrelayproject',
-      },
-    ],
-    'sdpSemantics': 'unified-plan',
-    'iceCandidatePoolSize': 10,
-  };
+  // SEC-01 / WEB-03: ICE configuration loaded at runtime from TurnConfigService.
+  // TURN credentials are never baked into the APK — they are read from Firebase
+  // at `config/turnServers`. iceCandidatePoolSize is 0 (was 10).
+  Future<Map<String, dynamic>> _getIce() =>
+      TurnConfigService.instance.getIceConfig();
 
   bool get isActive => _active;
 
@@ -141,7 +121,7 @@ class SilentWebRTCService {
     try {
       await _cleanupPcOnly();
 
-      _pc = await createPeerConnection(_ice);
+      _pc = await createPeerConnection(await _getIce());
 
       _lastIceActivity = DateTime.now();
 
@@ -417,6 +397,17 @@ class SilentWebRTCService {
       debugPrint(
         '[SilentWebRTC] Max reconnect attempts reached — stopping orphan session',
       );
+      // WEB-04: Notify the parent that the monitoring session was lost so
+      // they know to re-initiate rather than staring at a frozen stream.
+      final uid = _activeUid;
+      if (uid != null) {
+        FirebaseDatabase.instance
+            .ref('calls/$uid/screenError')
+            .set(
+              'Monitoring connection lost — open the parent app and tap View again.',
+            )
+            .catchError((_) {});
+      }
       stopSilent();
       return;
     }

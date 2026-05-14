@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network Security Config — replaces the blanket android:usesCleartextTraffic="true"
+  in AndroidManifest.xml.
+
+  Policy:
+  - All traffic uses HTTPS/TLS by default (cleartext blocked).
+  - STUN/TURN servers are exempted individually so WebRTC can still work
+    with UDP/TCP STUN on port 3478 and TURN on ports 80/443.
+  - openrelay.metered.ca is listed only as a temporary fallback; replace
+    with your own TURN server hostname once provisioned.
+-->
+<network-security-config>
+  <base-config cleartextTrafficPermitted="false">
+    <trust-anchors>
+      <certificates src="system"/>
+    </trust-anchors>
+  </base-config>
+
+  <!-- Firebase RTDB and other Firebase services always use TLS — no exemption needed. -->
+
+  <!--
+    STUN/TURN servers: WebRTC uses UDP for STUN/TURN; Android's network
+    security config does not restrict UDP, only HTTP(S) cleartext.
+    These entries allow plain TCP fallback to the TURN server if needed.
+  -->
+  <domain-config cleartextTrafficPermitted="true">
+    <domain includeSubdomains="false">openrelay.metered.ca</domain>
+    <domain includeSubdomains="false">stun.l.google.com</domain>
+    <domain includeSubdomains="false">stun1.l.google.com</domain>
+    <domain includeSubdomains="false">stun.cloudflare.com</domain>
+    <!-- Add your private TURN server hostname here once provisioned -->
+  </domain-config>
+</network-security-config>

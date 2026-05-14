@@ -69,9 +69,15 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
   Future<void> _safeInit() async {
     try { await _loadData(); } catch (_) {}
+    // MEM-02: Check mounted after each await — the widget may have been
+    // disposed (back navigation, screen rotation) during the async work.
+    if (!mounted) return;
     try { await _setOnline(true); } catch (_) {}
+    if (!mounted) return;
     try { await _startExtraServices(); } catch (_) {}
+    if (!mounted) return;
     try { await _askPermissions(); } catch (_) {}
+    if (!mounted) return;
     try { await _startLocationAndAlerts(); } catch (_) {}
 
     final String? uid = _auth.currentUser?.uid;
@@ -387,9 +393,15 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
               modeSnap.value is String ? modeSnap.value as String : 'camera';
           final StreamMode mode =
               modeStr == 'screen' ? StreamMode.screen : StreamMode.camera;
-          _autoStartStreaming(uid, mode);
+          // WEB-02 / ARCH-01: The background-service isolate now drives
+          // SilentWebRTCService directly. Calling _autoStartStreaming() here
+          // would start a second, conflicting WebRTC connection from the UI
+          // isolate. The background service's _callsSub already handles this.
+          _ = mode; // suppress unused-variable warning
         } else if (status == 'ended' || status == null) {
-          SilentWebRTCService.instance.stopSilent();
+          // WEB-02: Background service handles the stop — calling stopSilent()
+          // here races with the background-isolate cleanup and can leave the
+          // peer connection in a half-closed state.
         }
       } catch (_) {}
     });
@@ -405,7 +417,10 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
   @override
   void dispose() {
-    _setOnline(false);
+    // LC-01: Do not call _setOnline(false) here — presence is managed by
+    // PresenceService via .info/connected. Writing false on dispose() can
+    // incorrectly mark the child offline when the Activity is recreated
+    // (e.g. screen rotation) while the background service is still running.
     _callSub?.cancel();
     _lockSub?.cancel();
     _snapshotSub?.cancel();

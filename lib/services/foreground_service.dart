@@ -1,15 +1,11 @@
-import 'dart:async';
 import 'dart:ui';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import 'silent_webrtc_service.dart';
 
 class MonitoringForegroundService {
   static final MonitoringForegroundService _instance =
@@ -146,27 +142,26 @@ void _startCallback() {
   FlutterForegroundTask.setTaskHandler(_MonitoringTaskHandler());
 }
 
+// ARCH-01: The foreground task handler no longer owns WebRTC.  After the
+// ARCH-01 fix, the background-service isolate (background_monitoring_service.dart)
+// drives SilentWebRTCService directly.  This handler's sole responsibilities are:
+//   1. Keeping the persistent "Monitoring active" notification alive.
+//   2. Writing a lastSeen heartbeat to Firebase every 30 s.
+//   3. Cleaning up stale call sessions every ~10 minutes.
+//
+// ARCH-03: isOnline is intentionally NOT written here.  PresenceService (via
+// .info/connected) is the sole owner of the isOnline flag.  Writing it here
+// caused a race condition that masked true disconnections.
 class _MonitoringTaskHandler extends TaskHandler {
   int _heartbeatCount = 0;
   String? _childUid;
-
-  StreamSubscription? _callSub;
-  StreamSubscription? _bgStreamSub;
-  StreamSubscription? _bgStopSub;
-
-  bool _streamActive = false;
-  String? _activeStreamMode;
 
   // ── Lifecycle ──────────────────────────────────────────────
 
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
     debugPrint('[TaskHandler] onStart');
-
-    // Register Flutter plugins so camera, Firebase, etc. are accessible
     DartPluginRegistrant.ensureInitialized();
-
-    // Initialise Firebase if this isolate started fresh (app was closed)
     if (Firebase.apps.isEmpty) {
       try {
         await Firebase.initializeApp();
@@ -175,59 +170,25 @@ class _MonitoringTaskHandler extends TaskHandler {
         debugPrint('[TaskHandler] Firebase init error: $e');
       }
     }
-
-    // Load child UID from SharedPreferences (persisted on first login)
     await _loadUid();
-
-    if (_childUid != null) {
-      _subscribeFirebase(_childUid!);
-    }
-
-    // Secondary trigger: forward events from the background-service isolate.
-    // Covers the edge case where the bg-service detects a call before us.
-    try {
-      _bgStreamSub =
-          FlutterBackgroundService().on('silent_stream').listen((data) async {
-        if (data == null || data is! Map) return;
-        final uid = data['uid'] as String?;
-        final mode = (data['mode'] as String?) ?? 'camera';
-        if (uid == null) return;
-        await _handleStream(uid, mode);
-      });
-
-      _bgStopSub =
-          FlutterBackgroundService().on('silent_stop').listen((_) async {
-        await _stopStream();
-      });
-    } catch (e) {
-      debugPrint('[TaskHandler] bg-service listener error: $e');
-    }
   }
 
   @override
   Future<void> onRepeatEvent(DateTime timestamp) async {
     _heartbeatCount++;
-
-    // Retry UID resolution on every tick until one is available
     if (_childUid == null) {
       await _loadUid();
       if (_childUid != null) {
-        _subscribeFirebase(_childUid!);
         debugPrint('[TaskHandler] UID resolved on repeat: $_childUid');
       }
     }
-
-    // Firebase presence heartbeat — keeps child shown as online
+    // ARCH-03: Only write lastSeen — PresenceService owns isOnline.
     try {
       final uid = _childUid ?? FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
         await FirebaseDatabase.instance
             .ref('users/$uid/lastSeen')
             .set(ServerValue.timestamp);
-        await FirebaseDatabase.instance
-            .ref('users/$uid/isOnline')
-            .set(true);
-
         if (_heartbeatCount % 20 == 0) {
           await _cleanupStaleSessions(uid);
         }
@@ -240,10 +201,6 @@ class _MonitoringTaskHandler extends TaskHandler {
   @override
   Future<void> onDestroy(DateTime timestamp) async {
     debugPrint('[TaskHandler] onDestroy');
-    _callSub?.cancel();
-    _bgStreamSub?.cancel();
-    _bgStopSub?.cancel();
-    await _stopStream();
   }
 
   @override
@@ -261,72 +218,6 @@ class _MonitoringTaskHandler extends TaskHandler {
     } catch (e) {
       debugPrint('[TaskHandler] UID load error: $e');
     }
-  }
-
-  /// Subscribe directly to Firebase `calls/$uid` so WebRTC streaming
-  /// starts even when the Flutter UI isolate (main app) is no longer alive.
-  void _subscribeFirebase(String uid) {
-    _callSub?.cancel();
-    _callSub = FirebaseDatabase.instance
-        .ref('calls/$uid')
-        .onValue
-        .listen((event) async {
-      final data = event.snapshot.value;
-
-      if (data == null || data is! Map) {
-        await _stopStream();
-        return;
-      }
-
-      final map = Map<String, dynamic>.from(data);
-      final status = map['status'] as String?;
-      final mode = (map['mode'] as String?) ?? 'camera';
-
-      if (status == 'calling') {
-        await _handleStream(uid, mode);
-      } else if (status == 'ended' || status == null) {
-        await _stopStream();
-      }
-    });
-
-    debugPrint('[TaskHandler] Subscribed to Firebase calls/$uid');
-  }
-
-  Future<void> _handleStream(String uid, String mode) async {
-    // Already streaming the same mode — nothing to do
-    if (_streamActive && _activeStreamMode == mode) return;
-
-    // Mode switched — stop the previous stream first
-    if (_streamActive) await _stopStream();
-
-    _streamActive = true;
-    _activeStreamMode = mode;
-
-    debugPrint('[TaskHandler] Starting stream — mode: $mode uid: $uid');
-
-    try {
-      if (mode == 'screen') {
-        await SilentWebRTCService.instance.startSilentScreen(uid);
-      } else {
-        await SilentWebRTCService.instance.startSilentCamera(uid);
-      }
-    } catch (e) {
-      debugPrint('[TaskHandler] stream start error: $e');
-      _streamActive = false;
-      _activeStreamMode = null;
-    }
-  }
-
-  Future<void> _stopStream() async {
-    if (!_streamActive) return;
-    _streamActive = false;
-    _activeStreamMode = null;
-    try {
-      await SilentWebRTCService.instance.stopSilent();
-    } catch (e) {
-      debugPrint('[TaskHandler] stopStream error: $e');
-    }
-    debugPrint('[TaskHandler] Stream stopped');
   }
 
   Future<void> _cleanupStaleSessions(String uid) async {

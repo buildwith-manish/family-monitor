@@ -1,5 +1,6 @@
 package com.example.family_monitor
 
+import android.app.ActivityManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -36,6 +37,17 @@ class BootReceiver : BroadcastReceiver() {
         }
 
         Log.d(TAG, "Boot complete (${intent.action}) — starting services")
+
+        // AND-03: On MY_PACKAGE_REPLACED (app update via Play Store), the
+        // Flutter background service may already be running if the app was in
+        // the foreground during the update. Skip the restart to avoid a
+        // double-start which can corrupt service state or produce duplicate
+        // foreground notifications. Just re-arm the watchdog and exit.
+        if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED && isAppInForeground(context)) {
+            Log.d(TAG, "MY_PACKAGE_REPLACED + app in foreground — skipping service restart")
+            WatchdogReceiver.schedule(context)
+            return
+        }
 
         // ── 1. Flutter background service ────────────────────────────────────────
         try {
@@ -83,6 +95,21 @@ class BootReceiver : BroadcastReceiver() {
 
         // ── 4. Arm watchdog ───────────────────────────────────────────────────────
         WatchdogReceiver.schedule(context)
+    }
+
+    // AND-03: Check whether the app process is currently in the foreground.
+    // Uses RunningAppProcessInfo.importance which is accessible without
+    // special permissions. Returns false on any error (safe default).
+    private fun isAppInForeground(context: Context): Boolean {
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        return try {
+            am.runningAppProcesses?.any {
+                it.processName == context.packageName &&
+                it.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+            } == true
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private fun showResumeNotification(context: Context) {

@@ -14,7 +14,7 @@ class WatchdogReceiver : BroadcastReceiver() {
         private const val TAG      = "WatchdogReceiver"
         const val ACTION_WATCHDOG  = "com.example.family_monitor.ACTION_WATCHDOG"
         private const val REQ      = 7777
-        private const val INTERVAL = 30_000L   // 30 s — faster recovery
+        private const val INTERVAL = 120_000L  // 2 min — balances recovery speed with battery
 
         fun schedule(context: Context) {
             val am = context.getSystemService(AlarmManager::class.java)

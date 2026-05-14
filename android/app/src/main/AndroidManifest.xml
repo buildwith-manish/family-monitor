@@ -100,7 +100,7 @@
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:hardwareAccelerated="true"
-        android:usesCleartextTraffic="true">
+        android:networkSecurityConfig="@xml/network_security_config">
 
         <!-- ── Main Activity ─────────────────────────────── -->
         <!--
@@ -148,12 +148,18 @@
         </activity-alias>
 
         <!-- ── Flutter Foreground Task ───────────────────── -->
+        <!-- AND-02: foregroundServiceType is dataSync only — after ARCH-01 fix
+             the foreground task no longer owns WebRTC; it only runs the
+             persistent notification and heartbeat. Camera/microphone access
+             happens exclusively in the background-service isolate below. -->
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:exported="false"
-            android:foregroundServiceType="camera|microphone|dataSync"/>
+            android:foregroundServiceType="dataSync"/>
 
         <!-- ── Flutter Background Service ───────────────── -->
+        <!-- camera|microphone|dataSync needed because the background-service
+             isolate directly owns the WebRTC peer connection (ARCH-01 fix). -->
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
             android:exported="false"

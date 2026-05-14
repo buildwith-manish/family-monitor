@@ -23,6 +23,9 @@ class BatteryService {
   final Battery _battery = Battery();
   final _db = FirebaseDatabase.instance.ref();
   Timer? _timer;
+  // MEM-01: Cache static device info — model/OS/manufacturer never changes
+  // at runtime, so there is no need to re-query on every 60-second tick.
+  AndroidDeviceInfo? _deviceInfoCache;
 
   // ── Reporting ────────────────────────────────────────────
 
@@ -41,7 +44,9 @@ class BatteryService {
     try {
       final level  = await _battery.batteryLevel;
       final state  = await _battery.batteryState;
-      final info   = await DeviceInfoPlugin().androidInfo;
+      // MEM-01: Use cached device info — device model/OS never changes at runtime.
+      _deviceInfoCache ??= await DeviceInfoPlugin().androidInfo;
+      final info = _deviceInfoCache!;
 
       final List<ConnectivityResult> connectivityList =
           await Connectivity().checkConnectivity();
@@ -55,7 +60,10 @@ class BatteryService {
         _ => 'No Connection',
       };
 
-      await _db.child('deviceInfo/$childUid').set({
+      // FB-04: Use update() instead of set() so static device fields written
+      // once on first report are never overwritten by a concurrent writer,
+      // and so that a partial update (e.g. battery only) does not wipe other fields.
+      await _db.child('deviceInfo/$childUid').update({
         'batteryLevel':    level,
         'isCharging':      state == BatteryState.charging || state == BatteryState.full,
         'deviceModel':     info.model,
@@ -141,8 +149,10 @@ class BatteryService {
 
   Future<String> getManufacturer() async {
     try {
-      final info = await DeviceInfoPlugin().androidInfo;
-      return info.manufacturer.toLowerCase();
+      // MEM-01: Re-use the cached DeviceInfo rather than allocating a new
+      // DeviceInfoPlugin() instance on every call.
+      _deviceInfoCache ??= await DeviceInfoPlugin().androidInfo;
+      return _deviceInfoCache!.manufacturer.toLowerCase();
     } catch (_) {
       return '';
     }

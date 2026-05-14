@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import 'screen_capture_channel.dart';
+import 'turn_config_service.dart';
 
 enum StreamMode { camera, screen }
 
@@ -38,48 +39,14 @@ class WebRTCService {
   StreamMode? _lastMode;
   DateTime? _lastReconnectTime;
 
-  // ICE config with multiple STUN + TURN fallbacks.
-  // Covers: direct UDP (fast), UDP relay, TCP relay, TLS relay (school/corporate firewalls).
-  // To upgrade to a private Metered.ca account: update username/credential here
-  // or push new values to Firebase at `config/turnServers` and load them at runtime.
-  static const Map<String, dynamic> _iceConfig = {
-    'iceServers': [
-      {
-        'urls': [
-          // Google — fast, global, no auth needed
-          'stun:stun.l.google.com:19302',
-          'stun:stun1.l.google.com:19302',
-          'stun:stun2.l.google.com:19302',
-          'stun:stun3.l.google.com:19302',
-          'stun:stun4.l.google.com:19302',
-          // Cloudflare — reliable fallback
-          'stun:stun.cloudflare.com:3478',
-        ],
-      },
-      {
-        // openrelay.metered.ca — free shared TURN server
-        // Handles NAT traversal when STUN alone fails (carrier-grade NAT, strict routers)
-        'urls': [
-          'turn:openrelay.metered.ca:80',            // UDP port 80 (rarely blocked)
-          'turn:openrelay.metered.ca:443',           // UDP port 443
-          'turn:openrelay.metered.ca:80?transport=tcp',   // TCP fallback
-          'turn:openrelay.metered.ca:443?transport=tcp',  // TCP port 443 (school firewalls)
-        ],
-        'username': 'openrelayproject',
-        'credential': 'openrelayproject',
-      },
-      {
-        // TURNS = TURN over TLS — penetrates HTTPS-only corporate/school firewalls
-        'urls': 'turns:openrelay.metered.ca:443',
-        'username': 'openrelayproject',
-        'credential': 'openrelayproject',
-      },
-    ],
-    'sdpSemantics': 'unified-plan',
-    'iceCandidatePoolSize': 15,
-    'iceTransportPolicy': 'all',
-    'bundlePolicy': 'max-bundle',
-  };
+  // SEC-01 / WEB-03: ICE configuration is loaded at runtime from
+  // TurnConfigService which reads TURN credentials from Firebase RTDB at
+  // `config/turnServers`.  Credentials are never baked into the APK.
+  // iceCandidatePoolSize is 0 (was 15) — pre-allocation wastes battery and
+  // can expose the internal network topology unnecessarily.
+  // See lib/services/turn_config_service.dart for setup instructions.
+  Future<Map<String, dynamic>> _getIceConfig() =>
+      TurnConfigService.instance.getIceConfig();
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -116,7 +83,7 @@ class WebRTCService {
 
       localRenderer.srcObject = _localStream;
 
-      _peerConnection = await createPeerConnection(_iceConfig);
+      _peerConnection = await createPeerConnection(await _getIceConfig());
 
       _setupPCHandlers(
         childUid,
@@ -231,7 +198,7 @@ class WebRTCService {
         mode == StreamMode.screen ? 'screen' : 'camera',
       );
 
-      _peerConnection = await createPeerConnection(_iceConfig);
+      _peerConnection = await createPeerConnection(await _getIceConfig());
 
       _setupPCHandlers(
         childUid,

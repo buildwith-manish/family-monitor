@@ -77,6 +77,11 @@ class DeviceEventService {
 
   // ── Child side: write an event to Firebase ───────────────────────────────
 
+  // FB-01: Trim counter — we trim every 10 writes to cap the event log at 200
+  // entries. Reading + deleting on every write would be too expensive; a
+  // periodic trim is a good balance between correctness and battery/data cost.
+  static int _writeCount = 0;
+
   static Future<void> writeEvent({
     required String childUid,
     required String type,
@@ -94,9 +99,32 @@ class DeviceEventService {
         'timestamp': ServerValue.timestamp,
         'read':      false,
       });
+      // FB-01: Periodically trim the event log to ≤200 entries.
+      _writeCount++;
+      if (_writeCount % 10 == 0) _trimEvents(childUid);
     } catch (e) {
       debugPrint('[DeviceEventService] writeEvent error: $e');
     }
+  }
+
+  /// Trims the event log to a maximum of 200 entries by deleting the oldest
+  /// push-key-ordered entries. Fire-and-forget — failures are silently ignored.
+  static void _trimEvents(String childUid) {
+    _db
+        .child('device_events/$childUid')
+        .orderByKey()
+        .get()
+        .then((snap) {
+      if (snap.value is! Map) return;
+      final keys = (snap.value as Map).keys.cast<String>().toList()..sort();
+      if (keys.length <= 200) return;
+      final toDelete = keys.take(keys.length - 200).toList();
+      final updates = <String, dynamic>{};
+      for (final k in toDelete) {
+        updates['device_events/$childUid/$k'] = null;
+      }
+      _db.update(updates);
+    }).catchError((_) {});
   }
 
   // ── Parent side: real-time stream of events (newest first) ───────────────

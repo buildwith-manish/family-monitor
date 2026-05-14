@@ -148,7 +148,13 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     setState(() { _isMuted = !_isMuted; });
   }
 
+  bool _callEnded = false;
+
   Future<void> _endSession() async {
+    // LC-02: Guard against double-invocation (e.g. "End" button tap racing
+    // with the system back gesture, or dispose() calling after _endSession).
+    if (_callEnded) return;
+    _callEnded = true;
     _timeout?.cancel();
     _controlsTimer?.cancel();
     await _webrtc.endCall(widget.childUid);
@@ -166,11 +172,14 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     _screenErrorSub?.cancel();
     _webrtc.onRemoteStream = null;
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    // Always signal the child to stop camera — even if the user used the
-    // system back gesture instead of the "End" button. Without this, the
-    // child's SilentWebRTCService never receives 'ended' and the camera
-    // stays active indefinitely.
-    _webrtc.endCall(widget.childUid).catchError((_) {});
+    // LC-02: Only send endCall from dispose if _endSession() was NOT already
+    // called (i.e. the user used a system back gesture bypassing _endSession).
+    // Without this guard, endCall fires twice — once from _endSession and
+    // once from dispose — which can produce a second 'ended' write that
+    // races with a new session the parent immediately starts.
+    if (!_callEnded) {
+      _webrtc.endCall(widget.childUid).catchError((_) {});
+    }
     _webrtc.dispose();
     super.dispose();
   }

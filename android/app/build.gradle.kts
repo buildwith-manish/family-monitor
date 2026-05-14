@@ -36,6 +36,11 @@ android {
         applicationId =
             "com.example.family_monitor"
 
+        // AND-01: Replace "com.example.family_monitor" with your real reverse-domain
+        // application ID before publishing.  Also update google-services.json, all
+        // Kotlin package declarations, and the LauncherAlias componentName in
+        // MainActivity.kt.
+
         minSdk = 24
 
         targetSdk = 35
@@ -45,6 +50,31 @@ android {
         versionName = "1.0"
 
         multiDexEnabled = true
+    }
+
+    // SEC-02: Release signing — credentials read from environment variables so
+    // the keystore is never checked into source control.
+    // Set in CI/CD or local gradle.properties (git-ignored):
+    //   KEYSTORE_PATH  KEYSTORE_PASSWORD  KEY_ALIAS  KEY_PASSWORD
+    signingConfigs {
+        create("release") {
+            val ksPath  = System.getenv("KEYSTORE_PATH")     ?: project.findProperty("KEYSTORE_PATH")     as String?
+            val ksPwd   = System.getenv("KEYSTORE_PASSWORD") ?: project.findProperty("KEYSTORE_PASSWORD") as String?
+            val ksAlias = System.getenv("KEY_ALIAS")         ?: project.findProperty("KEY_ALIAS")         as String?
+            val ksKPwd  = System.getenv("KEY_PASSWORD")      ?: project.findProperty("KEY_PASSWORD")      as String?
+            if (ksPath != null && ksPwd != null && ksAlias != null && ksKPwd != null) {
+                storeFile     = file(ksPath)
+                storePassword = ksPwd
+                keyAlias      = ksAlias
+                keyPassword   = ksKPwd
+            } else {
+                // Fallback to debug cert in dev; DO NOT publish without setting the env vars.
+                storeFile     = signingConfigs.getByName("debug").storeFile
+                storePassword = signingConfigs.getByName("debug").storePassword
+                keyAlias      = signingConfigs.getByName("debug").keyAlias
+                keyPassword   = signingConfigs.getByName("debug").keyPassword
+            }
+        }
     }
 
     flavorDimensions += "app"
@@ -92,16 +122,20 @@ android {
 
         release {
 
-            signingConfig =
-                signingConfigs.getByName(
-                    "debug"
-                )
+            // SEC-02: Use the proper release signing config (see signingConfigs above).
+            signingConfig = signingConfigs.getByName("release")
 
-            isMinifyEnabled =
-                false
+            // SEC-03: Enable R8 code shrinking and obfuscation.
+            // Removes dead code, shrinks resources, and obfuscates names —
+            // making the APK significantly harder to reverse-engineer and
+            // hiding sensitive strings from casual inspection.
+            isMinifyEnabled   = true
+            isShrinkResources = true
 
-            isShrinkResources =
-                false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
 
         debug {

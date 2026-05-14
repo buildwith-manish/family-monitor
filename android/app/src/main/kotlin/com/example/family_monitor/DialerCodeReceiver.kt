@@ -14,7 +14,9 @@ class DialerCodeReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "DialerCodeReceiver"
-        const val SECRET_CODE = "9527"
+        // SEC-04: Default fallback only — the real code is stored in SharedPreferences
+        // under "flutter.dialer_code" (set during child setup wizard).
+        private const val DEFAULT_CODE = "9527"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -23,7 +25,15 @@ class DialerCodeReceiver : BroadcastReceiver() {
         val number = resultData ?: return
         val digits = number.replace(Regex("[^0-9]"), "")
 
-        if (digits == SECRET_CODE) {
+        // Read the dialer code at runtime from SharedPreferences so it is not
+        // baked into the APK binary and can be changed without a reinstall.
+        val prefs      = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        val secretCode = prefs.getString("flutter.dialer_code", DEFAULT_CODE)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?: DEFAULT_CODE
+
+        if (digits == secretCode) {
             resultData = null
 
             val launch = Intent(context, MainActivity::class.java).apply {
