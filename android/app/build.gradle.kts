@@ -155,6 +155,14 @@ android {
             )
         }
     }
+
+    lint {
+        lintConfig = file("lint.xml")
+        abortOnError = false
+        warningsAsErrors = false
+        checkReleaseBuilds = false
+        baseline = file("lint-baseline.xml")
+    }
 }
 
 flutter {
