@@ -6,7 +6,6 @@ import android.os.Build
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.example.family_monitor.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -21,7 +20,8 @@ class WatchdogWorker(
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        Log.d(TAG, "WatchdogWorker triggered — flavor: ${BuildConfig.FLAVOR}")
+        val flavor = appContext.packageName.removePrefix("com.example.family_monitor").trimStart('.')
+        Log.d(TAG, "WatchdogWorker triggered — flavor: $flavor")
         return@withContext try {
             performNativeChecks()
             dispatchToFlutterService()

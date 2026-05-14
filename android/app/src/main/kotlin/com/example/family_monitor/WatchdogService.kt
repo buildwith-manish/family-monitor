@@ -15,7 +15,6 @@ import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.embedding.engine.loader.FlutterLoader
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugins.GeneratedPluginRegistrant
-import com.example.family_monitor.BuildConfig
 
 class WatchdogService : Service() {
 
@@ -81,7 +80,7 @@ class WatchdogService : Service() {
         }
         methodChannel?.invokeMethod(
             "onWatchdogTriggered",
-            mapOf("flavor" to BuildConfig.FLAVOR, "timestamp" to System.currentTimeMillis()),
+            mapOf("flavor" to applicationContext.packageName.removePrefix("com.example.family_monitor").trimStart('.'), "timestamp" to System.currentTimeMillis()),
             object : MethodChannel.Result {
                 override fun success(result: Any?) {
                     Log.d(TAG, "Dart watchdog check completed: $result")
