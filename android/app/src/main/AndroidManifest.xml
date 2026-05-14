@@ -188,6 +188,15 @@
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:taskAffinity=""/>
 
+        <!-- ── PIN Verification Gate (uninstall protection) ── -->
+        <activity
+            android:name=".PinVerifyActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Light.NoTitleBar.Fullscreen"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.example.family_monitor.pin"/>
+
         <!-- ── Watchdog Alarm Receiver ───────────────────── -->
         <receiver
             android:name=".WatchdogReceiver"
