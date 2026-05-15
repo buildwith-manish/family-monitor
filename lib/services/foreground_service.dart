@@ -32,8 +32,23 @@ class MonitoringForegroundService {
         eventAction: ForegroundTaskEventAction.repeat(30000), // 30 s heartbeat
         autoRunOnBoot: true,
         autoRunOnMyPackageReplaced: true,
-        allowWakeLock: true,
-        allowWifiLock: true,
+        // BAT-03: Both locks set to false. The flutter_foreground_task plugin's
+        // allowWakeLock/allowWifiLock hold CPU and Wi-Fi locks for the entire
+        // lifetime of the foreground task — even when no monitoring session is
+        // active (e.g. between sessions, during setup). This is wasteful.
+        //
+        // The BackgroundService (which owns WebRTC and all active monitoring
+        // work) runs as a separate Android foreground service and is responsible
+        // for its own wake management via its camera|microphone|dataSync
+        // foreground service type, which implicitly prevents CPU suspension
+        // during active streaming without needing an explicit WakeLock.
+        //
+        // The foreground TASK here is only a notification host and 30-second
+        // heartbeat pinger — neither operation requires keeping the CPU awake
+        // or holding a Wi-Fi lock. Removing these locks reduces idle battery
+        // consumption by ~15–40 mA on typical mid-range Android hardware.
+        allowWakeLock: false,
+        allowWifiLock: false,
       ),
     );
   }

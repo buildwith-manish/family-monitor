@@ -148,6 +148,55 @@
         ".read":  "auth != null",
         ".write": false
       }
+    },
+
+    "app_usage": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
+
+    "hourly_usage": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
+
+    "daily_reports": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
+
+    "app_install_alerts": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
+
+    "keyword_alerts": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && (auth.uid === $childUid || root.child('users/' + auth.uid + '/children/' + $childUid).exists())"
+      }
+    },
+
+    "streaks": {
+      "$childUid": {
+        ".read":  "auth != null && (root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid)",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
+
+    "weekly_summaries": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
     }
   }
 }

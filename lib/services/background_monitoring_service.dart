@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
@@ -164,6 +165,35 @@ void _onStart(ServiceInstance service) async {
     debugPrint('[BgService] No UID stored — stopping.');
     service.stopSelf();
     return;
+  }
+
+  // SEC-06: Validate the Firebase Auth session before starting monitoring.
+  // Anonymous accounts can be deleted from the Firebase console or disabled
+  // by an admin, leaving the device with a stored UID that no longer has
+  // write access to any Firebase node. Detect this early and notify the parent.
+  try {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      // reload() forces a server round-trip that detects deleted/disabled accounts.
+      await currentUser.reload();
+    }
+    final validUser = FirebaseAuth.instance.currentUser;
+    if (validUser == null || validUser.uid != uid) {
+      debugPrint('[BgService] Auth account missing or UID mismatch — stopping.');
+      DeviceEventService.writeEvent(
+        childUid: uid,
+        type: 'auth_lost',
+        message: 'Device authentication lost. Open the app on the child device to re-pair.',
+        severity: 'error',
+      );
+      await prefs.setBool(_kMonitoringActiveKey, false);
+      service.stopSelf();
+      return;
+    }
+  } catch (e) {
+    // Non-fatal: could be offline or a transient error. Continue and let
+    // Firebase RTDB enforce permissions on any actual write attempt.
+    debugPrint('[BgService] Auth pre-check error (non-fatal, continuing): $e');
   }
 
   // P9-A: Restore known-packages baseline persisted by the previous session.
@@ -358,8 +388,17 @@ Future<void> _setupMonitoringSession(
   // Only update lastSeen (benign, non-conflicting) and service-specific nodes.
   await FirebaseDatabase.instance.ref('users/$uid/lastSeen').set(ServerValue.timestamp);
 
-  // FIX-03: Register onDisconnect for calls/$uid/status in the background
-  // isolate — Firebase executes this server-side when the socket closes.
+  // FIX-03: Register onDisconnect for calls/$uid in the background isolate.
+  // Firebase executes the onDisconnect handler server-side when the socket
+  // closes (crash, battery pull, network loss), which prevents a stale
+  // 'calling' session node with orphaned ICE candidates from persisting.
+  //
+  // FB-02: onDisconnect().remove() targets the ENTIRE calls/$uid node so
+  // all fields (status, mode, offer, candidates, startedAt) are cleaned up
+  // atomically. The previous onDisconnect().set('offline') on the status
+  // sub-field left mode/offer/candidates in place — the parent dashboard
+  // could read a stale 'calling' mode with no valid session to connect to.
+  //
   // serviceLastSeen acts as a background-only heartbeat so the parent can
   // distinguish "app foregrounded" from "background service running".
   // isOnline is intentionally NOT written or registered here.
@@ -369,9 +408,9 @@ Future<void> _setupMonitoringSession(
       try {
         await FirebaseDatabase.instance.ref('users/$uid/serviceLastSeen')
             .set(ServerValue.timestamp);
-        final statusRef = FirebaseDatabase.instance.ref('calls/$uid/status');
-        await statusRef.onDisconnect().set('offline');
-        await statusRef.set('online');
+        // Register server-side cleanup of the entire calls/$uid node on disconnect.
+        await FirebaseDatabase.instance.ref('calls/$uid').onDisconnect().remove();
+        await FirebaseDatabase.instance.ref('calls/$uid/status').set('online');
       } catch (_) {}
     }
   });
@@ -420,9 +459,16 @@ Future<void> _setupMonitoringSession(
       return;
     }
 
-    final map    = Map<String, dynamic>.from(data);
-    final status = map['status'] as String?;
-    final mode   = map['mode']   as String? ?? 'camera';
+    final map      = Map<String, dynamic>.from(data);
+    final status   = map['status']  as String?;
+    final mode     = map['mode']    as String? ?? 'camera';
+    // WEB-02: type discriminator — the parent's interactive WebRTCService sets
+    // type: 'interactive' so both services never respond to the same session.
+    // The background SilentWebRTCService only handles sessions where type is
+    // null (legacy/untagged) or explicitly 'silent'. Interactive sessions are
+    // handled entirely by WebRTCService running in the UI isolate on the parent,
+    // and should be ignored here to prevent duplicate ICE candidate writes.
+    final callType = map['type']    as String?;
 
     if (service is AndroidServiceInstance) {
       service.setForegroundNotificationInfo(
@@ -435,7 +481,7 @@ Future<void> _setupMonitoringSession(
       );
     }
 
-    if (status == 'calling') {
+    if (status == 'calling' && callType != 'interactive') {
       if (!streamActive || activeMode != mode) {
         if (streamActive) SilentWebRTCService.instance.stopSilent().catchError((_) {});
         streamActive = true;
@@ -482,12 +528,19 @@ Future<void> _setupMonitoringSession(
     }
   });
 
-  // ── Screen-time enforcement — checked every 60 s ──────────
+  // ── Screen-time enforcement — checked every 5 min ─────────
   // Reads limits from screen_time_limits/$uid and current usage from
   // UsageStatsManager. If any app has exceeded its daily limit, writes a
   // block command to app_locks/$uid/$packageName so the AppLockService on the
   // foreground layer can intercept it. Removes the lock at midnight (daily reset).
-  _screenTimeTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
+  //
+  // BAT-02: Interval changed from 60 s to 5 min. A 60 s polling rate caused
+  // the background isolate to query UsageStatsManager and perform multiple
+  // Firebase reads every minute. Screen-time enforcement with 5-minute
+  // granularity is industry-standard (e.g. Screen Time on iOS) and keeps
+  // battery impact negligible. For apps nearing their limit, the 5-minute
+  // window still provides timely enforcement with at most ~5 min of over-run.
+  _screenTimeTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
     try {
       final limitsSnap =
           await FirebaseDatabase.instance.ref('screen_time_limits/$uid').get();

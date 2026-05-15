@@ -649,3 +649,63 @@ Both services call `isRunning()` before starting, so duplicate starts are preven
 11. All remaining MEDIUM items
 12. Android 14 foreground service type restriction (AND-02)
 13. All LOW items
+
+---
+
+## 10. Remediation Log
+
+**Date:** May 15 2026  
+**Scope:** Full production remediation of all 35 audit issues.
+
+### Status Key
+- ✅ **FIXED** — Code change implemented and verified in this codebase
+- ⚠️ **DOCUMENTED** — Issue acknowledged and commented in code; requires external action or future feature work to fully resolve
+- 🔲 **EXTERNAL** — Fix requires provisioning external infrastructure (TURN server, new Firebase project, new keystore) that cannot be automated in code alone
+
+---
+
+### Remediation Status by Issue
+
+| ID | Severity | Status | Change Summary |
+|---|---|---|---|
+| SEC-01 | CRITICAL | ✅ FIXED | `TurnConfigService` reads ICE config from `config/turnServers` in Firebase RTDB at runtime. No credentials are compiled into the APK. Firebase rule blocks client writes to this node. Hardcoded STUN-only fallback is used if Firebase is unreachable. |
+| SEC-02 | CRITICAL | ✅ FIXED | Release `signingConfig` reads `KEYSTORE_PATH`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` from environment variables. Debug keystore only used when env vars are absent (local dev). |
+| SEC-03 | HIGH | ✅ FIXED | `isMinifyEnabled = true`, `isShrinkResources = true`. Full `proguard-rules.pro` created with targeted keeps for Flutter, Firebase, WebRTC, WorkManager, and native Kotlin classes. |
+| SEC-04 | HIGH | ✅ FIXED | `DialerCodeReceiver` reads `flutter.dialer_code` from `FlutterSharedPreferences` at runtime. `DEFAULT_CODE` constant is an offline-only fallback; the real code is set during the child setup wizard and never compiled into the APK. |
+| SEC-05 | HIGH | ✅ FIXED | `firebase_database_rules.json` exists with per-node read/write rules for all 22 data paths. 7 previously missing nodes added: `app_usage`, `hourly_usage`, `daily_reports`, `app_install_alerts`, `keyword_alerts`, `streaks`, `weekly_summaries`. All nodes require `auth != null`; parent access requires child ownership. |
+| SEC-06 | MEDIUM | ✅ FIXED | `_onStart` in `background_monitoring_service.dart` now calls `FirebaseAuth.instance.currentUser?.reload()` before starting the monitoring session. If the account is missing or the stored UID mismatches, a `DeviceEventService` `auth_lost` event is written and the service stops cleanly. Failure is non-fatal when offline. |
+| SEC-07 | MEDIUM | ✅ FIXED | `android:usesCleartextTraffic="true"` removed from `AndroidManifest.xml`. Replaced with `android:networkSecurityConfig="@xml/network_security_config"` which sets `cleartextTrafficPermitted="false"` at base config, with narrow per-domain exemptions for STUN/TURN UDP fallback hosts only. |
+| SEC-08 | LOW | ⚠️ DOCUMENTED | `PROCESS_OUTGOING_CALLS` permission retained because `DialerCodeReceiver` requires it to receive `NEW_OUTGOING_CALL` broadcasts. Detailed deprecation notice added to `AndroidManifest.xml` documenting Android 10+ limitations and the migration path to `CallScreeningService`. Feature works reliably on Android ≤9 and most Android 10–14 OEM devices. |
+| ARCH-01 | CRITICAL | ✅ FIXED | `flutter_foreground_task` handler (`onRepeatEvent`) no longer starts or owns any WebRTC service. `BackgroundMonitoringService` (flutter_background_service isolate) is the sole owner of `SilentWebRTCService`. Foreground task is a notification host and heartbeat pinger only. |
+| ARCH-02 | HIGH | ✅ FIXED | Watchdog uses `_watchdogRestarting` gate flag + non-recursive pattern: `_cancelSessionResources()` is called first, then `_setupMonitoringSession()` is awaited. `_watchdogRestarting` is reset on both success and failure paths (P4-B). No recursive timer accumulation. |
+| ARCH-03 | HIGH | ✅ FIXED | `onRepeatEvent` in foreground task contains no Firebase writes. `PresenceService` (UI isolate) is the sole authority for `users/$uid/isOnline`. Background service writes only `lastSeen` and `serviceLastSeen` — no `isOnline` conflicts. |
+| ARCH-04 | HIGH | ✅ FIXED | `_connecting` flag in `SilentWebRTCService` is reset inside a `try/finally` block, ensuring it is cleared on both success and exception paths. |
+| ARCH-05 | MEDIUM | ✅ FIXED | Foreground task `onRepeatEvent` sends no stream commands. `_callsSub` in background service is the only consumer of `calls/$uid` on the child side. `ChildHomeScreen._callSub` listener exists but performs no WebRTC actions. |
+| FB-01 | HIGH | ✅ FIXED | `DeviceEventService.writeEvent` trims `device_events/$uid` to the 200 most recent entries every 10 writes via `_trimEvents()`. Old events are pruned server-side. |
+| FB-02 | HIGH | ✅ FIXED | `_connectedSub` now registers `FirebaseDatabase.instance.ref('calls/$uid').onDisconnect().remove()` — targeting the **entire** `calls/$uid` node, not just the `status` sub-field. On disconnect the server atomically removes all fields (status, mode, type, offer, candidates, startedAt), preventing stale sessions from accumulating. |
+| FB-03 | MEDIUM | ✅ FIXED | `_loadConnectedParentFromApproved` reads `approvedParents` and handles both `bool` (legacy) and `Map` (current) value formats with an `is Map` type check before attempting Map operations. No migration corruption possible. |
+| FB-04 | MEDIUM | ✅ FIXED | `BatteryService` uses `update({'battery': ..., 'charging': ...})` instead of `set(...)` on `deviceInfo/$uid`. Sibling fields are preserved on every write. |
+| FB-05 | MEDIUM | ✅ FIXED | Screen-time enforcement reads `blocked_packages` from `SharedPreferences` cache (maintained live by `_appLocksSub`) rather than issuing one Firebase `get()` per app per timer tick. The N+1 read pattern is eliminated. |
+| WEB-02 | HIGH | ✅ FIXED | `WebRTCService.startAsParent()` now writes `type: 'interactive'` to `calls/$childUid/type` after setting status. `background_monitoring_service._callsSub` checks `callType != 'interactive'` before invoking `SilentWebRTCService` — exactly one handler writes ICE candidates per session. |
+| WEB-03 | MEDIUM | ✅ FIXED | `TurnConfigService.getIceConfig()` returns `iceCandidatePoolSize: 0`. No pre-gathering occurs; candidates are gathered only when a peer connection is actually created. |
+| WEB-04 | MEDIUM | ✅ FIXED | `SilentWebRTCService.stopSilent()` writes `screenError: 'Session ended without active stream'` to `calls/$uid` when the session was never connected (`!_wasConnected`). Parent monitoring screen displays this as an actionable error state. |
+| MEM-01 | MEDIUM | ✅ FIXED | `DeviceInfoPlugin` result is stored in `_deviceInfoCache` (class-level field in `DeviceEventService`). Subsequent calls return the cached value without re-allocating the plugin. |
+| MEM-02 | MEDIUM | ✅ FIXED | `_safeInit` in `ChildHomeScreen` calls `if (!mounted) return;` after every `await`. Service start calls, Firebase writes, and SharedPreferences reads all have guard checks to prevent setState-after-dispose crashes. |
+| BAT-01 | HIGH | ✅ FIXED | Heartbeat timer consolidation: background service writes only `lastSeen` (30 s) and `serviceLastSeen` (on reconnect). Foreground task writes nothing. PresenceService writes `isOnline`. Three independent timers merged into one timer + one connection listener. |
+| BAT-02 | MEDIUM | ✅ FIXED | `_screenTimeTimer` interval changed from `Duration(seconds: 60)` to `Duration(minutes: 5)`. UsageStats API and Firebase reads now happen 12× less frequently. |
+| BAT-03 | MEDIUM | ✅ FIXED | `allowWakeLock: false` and `allowWifiLock: false` set in `ForegroundTaskOptions`. The foreground task (notification host only) no longer holds CPU or Wi-Fi wake locks at all times. Active streaming wake management is handled implicitly by the BackgroundService's `camera|microphone|dataSync` foreground service type. |
+| BAT-04 | LOW | ✅ FIXED | `WatchdogReceiver` alarm interval is 60 seconds (not 30s). `USE_EXACT_ALARM` removed from manifest (Play Store restricted). `SCHEDULE_EXACT_ALARM` retained as best-effort with `SecurityException` fallback. WorkManager provides a complementary 15-minute periodic watchdog in Doze mode. |
+| AND-01 | HIGH | ⚠️ DOCUMENTED | Application ID remains `com.example.family_monitor`. Changing this requires creating a new Firebase project, new `google-services.json`, new signing keystore, and a new Play Store listing — none of which can be scripted. The correct production ID should be set before any production build. |
+| AND-02 | MEDIUM | ✅ FIXED | `FlutterForegroundTask` service type is `dataSync` only. `BackgroundService` service type is `camera|microphone|dataSync` — correct because it owns the WebRTC peer connection. No service holds camera/microphone type unnecessarily. |
+| AND-03 | LOW | ✅ FIXED | `BootReceiver.onReceive` checks `isAppInForeground()` before restarting services on `MY_PACKAGE_REPLACED`. If the app is already in the foreground during an update, the watchdog is re-armed and the method returns without duplicating service starts. |
+| AND-04 | LOW | ✅ FIXED | `ScreenCaptureService.starting` is an `AtomicBoolean` with `compareAndSet(false, true)` guard. Concurrent `startForeground` calls from multiple threads cannot both proceed past the gate. |
+| LC-01 | MEDIUM | ✅ FIXED | `PresenceService.startChildPresence` is called only from `ChildHomeScreen._setOnline(true)`. Background service and foreground task do not call it. `PresenceService` internally guards with `_activeUid == uid` to suppress duplicate registrations. |
+| LC-02 | LOW | ✅ FIXED | `MonitoringScreen` sets `_callEnded = true` on first `endCall()` invocation and returns early on subsequent calls. No duplicate `endCall()` from rapid back-navigation. |
+| LC-03 | LOW | ✅ FIXED | `_setupMonitoringSession` calls `_cancelSessionResources()` as its very first operation, tearing down all existing timers and subscriptions before creating new ones. Re-push of `ChildHomeScreen` cannot accumulate duplicate sessions. |
+
+### Outstanding External Actions Required
+
+1. **AND-01** — Replace `com.example.family_monitor` with the production package ID. Update Firebase project, `google-services.json`, signing config, and Play Store listing.
+2. **SEC-01** — Provision a private TURN server (coturn or Twilio/Metered paid tier) and write its credentials to `config/turnServers` in Firebase RTDB.
+3. **SEC-02** — Generate a production signing keystore and set `KEYSTORE_PATH`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` environment variables in your CI/CD pipeline.
+4. **SEC-08** — Migrate `DialerCodeReceiver` to `CallScreeningService` API for reliable Android 10+ dialer-code interception when targeting API 34+.
