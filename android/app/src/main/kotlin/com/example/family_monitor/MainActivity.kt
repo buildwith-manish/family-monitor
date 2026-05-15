@@ -315,6 +315,36 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                "openOemAutoStartSettings" -> {
+                    // RC-OEM-01: Deep-link to OEM battery/autostart screen.
+                    val launched = tryOpenOemAutoStart()
+                    result.success(launched)
+                }
+
+                "isAccessibilityServiceEnabled" -> {
+                    try {
+                        val serviceId = "$packageName/.AppBlockAccessibilityService"
+                        val enabledServices = android.provider.Settings.Secure.getString(
+                            contentResolver,
+                            android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                        ) ?: ""
+                        result.success(enabledServices.contains(serviceId))
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
+
+                "openAccessibilitySettings" -> {
+                    try {
+                        startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        })
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
+
                 else -> result.notImplemented()
             }
         }
@@ -542,6 +572,73 @@ class MainActivity : FlutterActivity() {
             cleanup()
             replyOnce(null)
         }
+    }
+
+    /**
+     * RC-OEM-01: Deep-link to OEM-specific battery/autostart settings.
+     * Returns true if an intent was found and launched.
+     */
+    private fun tryOpenOemAutoStart(): Boolean {
+        val intents = listOf(
+            // Xiaomi / MIUI
+            Intent().apply {
+                component = android.content.ComponentName(
+                    "com.miui.securitycenter",
+                    "com.miui.permcenter.autostart.AutoStartManagementActivity"
+                )
+            },
+            // Oppo / ColorOS
+            Intent().apply {
+                component = android.content.ComponentName(
+                    "com.coloros.oppoguardelf",
+                    "com.coloros.powermanager.fuelgaue.PowerUsageModelActivity"
+                )
+            },
+            Intent().apply {
+                component = android.content.ComponentName(
+                    "com.oppo.safe",
+                    "com.oppo.safe.permission.startup.StartupAppListActivity"
+                )
+            },
+            // Vivo / FuntouchOS
+            Intent().apply {
+                component = android.content.ComponentName(
+                    "com.iqoo.secure",
+                    "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity"
+                )
+            },
+            Intent().apply {
+                component = android.content.ComponentName(
+                    "com.vivo.permissionmanager",
+                    "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"
+                )
+            },
+            // Huawei / EMUI
+            Intent().apply {
+                component = android.content.ComponentName(
+                    "com.huawei.systemmanager",
+                    "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"
+                )
+            },
+            // Generic: Android battery optimization (works on Samsung, OnePlus, stock)
+            Intent().apply {
+                action = android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                data = android.net.Uri.parse("package:$packageName")
+            },
+            // Fallback: App details (shows battery option)
+            Intent().apply {
+                action = android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                data = android.net.Uri.parse("package:$packageName")
+            }
+        )
+        for (intent in intents) {
+            try {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+                return true
+            } catch (_: Exception) { /* Try next */ }
+        }
+        return false
     }
 
     private fun ensureNotificationChannels() {

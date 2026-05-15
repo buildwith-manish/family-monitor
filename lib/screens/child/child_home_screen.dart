@@ -73,6 +73,24 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     _safeInit();
   }
 
+  // RC-LIFECYCLE-01: Handle app resume from background.
+  // Without this override, when the app comes back to foreground after being
+  // backgrounded (screen off, app switch, etc.), the MediaProjection token
+  // is NEVER re-checked and no reconnection is triggered.
+  // This was a critical omission — WidgetsBindingObserver was registered but
+  // didChangeAppLifecycleState was never overridden.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      // App came back to foreground — check if projection token is still valid.
+      // This handles: screen unlock, task switch back, OEM re-activation.
+      _checkAndRestoreScreenProjection().catchError((_) {});
+      // Also ensure background monitoring service is still running.
+      BackgroundMonitoringService.restoreIfNeeded().catchError((_) {});
+    }
+  }
+
   Future<void> _safeInit() async {
     try { await _loadData(); } catch (_) {}
     // MEM-02: Check mounted after each await — the widget may have been
@@ -123,32 +141,62 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     } catch (_) {}
   }
 
-  /// After every process restart, Android invalidates the MediaProjection
-  /// token.  If the user previously granted screen-capture consent during
-  /// setup, silently re-request the token here so the background service can
-  /// start a screen share as soon as the parent requests it — without sending
-  /// the user back through the setup wizard.
+  /// RC-SCREENRESTORE-01: Restore MediaProjection token after process restart.
+  ///
+  /// ONLY re-request the token when:
+  ///   1. Screen consent was previously granted by the user.
+  ///   2. The current token is no longer active.
+  ///   3. The parent is ACTIVELY requesting a screen session right now.
+  ///
+  /// This prevents the system screen-recording permission dialog from
+  /// appearing unexpectedly every time the user opens the app, which was
+  /// the previous behaviour. The dialog should only appear when the parent
+  /// has requested a screen share and the token needs renewal.
   Future<void> _checkAndRestoreScreenProjection() async {
     try {
       final consentGranted =
           await BackgroundMonitoringService.isScreenConsentGranted();
       if (!consentGranted) return;
 
-      final projectionActive =
-          await ScreenCaptureChannel.isProjectionActive();
+      final projectionActive = await ScreenCaptureChannel.isProjectionActive();
       debugPrint(
           '[ChildHome] Screen consent=$consentGranted, projectionActive=$projectionActive');
 
-      if (!projectionActive) {
-        debugPrint(
-            '[ChildHome] Re-requesting screen projection token after process restart…');
-        final granted = await ScreenCaptureChannel.requestScreenCapture();
-        debugPrint('[ChildHome] Screen projection re-acquired: $granted');
-        if (!granted) {
-          // User explicitly denied — clear saved consent so we stop prompting.
-          await BackgroundMonitoringService.saveScreenConsentGranted(false);
-          debugPrint('[ChildHome] Screen consent cleared (user denied re-grant)');
+      if (projectionActive) return;  // Token still valid — nothing to do.
+
+      // RC-SCREENRESTORE-01: Only re-request when parent is actively calling
+      // in screen mode. Avoid spurious dialogs on every app resume.
+      final String? uid = _auth.currentUser?.uid;
+      if (uid == null) return;
+
+      try {
+        final modeSnap = await FirebaseDatabase.instance
+            .ref('calls/$uid/mode')
+            .get()
+            .timeout(const Duration(seconds: 3));
+        final statusSnap = await FirebaseDatabase.instance
+            .ref('calls/$uid/status')
+            .get()
+            .timeout(const Duration(seconds: 3));
+        final mode   = modeSnap.value is String ? modeSnap.value as String : '';
+        final status = statusSnap.value is String ? statusSnap.value as String : '';
+
+        if (mode != 'screen' || status != 'calling') {
+          debugPrint('[ChildHome] No active screen session — skipping token re-request');
+          return;
         }
+      } catch (_) {
+        // Offline or timeout — skip re-request, will retry on next resume.
+        return;
+      }
+
+      debugPrint('[ChildHome] Active screen session — re-requesting projection token');
+      if (!mounted) return;
+      final granted = await ScreenCaptureChannel.requestScreenCapture();
+      debugPrint('[ChildHome] Screen projection re-acquired: $granted');
+      if (!granted && mounted) {
+        await BackgroundMonitoringService.saveScreenConsentGranted(false);
+        debugPrint('[ChildHome] Screen consent cleared (user denied re-grant)');
       }
     } catch (e) {
       debugPrint('[ChildHome] _checkAndRestoreScreenProjection error: $e');

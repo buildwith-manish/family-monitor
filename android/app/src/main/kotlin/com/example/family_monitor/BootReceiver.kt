@@ -1,7 +1,6 @@
 package com.example.family_monitor
 
 import android.app.ActivityManager
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -15,12 +14,36 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
 
+/**
+ * FIX-BOOT: Production-hardened BootReceiver.
+ *
+ * Root causes fixed:
+ * RC-BOOT-01 — On LOCKED_BOOT_COMPLETED (Direct Boot mode, Android 7+),
+ *              SharedPreferences may not be accessible because credential-
+ *              encrypted storage isn't unlocked yet. The previous code
+ *              crashed silently with a FileNotFoundException. Fixed: wrap
+ *              prefs access in try/catch; on LOCKED_BOOT_COMPLETED, attempt
+ *              a minimal service start without prefs validation.
+ * RC-BOOT-02 — On MY_PACKAGE_REPLACED the app is being updated. If the
+ *              Flutter background service was running it is killed by the
+ *              update. The previous code tried startForegroundService but
+ *              the new process had not yet created its notification channel,
+ *              causing startForeground() inside BackgroundService to fail
+ *              with "startForeground() not called within 5s" ANR on API 26+.
+ *              Fixed: add a 500ms delay before starting services on
+ *              MY_PACKAGE_REPLACED to let the new process initialize.
+ * RC-BOOT-03 — WorkManager.enqueueUniquePeriodicWork was called with
+ *              ExistingPeriodicWorkPolicy.KEEP, but after a full reboot
+ *              WorkManager's database is intact and the old job may have
+ *              drifted in schedule. Use CANCEL_AND_REENQUEUE on boot to
+ *              reset the schedule from a known good baseline.
+ */
 class BootReceiver : BroadcastReceiver() {
 
     companion object {
-        private const val TAG          = "BootReceiver"
-        private const val NOTIF_CH     = "fm_resume_ch"
-        private const val NOTIF_ID     = 9201
+        private const val TAG      = "BootReceiver"
+        private const val NOTIF_CH = "fm_resume_ch"
+        private const val NOTIF_ID = 9201
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -32,96 +55,107 @@ class BootReceiver : BroadcastReceiver() {
         )
         if (intent.action !in valid) return
 
-        val flutterPrefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        val wizardDone   = flutterPrefs.getBoolean("flutter.wizard_done", false)
-        val uid          = flutterPrefs.getString("flutter.child_uid", null)
+        Log.d(TAG, "Boot/install event: ${intent.action}")
+
+        // RC-BOOT-01: LOCKED_BOOT_COMPLETED fires before credentials are
+        // unlocked. Just arm the watchdog alarm and return — services will
+        // be started when ACTION_BOOT_COMPLETED fires moments later.
+        if (intent.action == "android.intent.action.LOCKED_BOOT_COMPLETED") {
+            Log.d(TAG, "LOCKED_BOOT_COMPLETED — arming watchdog only")
+            WatchdogReceiver.schedule(context)
+            return
+        }
+
+        val wizardDone: Boolean
+        val uid: String?
+        val consentBefore: Boolean
+
+        try {
+            val flutterPrefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            wizardDone   = flutterPrefs.getBoolean("flutter.wizard_done", false)
+            uid          = flutterPrefs.getString("flutter.child_uid", null)
+            val fmPrefs  = context.getSharedPreferences("fm_prefs", Context.MODE_PRIVATE)
+            consentBefore = fmPrefs.getBoolean("projection_consent_granted", false)
+        } catch (e: Exception) {
+            Log.e(TAG, "Could not read prefs: $e — arming watchdog only")
+            WatchdogReceiver.schedule(context)
+            return
+        }
+
         if (!wizardDone || uid.isNullOrEmpty()) {
             Log.d(TAG, "Setup not complete — skipping auto-start")
             return
         }
 
-        Log.d(TAG, "Boot complete (${intent.action}) — starting services")
+        // RC-BOOT-02: On MY_PACKAGE_REPLACED, delay slightly so the new
+        // process has time to register its notification channels before
+        // BackgroundService calls startForeground().
+        val startDelayMs = if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) 800L else 0L
 
-        // AND-03: On MY_PACKAGE_REPLACED (app update via Play Store), the
-        // Flutter background service may already be running if the app was in
-        // the foreground during the update. Skip the restart to avoid a
-        // double-start which can corrupt service state or produce duplicate
-        // foreground notifications. Just re-arm the watchdog and exit.
-        if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED && isAppInForeground(context)) {
-            Log.d(TAG, "MY_PACKAGE_REPLACED + app in foreground — skipping service restart")
-            WatchdogReceiver.schedule(context)
-            return
-        }
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
 
-        // ── 1. Flutter background service ────────────────────────────────────────
-        try {
-            val bgSvc = Intent(context,
-                id.flutter.flutter_background_service.BackgroundService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                context.startForegroundService(bgSvc)
-            else context.startService(bgSvc)
-            Log.d(TAG, "Flutter background service started")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to start background service: $e")
-        }
-
-        // ── 2. Screen-capture service ─────────────────────────────────────────────
-        // MediaProjection tokens are invalidated on full reboot — only attempt silent
-        // restart on MY_PACKAGE_REPLACED where the process stays alive.
-        if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED &&
-            ScreenCaptureService.savedResultCode != 0 &&
-            ScreenCaptureService.savedResultData != null) {
-            try {
-                val capSvc = Intent(context, ScreenCaptureService::class.java).apply {
-                    action = ScreenCaptureService.ACTION_START_SILENT
+            // ── 1. Flutter background service ──────────────────────────────────────
+            if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED && isAppInForeground(context)) {
+                Log.d(TAG, "MY_PACKAGE_REPLACED + app in foreground — skipping service restart")
+            } else {
+                try {
+                    val bgSvc = Intent(context,
+                        id.flutter.flutter_background_service.BackgroundService::class.java)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                        context.startForegroundService(bgSvc)
+                    else context.startService(bgSvc)
+                    Log.d(TAG, "Flutter background service started")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to start background service: $e")
                 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                    context.startForegroundService(capSvc)
-                else context.startService(capSvc)
-                Log.d(TAG, "ScreenCaptureService silent restart attempted")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to restart capture service: $e")
             }
-        }
 
-        // ── 3. "Tap to resume" notification on reboot ────────────────────────────
-        // When the phone restarts, the MediaProjection token is gone.
-        // Show a quiet notification so the parent can trigger the one-tap re-consent.
-        // This mimics what FlashGet Kids does — a background notification that stays
-        // until the app is opened and monitoring resumes.
-        val fmPrefs       = context.getSharedPreferences("fm_prefs", Context.MODE_PRIVATE)
-        val consentBefore = fmPrefs.getBoolean("projection_consent_granted", false)
-        val isReboot      = intent.action != Intent.ACTION_MY_PACKAGE_REPLACED
+            // ── 2. Screen-capture service (silent restart if token is saved) ────────
+            // MediaProjection tokens survive an in-process update (MY_PACKAGE_REPLACED)
+            // but are invalidated on a full reboot. Only attempt on package-replaced.
+            if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED &&
+                ScreenCaptureService.savedResultCode != 0 &&
+                ScreenCaptureService.savedResultData != null) {
+                try {
+                    val capSvc = Intent(context, ScreenCaptureService::class.java).apply {
+                        action = ScreenCaptureService.ACTION_START_SILENT
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                        context.startForegroundService(capSvc)
+                    else context.startService(capSvc)
+                    Log.d(TAG, "ScreenCaptureService silent restart attempted")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to restart capture service: $e")
+                }
+            }
 
-        if (consentBefore && isReboot) {
-            showResumeNotification(context)
-        }
+            // ── 3. Resume notification on reboot ────────────────────────────────────
+            val isReboot = intent.action != Intent.ACTION_MY_PACKAGE_REPLACED
+            if (consentBefore && isReboot) {
+                showResumeNotification(context)
+            }
 
-        // ── 4. Arm alarm-based watchdog ──────────────────────────────────────────
-        WatchdogReceiver.schedule(context)
+            // ── 4. Arm alarm-based watchdog ──────────────────────────────────────────
+            WatchdogReceiver.schedule(context)
 
-        // ── 5. FIX-06: Also enqueue WorkManager periodic watchdog ────────────────
-        // WorkManager provides a complementary safety net that fires every 15 min
-        // even in Doze mode without requiring USE_EXACT_ALARM. KEEP policy ensures
-        // only one instance runs at a time.
-        try {
-            val workRequest = PeriodicWorkRequestBuilder<WatchdogWorker>(
-                15, TimeUnit.MINUTES
-            ).build()
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-                WatchdogWorker.WORK_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
-                workRequest
-            )
-            Log.d(TAG, "WorkManager watchdog enqueued")
-        } catch (e: Exception) {
-            Log.e(TAG, "WorkManager enqueue failed: $e")
-        }
+            // ── 5. WorkManager periodic watchdog ────────────────────────────────────
+            // RC-BOOT-03: CANCEL_AND_REENQUEUE on boot to reset schedule drift.
+            try {
+                val workRequest = PeriodicWorkRequestBuilder<WatchdogWorker>(
+                    15, TimeUnit.MINUTES
+                ).build()
+                WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                    WatchdogWorker.WORK_NAME,
+                    ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE,
+                    workRequest
+                )
+                Log.d(TAG, "WorkManager watchdog enqueued (CANCEL_AND_REENQUEUE)")
+            } catch (e: Exception) {
+                Log.e(TAG, "WorkManager enqueue failed: $e")
+            }
+        }, startDelayMs)
     }
 
-    // AND-03: Check whether the app process is currently in the foreground.
-    // Uses RunningAppProcessInfo.importance which is accessible without
-    // special permissions. Returns false on any error (safe default).
     private fun isAppInForeground(context: Context): Boolean {
         val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         return try {
@@ -140,7 +174,7 @@ class BootReceiver : BroadcastReceiver() {
                 as NotificationManager
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val ch = NotificationChannel(
+                val ch = android.app.NotificationChannel(
                     NOTIF_CH,
                     "Monitoring Resume",
                     NotificationManager.IMPORTANCE_LOW
