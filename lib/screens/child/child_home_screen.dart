@@ -17,6 +17,7 @@ import '../../widgets/streak_card_widget.dart';
 import 'child_qr_screen.dart';
 import '../../services/background_monitoring_service.dart';
 import '../../services/battery_service.dart';
+import '../../services/screen_capture_channel.dart';
 import '../../services/call_log_service.dart';
 import '../../services/contacts_service.dart';
 import '../../services/foreground_service.dart';
@@ -83,6 +84,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     if (!mounted) return;
     try { await _askPermissions(); } catch (_) {}
     if (!mounted) return;
+    try { await _checkAndRestoreScreenProjection(); } catch (_) {}
+    if (!mounted) return;
     try { await _startLocationAndAlerts(); } catch (_) {}
 
     final String? uid = _auth.currentUser?.uid;
@@ -118,6 +121,38 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         Permission.location,
       ].request();
     } catch (_) {}
+  }
+
+  /// After every process restart, Android invalidates the MediaProjection
+  /// token.  If the user previously granted screen-capture consent during
+  /// setup, silently re-request the token here so the background service can
+  /// start a screen share as soon as the parent requests it — without sending
+  /// the user back through the setup wizard.
+  Future<void> _checkAndRestoreScreenProjection() async {
+    try {
+      final consentGranted =
+          await BackgroundMonitoringService.isScreenConsentGranted();
+      if (!consentGranted) return;
+
+      final projectionActive =
+          await ScreenCaptureChannel.isProjectionActive();
+      debugPrint(
+          '[ChildHome] Screen consent=$consentGranted, projectionActive=$projectionActive');
+
+      if (!projectionActive) {
+        debugPrint(
+            '[ChildHome] Re-requesting screen projection token after process restart…');
+        final granted = await ScreenCaptureChannel.requestScreenCapture();
+        debugPrint('[ChildHome] Screen projection re-acquired: $granted');
+        if (!granted) {
+          // User explicitly denied — clear saved consent so we stop prompting.
+          await BackgroundMonitoringService.saveScreenConsentGranted(false);
+          debugPrint('[ChildHome] Screen consent cleared (user denied re-grant)');
+        }
+      }
+    } catch (e) {
+      debugPrint('[ChildHome] _checkAndRestoreScreenProjection error: $e');
+    }
   }
 
   Future<void> _startLocationAndAlerts() async {

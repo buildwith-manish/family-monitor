@@ -62,7 +62,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     _timeout = Timer(const Duration(seconds: 30), () {
       if (mounted && !_hasStream) {
         setState(() {
-          _status = 'Waiting for child device...\nMake sure the child app has camera permission granted.';
+          _status = widget.mode == StreamMode.screen
+              ? 'Waiting for child screen share...\nOpen the child app — screen capture permission must be re-granted after each restart.'
+              : 'Waiting for child device...\nMake sure the child app is open and camera permission has been granted.';
         });
       }
     });

@@ -211,12 +211,6 @@ class WebRTCService {
       await _db.child('calls/$childUid/mode').set(
         mode == StreamMode.screen ? 'screen' : 'camera',
       );
-      // WEB-02: Write a type discriminator so the child's background
-      // SilentWebRTCService knows this call is owned by the interactive
-      // WebRTCService. The background handler in background_monitoring_service
-      // skips calls where type == 'interactive', ensuring only one handler
-      // writes ICE candidates to calls/$childUid at any time.
-      await _db.child('calls/$childUid/type').set('interactive');
 
       _peerConnection = await createPeerConnection(await _getIceConfig());
 

@@ -34,6 +34,7 @@ const FirebaseOptions _childFirebaseOptions = FirebaseOptions(
 const String _kUidKey              = 'child_uid';
 const String _kWizardKey           = 'wizard_done';
 const String _kPermKey             = 'permissions_granted';
+const String _kScreenConsentKey    = 'screen_consent_granted';
 const String _kMonitoringActiveKey = 'monitoring_active';
 // P9-A: Persist the known-packages baseline so watchdog restarts do not
 // re-fire install alerts for every app already present on the device.
@@ -134,6 +135,16 @@ class BackgroundMonitoringService {
   static Future<bool> arePermissionsGranted() async {
     final p = await SharedPreferences.getInstance();
     return p.getBool(_kPermKey) ?? false;
+  }
+
+  static Future<void> saveScreenConsentGranted(bool value) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_kScreenConsentKey, value);
+  }
+
+  static Future<bool> isScreenConsentGranted() async {
+    final p = await SharedPreferences.getInstance();
+    return p.getBool(_kScreenConsentKey) ?? false;
   }
 
   static Future<void> setMonitoringActive(bool value) async {
@@ -475,16 +486,9 @@ Future<void> _setupMonitoringSession(
       return;
     }
 
-    final map      = Map<String, dynamic>.from(data);
-    final status   = map['status']  as String?;
-    final mode     = map['mode']    as String? ?? 'camera';
-    // WEB-02: type discriminator — the parent's interactive WebRTCService sets
-    // type: 'interactive' so both services never respond to the same session.
-    // The background SilentWebRTCService only handles sessions where type is
-    // null (legacy/untagged) or explicitly 'silent'. Interactive sessions are
-    // handled entirely by WebRTCService running in the UI isolate on the parent,
-    // and should be ignored here to prevent duplicate ICE candidate writes.
-    final callType = map['type']    as String?;
+    final map    = Map<String, dynamic>.from(data);
+    final status = map['status'] as String?;
+    final mode   = map['mode']   as String? ?? 'camera';
 
     if (service is AndroidServiceInstance) {
       service.setForegroundNotificationInfo(
@@ -497,7 +501,7 @@ Future<void> _setupMonitoringSession(
       );
     }
 
-    if (status == 'calling' && callType != 'interactive') {
+    if (status == 'calling') {
       if (!streamActive || activeMode != mode) {
         if (streamActive) SilentWebRTCService.instance.stopSilent().catchError((_) {});
         streamActive = true;

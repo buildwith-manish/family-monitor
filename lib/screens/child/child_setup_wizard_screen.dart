@@ -291,6 +291,10 @@ class _ChildSetupWizardScreenState
     if (!mounted) return;
 
     setState(() => _screenConsented = result);
+    if (result) {
+      await BackgroundMonitoringService.saveScreenConsentGranted(true);
+      debugPrint('[Wizard] Screen consent granted and persisted');
+    }
   }
 
   bool get _canProceedFromPermissions =>
