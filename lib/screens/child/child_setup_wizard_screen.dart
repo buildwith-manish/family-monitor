@@ -52,6 +52,9 @@ class _ChildSetupWizardScreenState
   bool _smsGranted = false;
   bool _usageGranted = false;
   bool _notifGranted = false;
+  bool _contactsGranted = false;
+  bool _callLogGranted = false;
+  bool _locationGranted = false;
   bool _batteryExempt = false;
   bool _screenConsented = false;
   bool _notifDisabled = false;
@@ -117,24 +120,30 @@ class _ChildSetupWizardScreenState
   }
 
   Future<void> _refreshStatus() async {
-    final cam = await Permission.camera.isGranted;
-    final mic = await Permission.microphone.isGranted;
-    final sms = await Permission.sms.isGranted;
-    final notif = await Permission.notification.isGranted;
-    final batt = await ScreenCaptureChannel.isBatteryOptimizationExempt();
-    final admin = await DeviceAdminService.isActive();
-    final usage = await ScreenTimeService().hasPermission();
+    final cam      = await Permission.camera.isGranted;
+    final mic      = await Permission.microphone.isGranted;
+    final sms      = await Permission.sms.isGranted;
+    final notif    = await Permission.notification.isGranted;
+    final contacts = await Permission.contacts.isGranted;
+    final callLog  = await Permission.phone.isGranted;
+    final location = await Permission.location.isGranted;
+    final batt     = await ScreenCaptureChannel.isBatteryOptimizationExempt();
+    final admin    = await DeviceAdminService.isActive();
+    final usage    = await ScreenTimeService().hasPermission();
 
     if (!mounted) return;
 
     setState(() {
-      _cameraGranted = cam;
-      _micGranted = mic;
-      _smsGranted = sms;
-      _usageGranted = usage;
-      _notifGranted = notif;
-      _batteryExempt = batt;
-      _adminActive = admin;
+      _cameraGranted   = cam;
+      _micGranted      = mic;
+      _smsGranted      = sms;
+      _usageGranted    = usage;
+      _notifGranted    = notif;
+      _contactsGranted = contacts;
+      _callLogGranted  = callLog;
+      _locationGranted = location;
+      _batteryExempt   = batt;
+      _adminActive     = admin;
     });
   }
 
@@ -217,6 +226,10 @@ class _ChildSetupWizardScreenState
         );
       }
     }
+
+    await _requestSinglePermission(Permission.contacts, 'Contacts');
+    await _requestSinglePermission(Permission.phone, 'Call Log');
+    await _requestSinglePermission(Permission.location, 'Location');
 
     await _refreshStatus();
   }
@@ -609,6 +622,12 @@ class _ChildSetupWizardScreenState
                         _usageGranted,
                     notifGranted:
                         _notifGranted,
+                    contactsGranted:
+                        _contactsGranted,
+                    callLogGranted:
+                        _callLogGranted,
+                    locationGranted:
+                        _locationGranted,
                     onRequest:
                         _requestCorePermissions,
                     error:
@@ -1001,6 +1020,9 @@ class _PagePermissions
   final bool smsGranted;
   final bool usageGranted;
   final bool notifGranted;
+  final bool contactsGranted;
+  final bool callLogGranted;
+  final bool locationGranted;
 
   final VoidCallback onRequest;
 
@@ -1012,6 +1034,9 @@ class _PagePermissions
     required this.smsGranted,
     required this.usageGranted,
     required this.notifGranted,
+    required this.contactsGranted,
+    required this.callLogGranted,
+    required this.locationGranted,
     required this.onRequest,
     this.error,
   });
@@ -1078,6 +1103,24 @@ class _PagePermissions
           _PermRow(
             label: 'Notifications',
             granted: notifGranted,
+            required: false,
+          ),
+
+          _PermRow(
+            label: 'Contacts',
+            granted: contactsGranted,
+            required: false,
+          ),
+
+          _PermRow(
+            label: 'Call Log',
+            granted: callLogGranted,
+            required: false,
+          ),
+
+          _PermRow(
+            label: 'Location',
+            granted: locationGranted,
             required: false,
           ),
 

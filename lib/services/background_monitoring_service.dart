@@ -13,6 +13,7 @@ import 'device_event_service.dart';
 import 'silent_webrtc_service.dart';
 import 'weekly_summary_service.dart';
 import 'keyword_alert_service.dart';
+import 'screen_time_service.dart';
 import 'streak_service.dart';
 
 // Explicit Firebase options for the child flavor.
@@ -370,11 +371,12 @@ Future<void> _generateYesterdayReportIfMissing(String uid) async {
     final appBreakdown = <Map<String, dynamic>>[];
     for (final s in stats) {
       final ms = int.tryParse(s.totalTimeInForeground ?? '0') ?? 0;
-      if (ms > 60000 && s.packageName != null) {
+      if (ms > 10000 && s.packageName != null) {
         totalMs += ms;
         appBreakdown.add({
-          'pkg': s.packageName,
-          'usedMs': ms,
+          'pkg':        s.packageName,
+          'appName':    ScreenTimeService.friendlyAppName(s.packageName!),
+          'usedMs':     ms,
           'usedMinutes': ms ~/ 60000,
         });
       }
@@ -640,11 +642,11 @@ Future<void> _setupMonitoringSession(
           final pkg = stat.packageName;
           if (pkg == null) continue;
           final usedMs = int.tryParse(stat.totalTimeInForeground ?? '0') ?? 0;
-          if (usedMs > 60000) {
-            // Firebase keys cannot contain dots — replace with underscores.
+          if (usedMs > 10000) {
             final key = pkg.replaceAll('.', '_');
             usageSnap[key] = {
               'pkg':         pkg,
+              'appName':     ScreenTimeService.friendlyAppName(pkg),
               'usedMs':      usedMs,
               'usedMinutes': usedMs ~/ 60000,
             };
@@ -793,11 +795,12 @@ Future<void> _setupMonitoringSession(
         final appBreakdown = <Map<String, dynamic>>[];
         for (final s in stats) {
           final ms = int.tryParse(s.totalTimeInForeground ?? '0') ?? 0;
-          if (ms > 60000 && s.packageName != null) {
+          if (ms > 10000 && s.packageName != null) {
             totalMs += ms;
             appBreakdown.add({
-              'pkg':         s.packageName,
-              'usedMs':      ms,
+              'pkg':        s.packageName,
+              'appName':    ScreenTimeService.friendlyAppName(s.packageName!),
+              'usedMs':     ms,
               'usedMinutes': ms ~/ 60000,
             });
           }
@@ -864,11 +867,12 @@ Future<void> _setupMonitoringSession(
               await UsageStats.queryUsageStats(midnight, endOfDay);
           for (final s in stats) {
             final ms = int.tryParse(s.totalTimeInForeground ?? '0') ?? 0;
-            if (ms > 60000 && s.packageName != null) {
+            if (ms > 10000 && s.packageName != null) {
               totalMs += ms;
               appBreakdown.add({
-                'pkg': s.packageName,
-                'usedMs': ms,
+                'pkg':        s.packageName,
+                'appName':    ScreenTimeService.friendlyAppName(s.packageName!),
+                'usedMs':     ms,
                 'usedMinutes': ms ~/ 60000,
               });
             }

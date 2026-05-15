@@ -69,9 +69,12 @@ class _AppUsageScreenState extends State<AppUsageScreen>
           if (entry.key.startsWith('_')) continue;
           if (entry.value is Map) {
             final m = Map<String, dynamic>.from(entry.value as Map);
+            final resolvedPkg = m['pkg'] as String? ??
+                entry.key.replaceAll('_', '.');
             list.add({
-              'packageName': m['pkg'] as String? ??
-                  entry.key.replaceAll('_', '.'),
+              'packageName': resolvedPkg,
+              'appName':     m['appName'] as String? ??
+                  ScreenTimeService.friendlyAppName(resolvedPkg),
               'totalTimeMs': (m['usedMs'] as num?)?.toInt() ?? 0,
             });
           }
@@ -105,8 +108,8 @@ class _AppUsageScreenState extends State<AppUsageScreen>
     list.sort((a, b) => _sortBy == 'usage'
         ? (((b['totalTimeMs'] as num?)?.toInt() ?? 0)
             .compareTo((a['totalTimeMs'] as num?)?.toInt() ?? 0))
-        : (a['packageName'] as String? ?? '')
-            .compareTo(b['packageName'] as String? ?? ''));
+        : (a['appName'] as String? ?? a['packageName'] as String? ?? '')
+            .compareTo(b['appName'] as String? ?? b['packageName'] as String? ?? ''));
   }
 
   String _fmt(int ms) {
@@ -115,24 +118,7 @@ class _AppUsageScreenState extends State<AppUsageScreen>
     return '${m ~/ 60}h ${m % 60}m';
   }
 
-  String _appName(String pkg) {
-    const n = {
-      'com.google.android.youtube': 'YouTube',
-      'com.instagram.android': 'Instagram',
-      'com.zhiliaoapp.musically': 'TikTok',
-      'com.snapchat.android': 'Snapchat',
-      'com.facebook.katana': 'Facebook',
-      'com.twitter.android': 'X (Twitter)',
-      'com.whatsapp': 'WhatsApp',
-      'com.discord': 'Discord',
-      'com.roblox.client': 'Roblox',
-      'com.android.chrome': 'Chrome',
-      'com.netflix.mediaclient': 'Netflix',
-    };
-    if (n.containsKey(pkg)) return n[pkg]!;
-    final p = pkg.split('.');
-    return p.length >= 2 ? p.last[0].toUpperCase() + p.last.substring(1) : pkg;
-  }
+  String _appName(String pkg) => ScreenTimeService.friendlyAppName(pkg);
 
   Color _colorFor(String pkg) {
     const c = [Color(0xFF1A73E8), Color(0xFF34A853), Color(0xFFEA4335),
@@ -338,7 +324,7 @@ class _AppUsageScreenState extends State<AppUsageScreen>
             final pkg = app['packageName'] as String? ?? '';
             final ms = (app['totalTimeMs'] as num?)?.toInt() ?? 0;
             final color = _colorFor(pkg);
-            final name = _appName(pkg);
+            final name = app['appName'] as String? ?? _appName(pkg);
             final fraction = maxMs > 0 ? ms / maxMs : 0.0;
             final limitMin = _limits[pkg];
             final limitMs = limitMin != null ? limitMin * 60000 : null;
