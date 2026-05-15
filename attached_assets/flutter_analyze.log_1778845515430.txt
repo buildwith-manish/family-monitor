@@ -1,0 +1,86 @@
+Running flutter analyze...
+Analyzing clone...                                              
+
+   info • The import of 'dart:typed_data' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/services.dart' • lib/screens/child/child_home_screen.dart:3:8 • unnecessary_import
+warning • Unused import: '../../services/sms_service.dart' • lib/screens/child/child_home_screen.dart:27:8 • unused_import
+  error • The name '_appListSub' is already defined • lib/screens/child/child_home_screen.dart:56:23 • duplicate_definition
+  error • The method '_existingRequests' isn't defined for the type '_ChildSetupWizardScreenState' • lib/screens/child/child_setup_wizard_screen.dart:458:38 • undefined_method
+  error • The method '_buildHoursTab' isn't defined for the type '_AppUsageScreenState' • lib/screens/parent/app_usage_screen.dart:250:11 • undefined_method
+  error • The method '_buildCategoriesTab' isn't defined for the type '_AppUsageScreenState' • lib/screens/parent/app_usage_screen.dart:251:11 • undefined_method
+  error • The named parameter 'color' isn't defined • lib/screens/parent/app_usage_screen.dart:304:11 • undefined_named_parameter
+  error • The named parameter 'width' isn't defined • lib/screens/parent/app_usage_screen.dart:348:21 • undefined_named_parameter
+  error • The named parameter 'height' isn't defined • lib/screens/parent/app_usage_screen.dart:348:32 • undefined_named_parameter
+  error • Expected a class member • lib/screens/parent/app_usage_screen.dart:440:27 • expected_class_member
+   info • The variable name 'Container' isn't a lowerCamelCase identifier • lib/screens/parent/app_usage_screen.dart:440:34 • non_constant_identifier_names
+  error • 'Container' must have a method body because '_AppUsageScreenState' isn't abstract • lib/screens/parent/app_usage_screen.dart:440:34 • concrete_class_with_abstract_member
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/screens/parent/app_usage_screen.dart:441:35 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/screens/parent/app_usage_screen.dart:441:35 • obsolete_colon_for_default_value
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/screens/parent/app_usage_screen.dart:442:36 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/screens/parent/app_usage_screen.dart:442:36 • obsolete_colon_for_default_value
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/screens/parent/app_usage_screen.dart:443:39 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/screens/parent/app_usage_screen.dart:443:39 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/screens/parent/app_usage_screen.dart:443:41 • non_constant_default_value
+  error • Undefined name 'overLimit' • lib/screens/parent/app_usage_screen.dart:447:40 • undefined_identifier
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/screens/parent/app_usage_screen.dart:453:34 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/screens/parent/app_usage_screen.dart:453:34 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/screens/parent/app_usage_screen.dart:453:36 • non_constant_default_value
+  error • Undefined name 'pkg' • lib/screens/parent/app_usage_screen.dart:457:42 • undefined_identifier
+  error • Undefined name 'name' • lib/screens/parent/app_usage_screen.dart:458:43 • undefined_identifier
+  error • Undefined name 'color' • lib/screens/parent/app_usage_screen.dart:459:44 • undefined_identifier
+  error • Undefined name 'app' • lib/screens/parent/app_usage_screen.dart:461:41 • undefined_identifier
+  error • Undefined name 'name' • lib/screens/parent/app_usage_screen.dart:469:46 • undefined_identifier
+  error • Undefined name 'pkg' • lib/screens/parent/app_usage_screen.dart:474:46 • undefined_identifier
+  error • Undefined name 'fraction' • lib/screens/parent/app_usage_screen.dart:484:54 • undefined_identifier
+  error • Undefined name 'overLimit' • lib/screens/parent/app_usage_screen.dart:489:55 • undefined_identifier
+  error • Undefined name 'color' • lib/screens/parent/app_usage_screen.dart:491:61 • undefined_identifier
+  error • Undefined name 'limitFraction' • lib/screens/parent/app_usage_screen.dart:496:49 • undefined_identifier
+  error • Undefined name 'limitFraction' • lib/screens/parent/app_usage_screen.dart:498:55 • undefined_identifier
+  error • The named parameter 'width' isn't defined • lib/screens/parent/app_usage_screen.dart:506:51 • undefined_named_parameter
+  error • The named parameter 'color' isn't defined • lib/screens/parent/app_usage_screen.dart:507:51 • undefined_named_parameter
+  error • Undefined name 'pkg' • lib/screens/parent/app_usage_screen.dart:516:41 • undefined_identifier
+  error • Undefined name 'name' • lib/screens/parent/app_usage_screen.dart:516:46 • undefined_identifier
+  error • Undefined name 'ms' • lib/screens/parent/app_usage_screen.dart:516:52 • undefined_identifier
+  error • Undefined name 'ms' • lib/screens/parent/app_usage_screen.dart:522:47 • undefined_identifier
+  error • The method '_formatDuration' isn't defined for the type '_AppUsageScreenState' • lib/screens/parent/app_usage_screen.dart:523:53 • undefined_method
+  error • Undefined name 'ms' • lib/screens/parent/app_usage_screen.dart:523:69 • undefined_identifier
+  error • Undefined name 'overLimit' • lib/screens/parent/app_usage_screen.dart:529:58 • undefined_identifier
+  error • Undefined name 'color' • lib/screens/parent/app_usage_screen.dart:531:57 • undefined_identifier
+  error • Undefined name 'limitMin' • lib/screens/parent/app_usage_screen.dart:536:47 • undefined_identifier
+  error • Undefined name 'overLimit' • lib/screens/parent/app_usage_screen.dart:544:56 • undefined_identifier
+  error • Undefined name 'limitMin' • lib/screens/parent/app_usage_screen.dart:551:52 • undefined_identifier
+  error • Undefined name 'overLimit' • lib/screens/parent/app_usage_screen.dart:556:58 • undefined_identifier
+  error • Expected a method, getter, setter or operator declaration • lib/screens/parent/app_usage_screen.dart:589:26 • expected_executable
+  error • Expected a method, getter, setter or operator declaration • lib/screens/parent/app_usage_screen.dart:590:23 • expected_executable
+  error • Expected a method, getter, setter or operator declaration • lib/screens/parent/app_usage_screen.dart:590:24 • expected_executable
+  error • Expected a method, getter, setter or operator declaration • lib/screens/parent/app_usage_screen.dart:591:21 • expected_executable
+  error • Expected a method, getter, setter or operator declaration • lib/screens/parent/app_usage_screen.dart:591:22 • expected_executable
+  error • Expected a method, getter, setter or operator declaration • lib/screens/parent/app_usage_screen.dart:592:19 • expected_executable
+  error • Expected a method, getter, setter or operator declaration • lib/screens/parent/app_usage_screen.dart:592:20 • expected_executable
+  error • Expected a method, getter, setter or operator declaration • lib/screens/parent/app_usage_screen.dart:593:17 • expected_executable
+  error • Expected a method, getter, setter or operator declaration • lib/screens/parent/app_usage_screen.dart:593:18 • expected_executable
+  error • Expected a method, getter, setter or operator declaration • lib/screens/parent/app_usage_screen.dart:594:5 • expected_executable
+  error • Unexpected text ';' • lib/screens/parent/app_usage_screen.dart:594:6 • unexpected_token
+  error • Expected a method, getter, setter or operator declaration • lib/screens/parent/app_usage_screen.dart:595:3 • expected_executable
+  error • Expected a method, getter, setter or operator declaration • lib/screens/parent/app_usage_screen.dart:596:1 • expected_executable
+  error • Undefined class 'StreamSubscription' • lib/screens/parent/content_filter_screen.dart:31:3 • undefined_class
+  error • Undefined class 'StreamSubscription' • lib/screens/parent/content_filter_screen.dart:32:3 • undefined_class
+warning • Unused import: 'dart:math' • lib/screens/parent/live_location_screen.dart:18:8 • unused_import
+warning • Unused import: 'package:firebase_database/firebase_database.dart' • lib/screens/parent/live_location_screen.dart:20:8 • unused_import
+  error • The name 'ChangePasswordScreen' isn't a class • lib/screens/parent/parent_dashboard_screen.dart:246:47 • creation_with_non_type
+  error • The method 'AppInstallAlertsScreen' isn't defined for the type '_ChildCard' • lib/screens/parent/parent_dashboard_screen.dart:953:41 • undefined_method
+  error • Too many positional arguments: 3 expected, but 4 found • lib/services/alert_service.dart:70:64 • extra_positional_arguments
+  error • Undefined name '_knownPackages' • lib/services/background_monitoring_service.dart:236:3 • undefined_identifier
+  error • Undefined name '_knownPackages' • lib/services/background_monitoring_service.dart:238:47 • undefined_identifier
+  error • Undefined name '_watchdogRestarting' • lib/services/background_monitoring_service.dart:708:9 • undefined_identifier
+  error • Undefined name '_watchdogRestarting' • lib/services/background_monitoring_service.dart:723:11 • undefined_identifier
+  error • Undefined name '_watchdogRestarting' • lib/services/background_monitoring_service.dart:739:11 • undefined_identifier
+  error • Undefined name '_watchdogRestarting' • lib/services/background_monitoring_service.dart:746:7 • undefined_identifier
+  error • Undefined name 'startMs' • lib/services/notification_service.dart:180:26 • undefined_identifier
+
+75 issues found. (ran in 12.9s)
+
+ERROR: flutter analyze found errors. Fix them before building.
+
+
+Build failed :|
+Step 8 script `Flutter analyze` exited with status code 1
