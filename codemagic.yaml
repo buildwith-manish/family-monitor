@@ -14,8 +14,18 @@ workflows:
     environment:
       flutter: stable
       java: 17
-      groups:
-        - firebase_credentials   # Must contain: FIREBASE_TOKEN, FIREBASE_API_KEY, PARENT_FIREBASE_APP_ID, CHILD_FIREBASE_APP_ID
+      # ── How to set the required secrets ───────────────────────────────────────
+      # Do NOT use a variable group — add these four variables directly in:
+      #   Codemagic → Your app → Workflow settings → Environment variables
+      #
+      #   FIREBASE_API_KEY          — Firebase Web API key (Project Settings → General)
+      #   FIREBASE_TOKEN            — CI token from `firebase login:ci` (for App Distribution)
+      #   PARENT_FIREBASE_APP_ID    — Firebase App ID for the parent app  (Project Settings → Apps)
+      #   CHILD_FIREBASE_APP_ID     — Firebase App ID for the child app   (Project Settings → Apps)
+      #
+      # Mark all four as "Secret" so they are masked in logs.
+      # The build and APK steps work even without these variables.
+      # Only the "Distribute" step is skipped when FIREBASE_TOKEN is absent.
 
     cache:
       cache_paths:
@@ -24,9 +34,19 @@ workflows:
         - ~/.gradle/wrapper
 
     scripts:
+      # ── Write google-services.json ────────────────────────────────────────────
+      # Uses an unquoted heredoc (GSJSON without single quotes) so that
+      # $FIREBASE_API_KEY is substituted at runtime. With a quoted heredoc
+      # ('GSJSON') the literal string "$FIREBASE_API_KEY" would be written into
+      # the JSON — causing every Firebase call to fail with API_KEY_INVALID.
       - name: Write google-services.json
         script: |
-          cat > android/app/google-services.json << 'GSJSON'
+          # Fall back to a placeholder if the secret is not yet configured so
+          # the build can still proceed (Firebase SDK initialises from the
+          # embedded google-services.json; the API key is validated at runtime).
+          FIREBASE_API_KEY="${FIREBASE_API_KEY:-REPLACE_WITH_YOUR_API_KEY}"
+
+          cat > android/app/google-services.json << GSJSON
           {
             "project_info": {
               "project_number": "758644747673",
@@ -72,6 +92,11 @@ workflows:
             "configuration_version": "1"
           }
           GSJSON
+
+          echo "google-services.json written."
+          # Show the first key character only — confirms substitution without
+          # exposing the full key in the build log.
+          echo "API key prefix: $(cut -c1-6 <<< "$FIREBASE_API_KEY")..."
 
       - name: Get dependencies
         script: flutter pub get
@@ -274,20 +299,29 @@ workflows:
       # Uploads both APKs to Firebase App Distribution after a successful build.
       # Testers receive an email with a download link automatically.
       #
-      # SETUP REQUIRED (one-time):
-      #   1. In Firebase Console → Family Monitor project → App Distribution
-      #      → enable it for both the parent and child apps.
-      #   2. Run `firebase login:ci` locally, copy the token.
-      #   3. In Codemagic → Teams → Global variables → add a group called
-      #      "firebase_credentials" with variable FIREBASE_TOKEN = <your token>.
-      #   4. Replace PARENT_APP_ID and CHILD_APP_ID below with the actual
-      #      Firebase App IDs from the Firebase Console (Project Settings → Apps).
+      # SETUP REQUIRED (one-time, in Codemagic UI):
+      #   1. Firebase Console → Family Monitor project → App Distribution → Enable
+      #   2. Run `firebase login:ci` locally and copy the printed token
+      #   3. Codemagic → Your app → Workflow editor → Environment variables → Add:
+      #        FIREBASE_TOKEN         (mark as Secret)
+      #        PARENT_FIREBASE_APP_ID (from Firebase Console → Project Settings → Apps)
+      #        CHILD_FIREBASE_APP_ID  (from Firebase Console → Project Settings → Apps)
+      #   4. This step is automatically skipped if FIREBASE_TOKEN is not set,
+      #      so builds succeed even before the distribution credentials are ready.
       - name: Distribute to Firebase App Distribution
         script: |
-          # Firebase App IDs — set PARENT_FIREBASE_APP_ID and CHILD_FIREBASE_APP_ID
-          # in Codemagic → Teams → Environment variable groups → firebase_credentials
-          PARENT_APP_ID="${PARENT_FIREBASE_APP_ID}"
-          CHILD_APP_ID="${CHILD_FIREBASE_APP_ID}"
+          # Skip gracefully if credentials have not been configured yet.
+          if [ -z "${FIREBASE_TOKEN}" ]; then
+            echo "FIREBASE_TOKEN is not set — skipping App Distribution upload."
+            echo "Add FIREBASE_TOKEN, PARENT_FIREBASE_APP_ID, and CHILD_FIREBASE_APP_ID"
+            echo "as environment variables in Codemagic to enable automatic distribution."
+            exit 0
+          fi
+
+          if [ -z "${PARENT_FIREBASE_APP_ID}" ] || [ -z "${CHILD_FIREBASE_APP_ID}" ]; then
+            echo "PARENT_FIREBASE_APP_ID or CHILD_FIREBASE_APP_ID not set — skipping."
+            exit 0
+          fi
 
           GIT_SHORT_SHA=$(git rev-parse --short HEAD)
           GIT_MSG=$(git log -1 --pretty=format:"%s")
@@ -302,7 +336,7 @@ workflows:
           echo "Uploading Parent APK to Firebase App Distribution..."
           firebase appdistribution:distribute \
             build/app/outputs/flutter-apk/parent-release.apk \
-            --app "$PARENT_APP_ID" \
+            --app "$PARENT_FIREBASE_APP_ID" \
             --release-notes "$RELEASE_NOTES" \
             --groups "testers" \
             --token "$FIREBASE_TOKEN"
@@ -310,7 +344,7 @@ workflows:
           echo "Uploading Child APK to Firebase App Distribution..."
           firebase appdistribution:distribute \
             build/app/outputs/flutter-apk/child-release.apk \
-            --app "$CHILD_APP_ID" \
+            --app "$CHILD_FIREBASE_APP_ID" \
             --release-notes "$RELEASE_NOTES" \
             --groups "testers" \
             --token "$FIREBASE_TOKEN"
