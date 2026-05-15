@@ -299,27 +299,30 @@ workflows:
       # Uploads both APKs to Firebase App Distribution after a successful build.
       # Testers receive an email with a download link automatically.
       #
-      # SETUP REQUIRED (one-time, in Codemagic UI):
-      #   1. Firebase Console → Family Monitor project → App Distribution → Enable
-      #   2. Run `firebase login:ci` locally and copy the printed token
-      #   3. Codemagic → Your app → Workflow editor → Environment variables → Add:
-      #        FIREBASE_TOKEN         (mark as Secret)
-      #        PARENT_FIREBASE_APP_ID (from Firebase Console → Project Settings → Apps)
-      #        CHILD_FIREBASE_APP_ID  (from Firebase Console → Project Settings → Apps)
-      #   4. This step is automatically skipped if FIREBASE_TOKEN is not set,
-      #      so builds succeed even before the distribution credentials are ready.
+      # App IDs are hard-coded here (they are not secret — they are already
+      # present in google-services.json). These come from:
+      #   Firebase Console → family-monitor-7aab3 → Project Settings → Your apps
+      #
+      #   Parent app  →  com.example.family_monitor.parent
+      #   Child app   →  com.example.family_monitor.child
+      #
+      # ONLY ONE variable needs to be added in Codemagic UI:
+      #   Codemagic → Your app → Workflow editor → Environment variables → Add:
+      #     FIREBASE_TOKEN   (run `firebase login:ci` locally, paste the token, mark as Secret)
+      #
+      # This step is automatically skipped when FIREBASE_TOKEN is not set, so
+      # the APK build succeeds even before you configure distribution.
       - name: Distribute to Firebase App Distribution
         script: |
-          # Skip gracefully if credentials have not been configured yet.
+          # Hard-coded Firebase App IDs (not secret — already in google-services.json)
+          PARENT_APP_ID="1:758644747673:android:ea45b7a53b3f2f2e22f708"
+          CHILD_APP_ID="1:758644747673:android:32a2141244fb9c3222f708"
+
+          # Skip gracefully if FIREBASE_TOKEN has not been configured yet.
           if [ -z "${FIREBASE_TOKEN}" ]; then
             echo "FIREBASE_TOKEN is not set — skipping App Distribution upload."
-            echo "Add FIREBASE_TOKEN, PARENT_FIREBASE_APP_ID, and CHILD_FIREBASE_APP_ID"
-            echo "as environment variables in Codemagic to enable automatic distribution."
-            exit 0
-          fi
-
-          if [ -z "${PARENT_FIREBASE_APP_ID}" ] || [ -z "${CHILD_FIREBASE_APP_ID}" ]; then
-            echo "PARENT_FIREBASE_APP_ID or CHILD_FIREBASE_APP_ID not set — skipping."
+            echo "Add FIREBASE_TOKEN as a Secret environment variable in Codemagic"
+            echo "to enable automatic distribution to testers."
             exit 0
           fi
 
@@ -336,7 +339,7 @@ workflows:
           echo "Uploading Parent APK to Firebase App Distribution..."
           firebase appdistribution:distribute \
             build/app/outputs/flutter-apk/parent-release.apk \
-            --app "$PARENT_FIREBASE_APP_ID" \
+            --app "$PARENT_APP_ID" \
             --release-notes "$RELEASE_NOTES" \
             --groups "testers" \
             --token "$FIREBASE_TOKEN"
@@ -344,7 +347,7 @@ workflows:
           echo "Uploading Child APK to Firebase App Distribution..."
           firebase appdistribution:distribute \
             build/app/outputs/flutter-apk/child-release.apk \
-            --app "$CHILD_FIREBASE_APP_ID" \
+            --app "$CHILD_APP_ID" \
             --release-notes "$RELEASE_NOTES" \
             --groups "testers" \
             --token "$FIREBASE_TOKEN"
