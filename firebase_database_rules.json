@@ -197,6 +197,27 @@
         ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
         ".write": "auth != null && auth.uid === $childUid"
       }
+    },
+
+    "panic_alerts": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
+
+    "alert_settings": {
+      "$childUid": {
+        ".read":  "auth != null && (auth.uid === $childUid || root.child('users/' + auth.uid + '/children/' + $childUid).exists())",
+        ".write": "auth != null && (auth.uid === $childUid || root.child('users/' + auth.uid + '/children/' + $childUid).exists())"
+      }
+    },
+
+    "geofence_state": {
+      "$childUid": {
+        ".read":  "auth != null && (auth.uid === $childUid || root.child('users/' + auth.uid + '/children/' + $childUid).exists())",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
     }
   }
 }
