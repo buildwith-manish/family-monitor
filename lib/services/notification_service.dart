@@ -156,6 +156,10 @@ class NotificationService {
     final key = 'battery_$childUid';
     _subs[key]?.cancel();
 
+    // Capture session start time so alerts that existed BEFORE this session
+    // started are silently skipped (prevents notification spam on app open).
+    final startMs = DateTime.now().millisecondsSinceEpoch;
+
     // BUG-FIX: use the instance-level map instead of a local variable so the
     // set survives subscription re-creation on app resume.
     _seenBattery[childUid] ??= {};

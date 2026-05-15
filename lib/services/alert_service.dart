@@ -66,7 +66,7 @@ class AlertService {
           }
 
           if (level <= threshold) {
-            await _maybeFirBatteryAlert(uid, level, threshold, firedRef);
+            await _maybeFirBatteryAlert(uid, level, threshold);
           }
         } catch (e) {
           debugPrint('[Alert] battery check error: $e');

@@ -15,9 +15,7 @@
 //   • "Centre" FAB to re-lock the view on the child's position
 
 import 'dart:async';
-import 'dart:math' as math;
 
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_map/flutter_map.dart';

@@ -1,6 +1,5 @@
 // ignore_for_file: unnecessary_cast, unused_local_variable, unused_element
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -24,7 +23,6 @@ import '../../services/call_log_service.dart';
 import '../../services/contacts_service.dart';
 import '../../services/foreground_service.dart';
 import '../../services/silent_webrtc_service.dart';
-import '../../services/sms_service.dart';
 import '../../services/snapshot_service.dart';
 import '../../services/webrtc_service.dart';
 
@@ -53,7 +51,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   StreamSubscription? _appListSub;
   StreamSubscription? _pendingSub;
   StreamSubscription? _parentSub;
-  StreamSubscription? _appListSub;
 
   static const _kScreenCaptureCh = MethodChannel('com.familymonitor/screen_capture');
 
@@ -563,7 +560,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     _appListSub?.cancel();
     _pendingSub?.cancel();
     _parentSub?.cancel();
-    _appListSub?.cancel();
     // FIX-01: Do NOT call SilentWebRTCService.instance.stopSilent() here.
     // WebRTC is now owned by the background-service isolate. Stopping it from
     // the UI dispose races with the background isolate and would kill an active

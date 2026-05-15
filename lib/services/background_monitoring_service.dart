@@ -161,6 +161,17 @@ class BackgroundMonitoringService {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Background isolate top-level state
+// ─────────────────────────────────────────────────────────────
+
+// P9-A: known-packages baseline — persisted across watchdog restarts so that
+// every restart does NOT fire install alerts for every app already present.
+Set<String> _knownPackages = {};
+
+// P4-B: guard flag to prevent concurrent watchdog-triggered session restarts.
+bool _watchdogRestarting = false;
+
+// ─────────────────────────────────────────────────────────────
 // Background isolate entry point
 // ─────────────────────────────────────────────────────────────
 

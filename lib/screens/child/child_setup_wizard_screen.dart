@@ -498,6 +498,21 @@ class _ChildSetupWizardScreenState
     );
   }
 
+  /// Fetches existing pending parent requests for [uid] from Firebase so that
+  /// saving the child profile does not overwrite requests that arrived before
+  /// the profile save completes.
+  Future<Map<String, dynamic>> _existingRequests(String uid) async {
+    try {
+      final snap = await FirebaseDatabase.instance
+          .ref('users/$uid/pendingParentRequests')
+          .get();
+      if (snap.value is Map) {
+        return Map<String, dynamic>.from(snap.value as Map);
+      }
+    } catch (_) {}
+    return {};
+  }
+
   void _prev() {
     if (_currentPage > 0) {
       setState(() => _error = null);

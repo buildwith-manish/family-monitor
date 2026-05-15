@@ -21,6 +21,8 @@ import '../../services/device_event_service.dart';
 import 'crash_report_screen.dart';
 import 'daily_report_screen.dart';
 import 'live_location_screen.dart';
+import 'change_password_screen.dart';
+import 'app_install_alerts_screen.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});

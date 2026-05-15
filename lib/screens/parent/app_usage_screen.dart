@@ -437,162 +437,21 @@ class _AppUsageScreenState extends State<AppUsageScreen>
     ]);
   }
 
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: overLimit
-                                    ? const Color(0xFFEA4335)
-                                        .withValues(alpha: 0.4)
-                                    : Colors.grey.shade100,
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                Row(children: [
-                                  _AppIconWidget(
-                                    pkg: pkg,
-                                    name: name,
-                                    color: color,
-                                    iconUrl:
-                                        app['iconUrl'] as String?,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                      child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                        Text(name,
-                                            style: GoogleFonts.inter(
-                                                fontSize: 14,
-                                                fontWeight:
-                                                    FontWeight.w600)),
-                                        Text(pkg,
-                                            style: GoogleFonts.robotoMono(
-                                                fontSize: 10,
-                                                color: Colors.grey),
-                                            overflow:
-                                                TextOverflow.ellipsis),
-                                        const SizedBox(height: 6),
-                                        Stack(
-                                          children: [
-                                            LinearProgressIndicator(
-                                              value: fraction.clamp(0.0, 1.0),
-                                              backgroundColor:
-                                                  Colors.grey.shade100,
-                                              valueColor:
-                                                  AlwaysStoppedAnimation(
-                                                      overLimit
-                                                          ? const Color(0xFFEA4335)
-                                                          : color),
-                                              minHeight: 5,
-                                              borderRadius:
-                                                  BorderRadius.circular(3),
-                                            ),
-                                            if (limitFraction != null)
-                                              Positioned(
-                                                left: limitFraction *
-                                                    (MediaQuery.of(context)
-                                                            .size
-                                                            .width -
-                                                        160),
-                                                top: 0,
-                                                bottom: 0,
-                                                child: Container(
-                                                  width: 2,
-                                                  color: const Color(0xFFFF6D00),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ])),
-                                  const SizedBox(width: 12),
-                                  GestureDetector(
-                                    onTap: () => _showLimitDialog(
-                                        pkg, name, ms),
-                                    child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.end,
-                                        children: [
-                                          Text(
-                                              ms > 0
-                                                  ? _formatDuration(ms)
-                                                  : 'No data',
-                                              style: GoogleFonts.inter(
-                                                  fontSize: 13,
-                                                  fontWeight:
-                                                      FontWeight.w700,
-                                                  color: overLimit
-                                                      ? const Color(0xFFEA4335)
-                                                      : color)),
-                                          Text('today',
-                                              style: GoogleFonts.inter(
-                                                  fontSize: 10,
-                                                  color: Colors.grey)),
-                                          if (limitMin != null) ...[
-                                            const SizedBox(height: 2),
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 5,
-                                                      vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: overLimit
-                                                    ? const Color(0xFFFCE8E6)
-                                                    : const Color(0xFFFFF3E0),
-                                                borderRadius:
-                                                    BorderRadius.circular(4),
-                                              ),
-                                              child: Text(
-                                                '${limitMin}m limit',
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 9,
-                                                  fontWeight:
-                                                      FontWeight.w600,
-                                                  color: overLimit
-                                                      ? const Color(0xFFEA4335)
-                                                      : const Color(0xFFE65100),
-                                                ),
-                                              ),
-                                            ),
-                                          ] else
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 5,
-                                                      vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey.shade100,
-                                                borderRadius:
-                                                    BorderRadius.circular(4),
-                                              ),
-                                              child: Text(
-                                                'Set limit',
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 9,
-                                                  fontWeight:
-                                                      FontWeight.w600,
-                                                  color: Colors.grey,
-                                                ),
-                                              ),
-                                            ),
-                                        ]),
-                                  ),
-                                ]),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-    );
+  // ── Hours tab ─────────────────────────────────────────────────────────────
+
+  Widget _buildHoursTab() {
+    return HourlyHeatmapWidget(childUid: widget.childUid);
   }
+
+  // ── Categories tab ────────────────────────────────────────────────────────
+
+  Widget _buildCategoriesTab() {
+    return CategoryBreakdownWidget(apps: _apps);
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  String _formatDuration(int ms) => _fmt(ms);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
