@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -340,19 +341,12 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
                             child: Column(
                               children: [
                                 Row(children: [
-                                  Container(
-                                    width: 42,
-                                    height: 42,
-                                    decoration: BoxDecoration(
-                                        color: color.withValues(alpha: 0.12),
-                                        borderRadius:
-                                            BorderRadius.circular(10)),
-                                    child: Center(
-                                        child: Text(name[0],
-                                            style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w700,
-                                                color: color))),
+                                  _AppIconWidget(
+                                    pkg: pkg,
+                                    name: name,
+                                    color: color,
+                                    iconUrl:
+                                        app['iconUrl'] as String?,
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
@@ -487,4 +481,60 @@ class _AppUsageScreenState extends State<AppUsageScreen> {
                 ),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// App icon widget — real icon from Firebase Storage when present,
+// coloured letter avatar otherwise.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AppIconWidget extends StatelessWidget {
+  final String pkg;
+  final String name;
+  final Color color;
+  final String? iconUrl;
+
+  const _AppIconWidget({
+    required this.pkg,
+    required this.name,
+    required this.color,
+    required this.iconUrl,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (iconUrl != null && iconUrl!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: CachedNetworkImage(
+          imageUrl: iconUrl!,
+          width: 42,
+          height: 42,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => _letterAvatar(),
+          errorWidget: (_, __, ___) => _letterAvatar(),
+        ),
+      );
+    }
+    return _letterAvatar();
+  }
+
+  Widget _letterAvatar() => Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Center(
+          child: Text(
+            name.isNotEmpty ? name[0].toUpperCase() : '?',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ),
+      );
 }

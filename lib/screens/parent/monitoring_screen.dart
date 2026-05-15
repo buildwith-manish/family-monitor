@@ -30,8 +30,6 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
   bool _showControls = true;
   String _status = 'Connecting...';
   bool _isChildOnline = false;
-  String? _screenError;
-  StreamSubscription? _screenErrorSub;
   Timer? _timeout;
   Timer? _controlsTimer;
   StreamSubscription? _statusSub;
@@ -67,19 +65,6 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
   void _listenToPresence() {
     final db = FirebaseDatabase.instance.ref();
-
-    _screenErrorSub = db
-        .child('calls/${widget.childUid}/screenError')
-        .onValue
-        .listen((e) {
-      if (!mounted) return;
-      final msg = e.snapshot.value is String ? e.snapshot.value as String : null;
-      if (msg != null) {
-        setState(() {
-          _screenError = msg;
-        });
-      }
-    });
 
     _statusSub = db
         .child('calls/${widget.childUid}/status')
@@ -169,7 +154,6 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     _controlsTimer?.cancel();
     _statusSub?.cancel();
     _heartbeatSub?.cancel();
-    _screenErrorSub?.cancel();
     _webrtc.onRemoteStream = null;
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     // LC-02: Only send endCall from dispose if _endSession() was NOT already
@@ -206,32 +190,6 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
               objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
             ),
           ),
-
-          // Screen error banner
-          if (_screenError != null)
-            Positioned(
-              top: 80,
-              left: 16,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade800.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _screenError!,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ),
 
           // Waiting state
           if (!_hasStream)

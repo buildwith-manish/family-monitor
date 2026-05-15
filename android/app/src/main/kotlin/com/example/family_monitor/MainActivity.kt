@@ -227,6 +227,47 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                // Returns all user-launchable installed apps as:
+                // [{packageName, appName, iconBytes (PNG ByteArray or null)}]
+                // Icons are resized to 72×72 px JPEG at 85% quality to keep
+                // Firebase Storage upload size small (~2 KB each).
+                "getInstalledApps" -> {
+                    try {
+                        val pm = packageManager
+                        val apps = pm.getInstalledApplications(0)
+                        val list = mutableListOf<Map<String, Any?>>()
+                        for (app in apps) {
+                            val launchIntent = pm.getLaunchIntentForPackage(app.packageName)
+                                ?: continue
+                            val appName = pm.getApplicationLabel(app).toString()
+                            val iconBytes: ByteArray? = try {
+                                val drawable = pm.getApplicationIcon(app.packageName)
+                                val size = 72
+                                val bmp = android.graphics.Bitmap.createBitmap(
+                                    size, size, android.graphics.Bitmap.Config.ARGB_8888
+                                )
+                                val canvas = android.graphics.Canvas(bmp)
+                                drawable.setBounds(0, 0, size, size)
+                                drawable.draw(canvas)
+                                val out = java.io.ByteArrayOutputStream()
+                                bmp.compress(
+                                    android.graphics.Bitmap.CompressFormat.JPEG, 85, out
+                                )
+                                bmp.recycle()
+                                out.toByteArray()
+                            } catch (_: Exception) { null }
+                            list.add(mapOf(
+                                "packageName" to app.packageName,
+                                "appName"     to appName,
+                                "iconBytes"   to iconBytes
+                            ))
+                        }
+                        result.success(list)
+                    } catch (e: Exception) {
+                        result.error("APP_LIST_ERROR", e.message, null)
+                    }
+                }
+
                 "readCallLog" -> {
                     try {
                         val cursor = contentResolver.query(

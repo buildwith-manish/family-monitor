@@ -22,6 +22,7 @@ import 'sms_call_log_screen.dart';
 import '../../services/device_event_service.dart';
 import 'crash_report_screen.dart';
 import 'daily_report_screen.dart';
+import 'live_location_screen.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});
@@ -926,9 +927,29 @@ class _ChildCard extends StatelessWidget {
                 const SizedBox(height: 8),
 
                 _FeatureRow(
+                  icon: Icons.map_outlined,
+                  label: 'Live Location Map',
+                  subtitle: 'Real-time GPS map with geofence overlays',
+                  color: const Color(0xFF6C3CE1),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LiveLocationScreen(
+                          childUid: childUid,
+                          childName:
+                              childData['childName'] as String? ?? name,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                _FeatureRow(
                   icon: Icons.location_on_outlined,
-                  label: 'Location & Geofences',
-                  subtitle: 'Track location, set safe zones, get breach alerts',
+                  label: 'Geofences & Alerts',
+                  subtitle: 'Set safe zones and get breach alerts',
                   color: const Color(0xFF00897B),
                   onTap: () {
                     Navigator.pop(context);

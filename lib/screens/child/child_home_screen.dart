@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -47,6 +49,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   StreamSubscription? _contactsSub;
   StreamSubscription? _pendingSub;
   StreamSubscription? _parentSub;
+  StreamSubscription? _appListSub;
 
   bool _locked = false;
   String? _childName;
@@ -370,6 +373,23 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
       }
     });
 
+    // Listen for syncAppList command from parent
+    _appListSub?.cancel();
+    _appListSub = FirebaseDatabase.instance
+        .ref('commands/$uid/syncAppList/requested')
+        .onValue
+        .listen((event) async {
+      if (event.snapshot.value == true) {
+        // Immediately clear the flag so rapid parent refreshes don't queue up
+        unawaited(
+          FirebaseDatabase.instance
+              .ref('commands/$uid/syncAppList/requested')
+              .set(false),
+        );
+        unawaited(_handleSyncAppList(uid));
+      }
+    });
+
     // Listen ONLY to calls/$uid/status — not the entire calls/$uid node.
     // Listening to the whole node caused _autoStartStreaming() to fire on
     // every ICE-candidate push / answer write / heartbeat update because
@@ -406,6 +426,90 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     });
   }
 
+  // ── syncAppList handler ──────────────────────────────────────────────────
+  // Called when the parent taps "Refresh" in App Usage & Screen Time.
+  // 1. Invokes the native getInstalledApps MethodChannel (MainActivity.kt)
+  // 2. For each app, uploads the 72×72 JPEG icon to Firebase Storage under
+  //    app_icons/{packageName}.jpg — skips the upload if the file is already
+  //    there (checks via getDownloadURL; on exception = file missing).
+  // 3. Writes a merged record to  appList/$uid/{safeKey}  so the parent screen
+  //    has the app name, current usage time, and icon URL in one node.
+  Future<void> _handleSyncAppList(String uid) async {
+    const ch = MethodChannel('com.familymonitor/screen_capture');
+    try {
+      final dynamic raw = await ch.invokeMethod('getInstalledApps');
+      if (raw == null) return;
+      final apps = (raw as List).cast<Map>();
+
+      final db      = FirebaseDatabase.instance.ref();
+      final storage = FirebaseStorage.instance;
+
+      // Read existing usage data so we can preserve totalTimeMs
+      final usageSnap = await db.child('app_usage/$uid/daily').get();
+      final usageData = usageSnap.value is Map
+          ? Map<String, dynamic>.from(usageSnap.value as Map)
+          : <String, dynamic>{};
+
+      final batch = <String, dynamic>{};
+
+      for (final app in apps) {
+        final pkg       = (app['packageName'] as String?) ?? '';
+        final appName   = (app['appName']     as String?) ?? pkg;
+        final iconBytes = app['iconBytes'];
+        if (pkg.isEmpty) continue;
+
+        final safeKey = pkg.replaceAll('.', '_');
+
+        // Resolve existing usage time from live daily snapshot
+        final usageEntry = usageData[safeKey];
+        int totalTimeMs = 0;
+        if (usageEntry is Map) {
+          totalTimeMs =
+              (usageEntry['usedMs'] as num?)?.toInt() ?? 0;
+        }
+
+        // Upload icon to Firebase Storage (skip if already uploaded)
+        String? iconUrl;
+        if (iconBytes is Uint8List && iconBytes.isNotEmpty) {
+          final ref = storage.ref('app_icons/$pkg.jpg');
+          try {
+            // Check if file already exists — getDownloadURL throws if not
+            iconUrl = await ref.getDownloadURL();
+          } catch (_) {
+            // File not yet uploaded — upload now
+            try {
+              await ref.putData(
+                iconBytes,
+                SettableMetadata(contentType: 'image/jpeg'),
+              );
+              iconUrl = await ref.getDownloadURL();
+            } catch (e) {
+              debugPrint('[SyncAppList] Icon upload failed for $pkg: $e');
+            }
+          }
+        }
+
+        final entry = <String, dynamic>{
+          'packageName': pkg,
+          'appName':     appName,
+          'totalTimeMs': totalTimeMs,
+          'updatedAt':   DateTime.now().millisecondsSinceEpoch,
+        };
+        if (iconUrl != null) entry['iconUrl'] = iconUrl;
+        batch[safeKey] = entry;
+      }
+
+      if (batch.isNotEmpty) {
+        await db.child('appList/$uid').update(batch);
+        debugPrint('[SyncAppList] Synced ${batch.length} apps for $uid');
+      }
+    } on PlatformException catch (e) {
+      debugPrint('[SyncAppList] MethodChannel error: ${e.message}');
+    } catch (e) {
+      debugPrint('[SyncAppList] Error: $e');
+    }
+  }
+
   void _autoStartStreaming(String uid, StreamMode mode) {
     if (mode == StreamMode.screen) {
       SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {});
@@ -427,6 +531,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     _contactsSub?.cancel();
     _pendingSub?.cancel();
     _parentSub?.cancel();
+    _appListSub?.cancel();
     // FIX-01: Do NOT call SilentWebRTCService.instance.stopSilent() here.
     // WebRTC is now owned by the background-service isolate. Stopping it from
     // the UI dispose races with the background isolate and would kill an active
