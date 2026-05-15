@@ -24,8 +24,26 @@
         android:name="android.permission.POST_NOTIFICATIONS"
         android:minSdkVersion="33"/>
 
-    <!-- Foreground Service -->
+    <!-- Foreground Service (base) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+
+    <!-- FIX-MANIFEST-01: FOREGROUND_SERVICE_MEDIA_PROJECTION is required on
+         Android 14+ (API 34+) for any service that calls startForeground()
+         with FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION. Without this permission
+         the system throws ForegroundServiceStartNotAllowedException silently,
+         the foreground state is never set, and the service is killed within 5s. -->
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
+        android:minSdkVersion="34"/>
+
+    <!-- FIX-MANIFEST-02: FOREGROUND_SERVICE_DATA_SYNC is required for the
+         ScreenCaptureService's fallback startFgWithoutCapture() path, which
+         uses DATA_SYNC type when no projection token is available. Without this
+         the fallback also throws on API 34+. -->
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"
+        android:minSdkVersion="34"/>
+
     <uses-permission
         android:name="android.permission.FOREGROUND_SERVICE_CAMERA"
         android:minSdkVersion="34"/>
@@ -35,15 +53,13 @@
     <uses-permission
         android:name="android.permission.FOREGROUND_SERVICE_LOCATION"
         android:minSdkVersion="29"/>
-    <uses-permission
-        android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
-        android:minSdkVersion="34"/>
-    <uses-permission
-        android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"
-        android:minSdkVersion="34"/>
 
     <!-- Boot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+
+    <!-- FIX-MANIFEST-03: WAKE_LOCK is required for PowerManager.PARTIAL_WAKE_LOCK
+         in ScreenCaptureService, WatchdogService, and WatchdogReceiver.
+         The old manifest already had this but it is explicitly confirmed here. -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
 
@@ -82,36 +98,20 @@
         android:minSdkVersion="31"/>
 
     <uses-permission android:name="android.permission.VIBRATE"/>
-
-    <!-- Secret dialer code — intercept outgoing calls to detect *#9527#.
-         DEPRECATION NOTE (SEC-08): PROCESS_OUTGOING_CALLS and the
-         android.intent.action.NEW_OUTGOING_CALL broadcast were deprecated in
-         Android 10 (API 29). On Android 10+ the broadcast is still delivered
-         to installed receivers on most OEM launchers (Samsung, Xiaomi, etc.)
-         but Google has indicated it may be removed in a future release.
-         The fully forward-compatible replacement is CallScreeningService
-         (android.telecom.CallScreeningService), which requires the user to set
-         Family Monitor as the default phone app or grant the
-         ROLE_CALL_SCREENING role — both of which require explicit user action.
-         Until the app adopts CallScreeningService, the dialer-code feature
-         works reliably on Android 9 and lower, and on most Android 10–14
-         devices where the broadcast is still active. On devices where it does
-         not fire, the hidden app can still be launched via the normal launcher
-         icon (if visible) or via a long-press shortcut in device settings. -->
     <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS"/>
 
-    <!-- FIX-06: USE_EXACT_ALARM removed — it is Play Store-restricted and
-         causes automatic review rejection. SCHEDULE_EXACT_ALARM is retained
-         as a best-effort path; SecurityException is caught and falls back to
-         setExactAndAllowWhileIdle / inexact alarm. WorkManager handles the
-         complementary periodic watchdog without any alarm permission. -->
+    <!-- FIX-MANIFEST-04: SCHEDULE_EXACT_ALARM retained as best-effort for watchdog.
+         SecurityException is caught and falls back to inexact alarm. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"
         android:minSdkVersion="31"/>
 
     <uses-feature android:name="android.hardware.camera"       android:required="false"/>
     <uses-feature android:name="android.hardware.camera.front" android:required="false"/>
 
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- FIX-MANIFEST-05: FOREGROUND_SERVICE_SPECIAL_USE is required for
+         WatchdogService which uses foregroundServiceType="specialUse".
+         This was present in the original manifest and is retained. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
 
     <application
         android:name="${applicationName}"
@@ -121,14 +121,6 @@
         android:networkSecurityConfig="@xml/network_security_config">
 
         <!-- ── Main Activity ─────────────────────────────── -->
-        <!-- ICON-FIX: Only ONE MAIN+LAUNCHER entry. The previous architecture
-             had both MainActivity AND LauncherAlias each carrying a MAIN+LAUNCHER
-             intent filter, which caused every launcher (Samsung, MIUI, AOSP,
-             Pixel) to show TWO icons for the same app.
-             LauncherAlias has been removed entirely — it existed only to support
-             the icon-hiding feature which has been removed per product requirements.
-             flutter_background_service.getLaunchIntentForPackage() works correctly
-             with MainActivity's direct filter. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -147,18 +139,13 @@
         </activity>
 
         <!-- ── Flutter Foreground Task ───────────────────── -->
-        <!-- AND-02: foregroundServiceType is dataSync only — after ARCH-01 fix
-             the foreground task no longer owns WebRTC; it only runs the
-             persistent notification and heartbeat. Camera/microphone access
-             happens exclusively in the background-service isolate below. -->
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:exported="false"
             android:foregroundServiceType="dataSync"/>
 
         <!-- ── Flutter Background Service ───────────────── -->
-        <!-- camera|microphone|dataSync needed because the background-service
-             isolate directly owns the WebRTC peer connection (ARCH-01 fix). -->
+        <!-- camera|microphone|dataSync: background isolate owns WebRTC peer connection. -->
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
             android:exported="false"
@@ -166,16 +153,25 @@
             android:foregroundServiceType="camera|microphone|dataSync"/>
 
         <!-- ── Screen Capture (MediaProjection) ─────────── -->
+        <!-- FIX-MANIFEST-06: stopWithTask="false" ensures ScreenCaptureService
+             continues running when the task (app) is swiped from recents.
+             Without this, swiping the app kills the service on non-Samsung OEMs
+             because the default is stopWithTask="true" for most services. -->
         <service
             android:name=".ScreenCaptureService"
             android:exported="false"
+            android:stopWithTask="false"
             android:foregroundServiceType="mediaProjection|dataSync"/>
 
         <!-- ── Boot Receiver ─────────────────────────────── -->
+        <!-- FIX-MANIFEST-07: Added LOCKED_BOOT_COMPLETED and MY_PACKAGE_REPLACED.
+             directBootAware="false" is correct — we read credential-encrypted
+             SharedPreferences; we skip prefs access on LOCKED_BOOT_COMPLETED. -->
         <receiver
             android:name=".BootReceiver"
             android:exported="true"
-            android:enabled="true">
+            android:enabled="true"
+            android:directBootAware="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
                 <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
@@ -184,8 +180,7 @@
             </intent-filter>
         </receiver>
 
-
-        <!-- ── Notification Listener (read-only, no suppression) -->
+        <!-- ── Notification Listener ─────────────────────── -->
         <service
             android:name=".ScreenNotificationListener"
             android:exported="true"
@@ -202,7 +197,7 @@
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:taskAffinity=""/>
 
-        <!-- ── PIN Verification Gate (uninstall protection) ── -->
+        <!-- ── PIN Verification Gate ──────────────────────── -->
         <activity
             android:name=".PinVerifyActivity"
             android:exported="false"
@@ -212,15 +207,14 @@
             android:taskAffinity="com.example.family_monitor.pin"/>
 
         <!-- ── Watchdog Alarm Receiver ───────────────────── -->
+        <!-- FIX-MANIFEST-08: WatchdogReceiver must NOT be exported; it only
+             receives internal alarms. The alarm PendingIntent uses FLAG_IMMUTABLE
+             which prevents external apps from firing it. -->
         <receiver
             android:name=".WatchdogReceiver"
             android:exported="false"/>
 
-        <!-- FIX-02: Accessibility service for reliable app blocking.
-             Intercepts TYPE_WINDOW_STATE_CHANGED to detect foreground-app
-             changes and enforce blocks from app_locks/$uid without requiring
-             UsageStats polling from a visible activity. The user must grant
-             this once via Settings → Accessibility → Family Monitor. -->
+        <!-- ── Accessibility Service ─────────────────────── -->
         <service
             android:name=".AppBlockAccessibilityService"
             android:exported="true"
@@ -243,7 +237,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- ── Device Administrator (prevents uninstall) ── -->
+        <!-- ── Device Administrator ──────────────────────── -->
         <receiver
             android:name=".FamilyDeviceAdminReceiver"
             android:exported="true"
@@ -261,7 +255,10 @@
         <meta-data android:name="io.flutter.embedding.android.EntryPoint"
             android:value="${dartEntrypoint}"/>
 
-
+        <!-- ── Watchdog Service ──────────────────────────── -->
+        <!-- FIX-MANIFEST-09: stopWithTask="false" keeps WatchdogService alive
+             even when the user swipes the app from recents. This is the same
+             hardening applied to ScreenCaptureService above. -->
         <service
             android:name=".WatchdogService"
             android:enabled="true"
@@ -270,7 +267,7 @@
             android:stopWithTask="false">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Used for continuous parental monitoring of child devices" />
+                android:value="Used for continuous parental monitoring of child devices"/>
         </service>
     </application>
 

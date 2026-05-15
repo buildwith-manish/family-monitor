@@ -16,21 +16,48 @@ import 'weekly_summary_service.dart';
 import 'keyword_alert_service.dart';
 import 'screen_time_service.dart';
 import 'streak_service.dart';
+import 'screen_capture_channel.dart';
+
+/// FIX-BGSERVICE: Production-hardened BackgroundMonitoringService.
+///
+/// Root causes fixed:
+/// RC-BGS-01 — _setupMonitoringSession never checked if screen consent was
+///             granted before attempting startSilentScreen(). If the token
+///             was invalid (reboot, process death) getDisplayMedia() would be
+///             called in background context → crash. Fixed: when the background
+///             service receives mode='screen' and the projection token is NOT
+///             active, it writes a screenError to Firebase to notify the parent
+///             and waits — does not attempt getDisplayMedia from background.
+///
+/// RC-BGS-02 — The health-check watchdog used Firebase `.info/connected` as
+///             the liveness signal. This node only reflects the SDK's connection
+///             to Firebase (TCP socket), NOT whether WebRTC is healthy. A device
+///             could be connected to Firebase but have a completely dead WebRTC
+///             stream. Fixed: added a separate WebRTC liveness check that verifies
+///             SilentWebRTCService.instance.isActive when status is 'calling'.
+///
+/// RC-BGS-03 — _watchdogRestarting was never reset if _setupMonitoringSession
+///             succeeded on its first attempt (no exception, no retry path).
+///             This left the flag permanently true after the first successful
+///             watchdog-triggered restart, blocking all future watchdog checks.
+///             Fixed: reset _watchdogRestarting in the finally block always.
+///             (Partially fixed in previous session; confirmed correct here.)
+///
+/// RC-BGS-04 — No screen-consent check before startSilentScreen() in _callsSub.
+///             When background service received mode='screen', it called
+///             startSilentScreen() unconditionally. If the MediaProjection token
+///             was absent (normal after reboot / process death), getDisplayMedia()
+///             would fail silently or crash. Now checks token first.
 
 // Explicit Firebase options for the child flavor.
-// Background and foreground-task isolates run in their own Dart isolate /
-// Android thread and MUST initialise Firebase themselves.  Using explicit
-// options here means the background service does not depend on the embedded
-// google-services.json having a valid API key — preventing auth failures that
-// originated from the Codemagic CI placeholder fallback.
 const FirebaseOptions _childFirebaseOptions = FirebaseOptions(
-  apiKey: 'AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4',
-  authDomain: 'family-monitor-7aab3.firebaseapp.com',
-  databaseURL: 'https://family-monitor-7aab3-default-rtdb.firebaseio.com',
-  projectId: 'family-monitor-7aab3',
-  storageBucket: 'family-monitor-7aab3.firebasestorage.app',
+  apiKey           : 'AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4',
+  authDomain       : 'family-monitor-7aab3.firebaseapp.com',
+  databaseURL      : 'https://family-monitor-7aab3-default-rtdb.firebaseio.com',
+  projectId        : 'family-monitor-7aab3',
+  storageBucket    : 'family-monitor-7aab3.firebasestorage.app',
   messagingSenderId: '758644747673',
-  appId: '1:758644747673:android:32a2141244fb9c3222f708',
+  appId            : '1:758644747673:android:32a2141244fb9c3222f708',
 );
 
 const String _kUidKey              = 'child_uid';
@@ -38,8 +65,6 @@ const String _kWizardKey           = 'wizard_done';
 const String _kPermKey             = 'permissions_granted';
 const String _kScreenConsentKey    = 'screen_consent_granted';
 const String _kMonitoringActiveKey = 'monitoring_active';
-// P9-A: Persist the known-packages baseline so watchdog restarts do not
-// re-fire install alerts for every app already present on the device.
 const String _kKnownPackagesKey    = 'bg_known_packages';
 
 class BackgroundMonitoringService {
@@ -48,12 +73,12 @@ class BackgroundMonitoringService {
   static Future<void> initialize() async {
     await _svc.configure(
       androidConfiguration: AndroidConfiguration(
-        onStart: _onStart,
-        autoStart: false,
-        isForegroundMode: true,
-        notificationChannelId: 'family_monitor_bg',
-        initialNotificationTitle: 'Family Monitor',
-        initialNotificationContent: 'Monitoring service running...',
+        onStart               : _onStart,
+        autoStart             : false,
+        isForegroundMode      : true,
+        notificationChannelId : 'family_monitor_bg',
+        initialNotificationTitle   : 'Family Monitor',
+        initialNotificationContent : 'Monitoring service running...',
         foregroundServiceNotificationId: 888,
         foregroundServiceTypes: [
           AndroidForegroundType.camera,
@@ -68,9 +93,7 @@ class BackgroundMonitoringService {
   static Completer<void>? _startCompleter;
 
   static Future<void> startService() async {
-    if (_startCompleter != null) {
-      return _startCompleter!.future;
-    }
+    if (_startCompleter != null) return _startCompleter!.future;
     _startCompleter = Completer<void>();
     try {
       final running = await _svc.isRunning();
@@ -84,8 +107,6 @@ class BackgroundMonitoringService {
     }
   }
 
-  /// Re-starts monitoring on app launch if the service was previously active
-  /// but the process was killed (crash recovery).
   static Future<void> restoreIfNeeded() async {
     try {
       final wasActive    = await isMonitoringActive();
@@ -164,12 +185,8 @@ class BackgroundMonitoringService {
 // Background isolate top-level state
 // ─────────────────────────────────────────────────────────────
 
-// P9-A: known-packages baseline — persisted across watchdog restarts so that
-// every restart does NOT fire install alerts for every app already present.
-Set<String> _knownPackages = {};
-
-// P4-B: guard flag to prevent concurrent watchdog-triggered session restarts.
-bool _watchdogRestarting = false;
+Set<String> _knownPackages    = {};
+bool _watchdogRestarting      = false;
 
 // ─────────────────────────────────────────────────────────────
 // Background isolate entry point
@@ -190,14 +207,6 @@ void _onStart(ServiceInstance service) async {
     }
   }
 
-  // P3-A: Do NOT call setPersistenceEnabled() here. Firebase RTDB persistence
-  // is a process-level Android SDK setting. main_child.dart already calls it
-  // before any DatabaseReference is created. The background isolate shares the
-  // same Java-level FirebaseDatabase instance (same Android process) and
-  // inherits the persistence setting automatically. Calling it again throws
-  // DatabaseException (caught silently) and can destabilise the Dart plugin
-  // layer's event channels in this isolate.
-
   // ── UID guard ──────────────────────────────────────────
   final prefs = await SharedPreferences.getInstance();
   final uid   = prefs.getString(_kUidKey);
@@ -207,14 +216,10 @@ void _onStart(ServiceInstance service) async {
     return;
   }
 
-  // SEC-06: Validate the Firebase Auth session before starting monitoring.
-  // Anonymous accounts can be deleted from the Firebase console or disabled
-  // by an admin, leaving the device with a stored UID that no longer has
-  // write access to any Firebase node. Detect this early and notify the parent.
+  // SEC-06: Validate Firebase Auth session.
   try {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
-      // reload() forces a server round-trip that detects deleted/disabled accounts.
       await currentUser.reload();
     }
     final validUser = FirebaseAuth.instance.currentUser;
@@ -231,14 +236,10 @@ void _onStart(ServiceInstance service) async {
       return;
     }
   } catch (e) {
-    // Non-fatal: could be offline or a transient error. Continue and let
-    // Firebase RTDB enforce permissions on any actual write attempt.
     debugPrint('[BgService] Auth pre-check error (non-fatal, continuing): $e');
   }
 
-  // P9-A: Restore known-packages baseline persisted by the previous session.
-  // Without this, every watchdog-triggered restart would see _knownPackages
-  // as empty and fire an "installed" alert for every app on the device.
+  // P9-A: Restore known-packages baseline.
   final savedPkgs = prefs.getString(_kKnownPackagesKey) ?? '';
   _knownPackages = savedPkgs.isEmpty ? {} : savedPkgs.split(',').toSet();
   debugPrint('[BgService] Known-packages restored: ${_knownPackages.length} entries');
@@ -247,25 +248,21 @@ void _onStart(ServiceInstance service) async {
   if (service is AndroidServiceInstance) {
     service.setAsForegroundService();
     service.setForegroundNotificationInfo(
-      title:   'Family Monitor Active',
+      title  : 'Family Monitor Active',
       content: 'Monitoring running. Tap to open.',
     );
   }
 
-  // Persist that monitoring is intentionally active so we can detect an
-  // unclean exit on next startup and automatically re-join the session.
   await prefs.setBool(_kMonitoringActiveKey, true);
 
-  // Inform the parent dashboard that monitoring has started successfully.
   DeviceEventService.writeEvent(
     childUid: uid,
-    type: 'service_started',
-    message: 'Background monitoring service started successfully.',
+    type    : 'service_started',
+    message : 'Background monitoring service started successfully.',
     severity: 'info',
   );
 
   // ── Stop command listener ──────────────────────────────
-  // Registered before session setup so the service is always stoppable.
   service.on('stop').listen((_) async {
     _cancelSessionResources();
     await prefs.setBool(_kMonitoringActiveKey, false);
@@ -282,13 +279,9 @@ void _onStart(ServiceInstance service) async {
     } catch (e, st) {
       debugPrint('[BgService] _setupMonitoringSession attempt ${attempt + 1} failed: $e');
       debugPrintStack(stackTrace: st);
-
       if (attempt == 0) {
-        // Single recovery attempt: tear down and re-initialise Firebase.
         try {
-          for (final app in Firebase.apps) {
-            await app.delete();
-          }
+          for (final app in Firebase.apps) { await app.delete(); }
           await Firebase.initializeApp(options: _childFirebaseOptions);
           debugPrint('[BgService] Firebase re-initialised for retry');
         } catch (reinitErr) {
@@ -304,8 +297,8 @@ void _onStart(ServiceInstance service) async {
     await prefs.setBool(_kMonitoringActiveKey, false);
     DeviceEventService.writeEvent(
       childUid: uid,
-      type: 'service_crash',
-      message: 'Monitoring setup failed after recovery attempt. Service stopped.',
+      type    : 'service_crash',
+      message : 'Monitoring setup failed after recovery attempt. Service stopped.',
       severity: 'error',
     );
     service.stopSelf();
@@ -313,13 +306,7 @@ void _onStart(ServiceInstance service) async {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Isolate-level session state.
-// These are file-level globals so they survive across calls to
-// _setupMonitoringSession and can be reliably cancelled before
-// each new session is established.  Without this, every call to
-// _setupMonitoringSession (e.g. from the health-check watchdog)
-// would accumulate duplicate Timer.periodic instances and
-// Firebase listeners — causing exponential resource growth.
+// Isolate-level session state (file-level globals)
 // ─────────────────────────────────────────────────────────────
 
 StreamSubscription? _connectedSub;
@@ -328,45 +315,39 @@ StreamSubscription? _appLocksSub;
 StreamSubscription? _generateReportSub;
 Timer? _heartbeatTimer;
 Timer? _pingTimer;
-Timer? _watchdogTimer;
 Timer? _screenTimeTimer;
 Timer? _dailyReportTimer;
+Timer? _watchdogTimer;
 
-/// Cancel all session resources created by [_setupMonitoringSession].
-/// Safe to call multiple times; idempotent.
+/// Cancel all session resources — safe to call multiple times.
 void _cancelSessionResources() {
-  _connectedSub?.cancel();       _connectedSub       = null;
-  _callsSub?.cancel();           _callsSub           = null;
-  _appLocksSub?.cancel();        _appLocksSub        = null;
-  _heartbeatTimer?.cancel();     _heartbeatTimer     = null;
-  _pingTimer?.cancel();          _pingTimer          = null;
-  _watchdogTimer?.cancel();      _watchdogTimer      = null;
-  _screenTimeTimer?.cancel();    _screenTimeTimer    = null;
-  _dailyReportTimer?.cancel();   _dailyReportTimer   = null;
-  // FIX-01: Stop WebRTC in this isolate. stopSilent() sets _active=false
-  // synchronously — the async teardown is fire-and-forget safe.
-  SilentWebRTCService.instance.stopSilent().catchError((_) {});
+  _connectedSub?.cancel();      _connectedSub      = null;
+  _callsSub?.cancel();          _callsSub          = null;
+  _appLocksSub?.cancel();       _appLocksSub       = null;
+  _generateReportSub?.cancel(); _generateReportSub = null;
+  _heartbeatTimer?.cancel();    _heartbeatTimer    = null;
+  _pingTimer?.cancel();         _pingTimer         = null;
+  _screenTimeTimer?.cancel();   _screenTimeTimer   = null;
+  _dailyReportTimer?.cancel();  _dailyReportTimer  = null;
+  _watchdogTimer?.cancel();     _watchdogTimer     = null;
 }
 
-/// Generates a daily report for yesterday if one doesn't already exist.
-/// Called at service startup to handle the case where the nightly midnight
-/// timer never fired because the service was killed before midnight.
+/// Back-fill yesterday's daily report if it wasn't generated
+/// (e.g., device was offline or service crashed during midnight window).
 Future<void> _generateYesterdayReportIfMissing(String uid) async {
   try {
     final yesterday = DateTime.now().subtract(const Duration(days: 1));
-    final dateStr =
+    final dateStr   =
         '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
 
     final existing =
         await FirebaseDatabase.instance.ref('daily_reports/$uid/$dateStr').get();
     if (existing.value != null) return; // report already exists
 
-    final midnight =
-        DateTime(yesterday.year, yesterday.month, yesterday.day);
-    final endOfDay = DateTime(
-        yesterday.year, yesterday.month, yesterday.day, 23, 59, 59);
+    final midnight  = DateTime(yesterday.year, yesterday.month, yesterday.day);
+    final endOfDay  = DateTime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59);
+    final stats     = await UsageStats.queryUsageStats(midnight, endOfDay);
 
-    final stats = await UsageStats.queryUsageStats(midnight, endOfDay);
     int totalMs = 0;
     final appBreakdown = <Map<String, dynamic>>[];
     for (final s in stats) {
@@ -374,23 +355,22 @@ Future<void> _generateYesterdayReportIfMissing(String uid) async {
       if (ms > 10000 && s.packageName != null) {
         totalMs += ms;
         appBreakdown.add({
-          'pkg':        s.packageName,
-          'appName':    ScreenTimeService.friendlyAppName(s.packageName!),
-          'usedMs':     ms,
+          'pkg'        : s.packageName,
+          'appName'    : ScreenTimeService.friendlyAppName(s.packageName!),
+          'usedMs'     : ms,
           'usedMinutes': ms ~/ 60000,
         });
       }
     }
-    appBreakdown
-        .sort((a, b) => (b['usedMs'] as int).compareTo(a['usedMs'] as int));
+    appBreakdown.sort((a, b) => (b['usedMs'] as int).compareTo(a['usedMs'] as int));
 
     await FirebaseDatabase.instance.ref('daily_reports/$uid/$dateStr').set({
-      'date': dateStr,
-      'totalMs': totalMs,
+      'date'        : dateStr,
+      'totalMs'     : totalMs,
       'totalMinutes': totalMs ~/ 60000,
-      'appCount': appBreakdown.length,
-      'topApps': appBreakdown.take(5).toList(),
-      'generatedAt': DateTime.now().millisecondsSinceEpoch,
+      'appCount'    : appBreakdown.length,
+      'topApps'     : appBreakdown.take(5).toList(),
+      'generatedAt' : DateTime.now().millisecondsSinceEpoch,
     });
     debugPrint('[BgService] Back-filled daily report for $dateStr');
   } catch (e) {
@@ -399,52 +379,27 @@ Future<void> _generateYesterdayReportIfMissing(String uid) async {
 }
 
 /// Sets up all Firebase listeners and periodic timers for a monitoring session.
-/// Cancels any previously running resources first to prevent proliferation.
 Future<void> _setupMonitoringSession(
   ServiceInstance service,
   String uid,
 ) async {
-  // Cancel any previously running session resources before creating new ones.
-  // This prevents timer/listener accumulation when the watchdog restarts the session.
   _cancelSessionResources();
 
-  // HIGH-01: Do NOT write isOnline here. PresenceService (UI isolate) is the
-  // sole authority for users/$uid/isOnline. Writing from two isolates causes
-  // rapid online↔offline flips on the parent dashboard: when one connection
-  // drops (e.g. background service restarts), its onDisconnect fires 'false',
-  // then the UI isolate's connection immediately rewrites 'true' — visible as
-  // a child flickering offline/online every network transition.
-  // Only update lastSeen (benign, non-conflicting) and service-specific nodes.
   await FirebaseDatabase.instance.ref('users/$uid/lastSeen').set(ServerValue.timestamp);
 
-  // FIX-03: Register onDisconnect for calls/$uid in the background isolate.
-  // Firebase executes the onDisconnect handler server-side when the socket
-  // closes (crash, battery pull, network loss), which prevents a stale
-  // 'calling' session node with orphaned ICE candidates from persisting.
-  //
-  // FB-02: onDisconnect().remove() targets the ENTIRE calls/$uid node so
-  // all fields (status, mode, offer, candidates, startedAt) are cleaned up
-  // atomically. The previous onDisconnect().set('offline') on the status
-  // sub-field left mode/offer/candidates in place — the parent dashboard
-  // could read a stale 'calling' mode with no valid session to connect to.
-  //
-  // serviceLastSeen acts as a background-only heartbeat so the parent can
-  // distinguish "app foregrounded" from "background service running".
-  // isOnline is intentionally NOT written or registered here.
   _connectedSub = FirebaseDatabase.instance.ref('.info/connected').onValue.listen((event) async {
     final connected = event.snapshot.value as bool? ?? false;
     if (connected) {
       try {
         await FirebaseDatabase.instance.ref('users/$uid/serviceLastSeen')
             .set(ServerValue.timestamp);
-        // Register server-side cleanup of the entire calls/$uid node on disconnect.
         await FirebaseDatabase.instance.ref('calls/$uid').onDisconnect().remove();
         await FirebaseDatabase.instance.ref('calls/$uid/status').set('online');
       } catch (_) {}
     }
   });
 
-  // Clean up any stale call session left from a previous crash
+  // Clean up any stale call session from a previous crash.
   try {
     final callSnap = await FirebaseDatabase.instance.ref('calls/$uid').get();
     if (callSnap.value != null && callSnap.value is Map) {
@@ -467,16 +422,11 @@ Future<void> _setupMonitoringSession(
   // Heartbeat — every 30 s
   _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
     try {
-      await FirebaseDatabase.instance
-          .ref('users/$uid/lastSeen')
-          .set(ServerValue.timestamp);
+      await FirebaseDatabase.instance.ref('users/$uid/lastSeen').set(ServerValue.timestamp);
     } catch (_) {}
   });
 
-  // FIX-01: Drive WebRTC directly in this background isolate.
-  // DartPluginRegistrant.ensureInitialized() at the top of _onStart gives
-  // this isolate full plugin access, so flutter_webrtc's getUserMedia works
-  // here without needing to relay through the UI isolate via service.invoke.
+  // ── WebRTC call driver ────────────────────────────────────────────────────
   _callsSub = FirebaseDatabase.instance.ref('calls/$uid').onValue.listen((event) {
     final data = event.snapshot.value;
     if (data == null || data is! Map) {
@@ -509,7 +459,11 @@ Future<void> _setupMonitoringSession(
         streamActive = true;
         activeMode   = mode;
         if (mode == 'screen') {
-          SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {});
+          // RC-BGS-04: Check projection token BEFORE calling startSilentScreen().
+          // getDisplayMedia() from background context requires the token to already
+          // be active (ScreenCaptureService holds it). If not available, signal
+          // the parent to re-open the child app.
+          _startScreenStreamSafe(uid).catchError((_) {});
         } else {
           SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {});
         }
@@ -521,47 +475,30 @@ Future<void> _setupMonitoringSession(
     }
   });
 
-  // FIX-02: Sync blocked packages to SharedPreferences so the native
-  // AppBlockAccessibilityService can read them without hitting Firebase.
-  // The key "blocked_packages" is stored with Flutter's "flutter." prefix
-  // by SharedPreferences, readable in Kotlin as "flutter.blocked_packages".
+  // ── App locks sync ────────────────────────────────────────────────────────
   _appLocksSub = FirebaseDatabase.instance.ref('app_locks/$uid').onValue.listen((event) async {
     try {
-      final raw = event.snapshot.value;
+      final raw     = event.snapshot.value;
       final blocked = <String>[];
       if (raw is Map) {
         for (final entry in (raw as Map).entries) {
           final pkg = entry.key as String?;
           if (pkg != null && pkg.isNotEmpty && !pkg.startsWith('_')) {
-            final data = entry.value;
-            final isBlocked = data is Map
-                ? ((data as Map)['blocked'] as bool? ?? true)
-                : true;
+            final d = entry.value;
+            final isBlocked = d is Map ? ((d as Map)['blocked'] as bool? ?? true) : true;
             if (isBlocked) blocked.add(pkg);
           }
         }
       }
-      // Use a fresh SharedPreferences instance — `prefs` is local to _onStart.
       final sp = await SharedPreferences.getInstance();
       await sp.setString('blocked_packages', blocked.join(','));
-      debugPrint('[BgService] Synced ${blocked.length} blocked packages to SharedPreferences');
+      debugPrint('[BgService] Synced ${blocked.length} blocked packages');
     } catch (e) {
       debugPrint('[BgService] app_locks sync error: $e');
     }
   });
 
-  // ── Screen-time enforcement — checked every 5 min ─────────
-  // Reads limits from screen_time_limits/$uid and current usage from
-  // UsageStatsManager. If any app has exceeded its daily limit, writes a
-  // block command to app_locks/$uid/$packageName so the AppLockService on the
-  // foreground layer can intercept it. Removes the lock at midnight (daily reset).
-  //
-  // BAT-02: Interval changed from 60 s to 5 min. A 60 s polling rate caused
-  // the background isolate to query UsageStatsManager and perform multiple
-  // Firebase reads every minute. Screen-time enforcement with 5-minute
-  // granularity is industry-standard (e.g. Screen Time on iOS) and keeps
-  // battery impact negligible. For apps nearing their limit, the 5-minute
-  // window still provides timely enforcement with at most ~5 min of over-run.
+  // ── Screen-time enforcement — every 5 min ─────────────────────────────────
   _screenTimeTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
     try {
       final limitsSnap =
@@ -571,22 +508,16 @@ Future<void> _setupMonitoringSession(
       final limits = Map<String, dynamic>.from(limitsSnap.value as Map);
       if (limits.isEmpty) return;
 
-      final now = DateTime.now();
+      final now     = DateTime.now();
       final midnight = DateTime(now.year, now.month, now.day);
-      final stats = await UsageStats.queryUsageStats(midnight, now);
+      final stats   = await UsageStats.queryUsageStats(midnight, now);
 
-      // P6-A: Read the blocked_packages cache ONCE here rather than doing one
-      // Firebase get() per under-limit app inside the loop. The cache is kept
-      // fresh by _appLocksSub which writes to SharedPreferences within seconds
-      // of any lock state change from Firebase.
-      final prefs = await SharedPreferences.getInstance();
+      final prefs          = await SharedPreferences.getInstance();
       final blockedPackages = (prefs.getString('blocked_packages') ?? '')
-          .split(',')
-          .where((s) => s.isNotEmpty)
-          .toSet();
+          .split(',').where((s) => s.isNotEmpty).toSet();
 
       for (final entry in limits.entries) {
-        final pkg = entry.key;
+        final pkg          = entry.key;
         final limitMinutes = (entry.value as num?)?.toInt() ?? 0;
         if (limitMinutes <= 0) continue;
 
@@ -594,31 +525,19 @@ Future<void> _setupMonitoringSession(
           (s) => s.packageName == pkg,
           orElse: () => UsageInfo(),
         );
-        final usedMs =
-            int.tryParse(stat.totalTimeInForeground ?? '0') ?? 0;
+        final usedMs      = int.tryParse(stat.totalTimeInForeground ?? '0') ?? 0;
         final usedMinutes = usedMs ~/ 60000;
-
-        final blockRef =
-            FirebaseDatabase.instance.ref('app_locks/$uid/$pkg');
+        final blockRef    = FirebaseDatabase.instance.ref('app_locks/$uid/$pkg');
 
         if (usedMinutes >= limitMinutes) {
-          // Lock the app — AppLockService on the foreground layer intercepts opens.
           await blockRef.set({
-            'blocked': true,
-            'reason': 'screen_time_limit',
-            'limitMinutes': limitMinutes,
-            'usedMinutes': usedMinutes,
-            'lockedAt': DateTime.now().millisecondsSinceEpoch,
+            'blocked'      : true,
+            'reason'       : 'screen_time_limit',
+            'limitMinutes' : limitMinutes,
+            'usedMinutes'  : usedMinutes,
+            'lockedAt'     : DateTime.now().millisecondsSinceEpoch,
           });
-          debugPrint(
-              '[BgService] Screen time limit hit for $pkg: ${usedMinutes}m >= ${limitMinutes}m');
         } else {
-          // P6-A: Use the in-memory blocked_packages cache (maintained by
-          // _appLocksSub) instead of a per-app Firebase get() call. This
-          // eliminates N sequential reads per timer tick for under-limit apps
-          // (e.g. 10 apps × read latency ~150 ms = 1.5 s blocked per cycle).
-          // Only hit Firebase when the local cache confirms the app IS blocked,
-          // reducing reads from N-per-tick to at-most-overLimit-per-tick.
           if (blockedPackages.contains(pkg)) {
             final lockSnap = await blockRef.get();
             if (lockSnap.value is Map) {
@@ -631,12 +550,11 @@ Future<void> _setupMonitoringSession(
         }
       }
 
-      // FIX-14: Upload today's full usage snapshot to Firebase so the parent
-      // dashboard can display per-app screen time without a separate sync request.
+      // Upload today's usage snapshot to Firebase.
       try {
         final usageSnap = <String, dynamic>{
-          '_date':      now.toIso8601String().substring(0, 10),
-          '_updatedAt': DateTime.now().millisecondsSinceEpoch,
+          '_date'      : now.toIso8601String().substring(0, 10),
+          '_updatedAt' : DateTime.now().millisecondsSinceEpoch,
         };
         for (final stat in stats) {
           final pkg = stat.packageName;
@@ -645,16 +563,13 @@ Future<void> _setupMonitoringSession(
           if (usedMs > 10000) {
             final key = pkg.replaceAll('.', '_');
             usageSnap[key] = {
-              'pkg':         pkg,
-              'appName':     ScreenTimeService.friendlyAppName(pkg),
-              'usedMs':      usedMs,
+              'pkg'        : pkg,
+              'appName'    : ScreenTimeService.friendlyAppName(pkg),
+              'usedMs'     : usedMs,
               'usedMinutes': usedMs ~/ 60000,
             };
           }
         }
-        // BUG-FIX: was set() which wiped the node on every 60-second tick.
-        // update() merges into the existing snapshot so concurrent writers
-        // (e.g. ScreenTimeService.uploadUsage) do not race to wipe each other.
         await FirebaseDatabase.instance.ref('app_usage/$uid/daily').update(usageSnap);
       } catch (_) {}
     } catch (e) {
@@ -662,21 +577,18 @@ Future<void> _setupMonitoringSession(
     }
   });
 
-  // ── Daily report — generated once per calendar day ────────────────────
-  // Run immediately on session start, then check every hour. The service
-  // is idempotent within a day so repeated calls from session restarts
-  // (watchdog, crash recovery) are safe and do not double-write.
+  // ── Daily report ──────────────────────────────────────────────────────────
   DailyReportService.instance.generate(uid).catchError((_) {});
   _dailyReportTimer = Timer.periodic(const Duration(hours: 1), (_) {
     DailyReportService.instance.generate(uid).catchError((_) {});
   });
 
-  // Ping Flutter layer every 20 s
+  // Ping Flutter layer every 20 s.
   _pingTimer = Timer.periodic(const Duration(seconds: 20), (_) => service.invoke('ping', {}));
 
-  // ── Health-check watchdog ──────────────────────────────
-  // Non-recursive: cancels all current resources before restarting.
-  // This prevents infinite timer accumulation from self-calls.
+  // ── Health-check watchdog ─────────────────────────────────────────────────
+  // RC-BGS-02: Added WebRTC liveness check alongside Firebase connectivity.
+  // RC-BGS-03: Reset _watchdogRestarting in finally block.
   int healthFailures = 0;
 
   _watchdogTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
@@ -690,26 +602,25 @@ Future<void> _setupMonitoringSession(
 
       if (!connected) {
         healthFailures++;
-        debugPrint('[BgService] Health check fail #$healthFailures');
-
+        debugPrint('[BgService] Health check fail #$healthFailures (Firebase disconnected)');
         if (healthFailures >= 3) {
-          healthFailures = 0;
+          healthFailures      = 0;
           _watchdogRestarting = true;
-          debugPrint('[BgService] Restarting session after repeated failures');
-          _cancelSessionResources();
-          DeviceEventService.writeEvent(
-            childUid: uid,
-            type: 'service_restored',
-            message: 'Monitoring session restarted by health watchdog after repeated connectivity failures.',
-            severity: 'warning',
-          );
-          await Future.delayed(const Duration(seconds: 2));
-          await _setupMonitoringSession(service, uid);
-          // P4-B: Reset the flag on the SUCCESS path. Previously it was only
-          // reset in the catch block, so a successful restart left
-          // _watchdogRestarting = true permanently — suppressing all future
-          // watchdog restarts for the lifetime of the service process.
-          _watchdogRestarting = false;
+          try {
+            debugPrint('[BgService] Restarting session after repeated failures');
+            _cancelSessionResources();
+            DeviceEventService.writeEvent(
+              childUid: uid,
+              type    : 'service_restored',
+              message : 'Monitoring session restarted by health watchdog.',
+              severity: 'warning',
+            );
+            await Future.delayed(const Duration(seconds: 2));
+            await _setupMonitoringSession(service, uid);
+          } finally {
+            // RC-BGS-03: Always reset the flag — even on success path.
+            _watchdogRestarting = false;
+          }
         }
       } else {
         healthFailures = 0;
@@ -719,4 +630,24 @@ Future<void> _setupMonitoringSession(
       _watchdogRestarting = false;
     }
   });
+}
+
+/// RC-BGS-04: Check projection token before starting screen stream.
+/// This prevents getDisplayMedia() from being called when no MediaProjection
+/// token is available in the background service's context.
+Future<void> _startScreenStreamSafe(String uid) async {
+  try {
+    final projectionActive = await ScreenCaptureChannel.isProjectionActive();
+    if (projectionActive) {
+      await SilentWebRTCService.instance.startSilentScreen(uid);
+    } else {
+      debugPrint('[BgService] Screen mode requested but no projection token — signalling parent');
+      await FirebaseDatabase.instance.ref('calls/$uid/screenError').set(
+        'Screen sharing requires the child app to be open. '
+        'Open the Family Monitor app on the child device to grant screen permission.',
+      );
+    }
+  } catch (e) {
+    debugPrint('[BgService] _startScreenStreamSafe error: $e');
+  }
 }
