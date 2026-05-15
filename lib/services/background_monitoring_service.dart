@@ -15,6 +15,22 @@ import 'weekly_summary_service.dart';
 import 'keyword_alert_service.dart';
 import 'streak_service.dart';
 
+// Explicit Firebase options for the child flavor.
+// Background and foreground-task isolates run in their own Dart isolate /
+// Android thread and MUST initialise Firebase themselves.  Using explicit
+// options here means the background service does not depend on the embedded
+// google-services.json having a valid API key — preventing auth failures that
+// originated from the Codemagic CI placeholder fallback.
+const FirebaseOptions _childFirebaseOptions = FirebaseOptions(
+  apiKey: 'AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4',
+  authDomain: 'family-monitor-7aab3.firebaseapp.com',
+  databaseURL: 'https://family-monitor-7aab3-default-rtdb.firebaseio.com',
+  projectId: 'family-monitor-7aab3',
+  storageBucket: 'family-monitor-7aab3.firebasestorage.app',
+  messagingSenderId: '758644747673',
+  appId: '1:758644747673:android:32a2141244fb9c3222f708',
+);
+
 const String _kUidKey              = 'child_uid';
 const String _kWizardKey           = 'wizard_done';
 const String _kPermKey             = 'permissions_granted';
@@ -142,7 +158,7 @@ void _onStart(ServiceInstance service) async {
   // ── Firebase init ──────────────────────────────────────
   if (Firebase.apps.isEmpty) {
     try {
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(options: _childFirebaseOptions);
     } catch (e) {
       debugPrint('[BgService] Firebase init error: $e');
       service.stopSelf();
@@ -249,7 +265,7 @@ void _onStart(ServiceInstance service) async {
           for (final app in Firebase.apps) {
             await app.delete();
           }
-          await Firebase.initializeApp();
+          await Firebase.initializeApp(options: _childFirebaseOptions);
           debugPrint('[BgService] Firebase re-initialised for retry');
         } catch (reinitErr) {
           debugPrint('[BgService] Firebase re-init also failed: $reinitErr');

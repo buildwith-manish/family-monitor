@@ -4,6 +4,19 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
+// Explicit options so the foreground-task isolate does not rely on the
+// google-services.json embedded at build time (which may contain a CI
+// placeholder key when $FIREBASE_API_KEY is unset in Codemagic).
+const FirebaseOptions _childFirebaseOptions = FirebaseOptions(
+  apiKey: 'AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4',
+  authDomain: 'family-monitor-7aab3.firebaseapp.com',
+  databaseURL: 'https://family-monitor-7aab3-default-rtdb.firebaseio.com',
+  projectId: 'family-monitor-7aab3',
+  storageBucket: 'family-monitor-7aab3.firebasestorage.app',
+  messagingSenderId: '758644747673',
+  appId: '1:758644747673:android:32a2141244fb9c3222f708',
+);
+
 class MonitoringForegroundService {
   static final MonitoringForegroundService _instance =
       MonitoringForegroundService._internal();
@@ -178,7 +191,7 @@ class _MonitoringTaskHandler extends TaskHandler {
     DartPluginRegistrant.ensureInitialized();
     if (Firebase.apps.isEmpty) {
       try {
-        await Firebase.initializeApp();
+        await Firebase.initializeApp(options: _childFirebaseOptions);
         debugPrint('[TaskHandler] Firebase initialised');
       } catch (e) {
         debugPrint('[TaskHandler] Firebase init error: $e');

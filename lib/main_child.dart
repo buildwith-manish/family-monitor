@@ -23,6 +23,26 @@ import 'package:firebase_database/firebase_database.dart';
 
 final GlobalKey<NavigatorState> childNavKey = GlobalKey<NavigatorState>();
 
+// ─── Firebase options for the CHILD flavor ────────────────────────────────────
+// Using explicit options means the child APK is NOT dependent on
+// google-services.json having a valid API key at build time.  The Codemagic CI
+// script generates google-services.json from $FIREBASE_API_KEY; if that secret
+// is unset the file contains a placeholder ("REPLACE_WITH_YOUR_API_KEY") which
+// causes every Firebase Auth call to fail with an unhandled error code —
+// producing the generic "Authentication failed. Please try again." banner.
+//
+// appId MUST match google-services.json: com.example.family_monitor.child →
+// 1:758644747673:android:32a2141244fb9c3222f708
+const FirebaseOptions _childFirebaseOptions = FirebaseOptions(
+  apiKey: 'AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4',
+  authDomain: 'family-monitor-7aab3.firebaseapp.com',
+  databaseURL: 'https://family-monitor-7aab3-default-rtdb.firebaseio.com',
+  projectId: 'family-monitor-7aab3',
+  storageBucket: 'family-monitor-7aab3.firebasestorage.app',
+  messagingSenderId: '758644747673',
+  appId: '1:758644747673:android:32a2141244fb9c3222f708',
+);
+
 // Write a health event to Firebase so the parent can see it in Device Health.
 // Fire-and-forget — errors are silently swallowed to avoid any recursion risk.
 Future<void> _writeChildCrashEvent(String type, String message) async {
@@ -44,7 +64,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
     if (Firebase.apps.isEmpty) {
       try {
-        await Firebase.initializeApp();
+        await Firebase.initializeApp(options: _childFirebaseOptions);
       } catch (e, st) {
         debugPrint('Firebase init error in background handler: $e');
         debugPrintStack(stackTrace: st);
@@ -52,10 +72,6 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       }
     }
     if (message.data['type'] == 'call') {
-      // initialize() MUST be called before startService() so the plugin has
-      // the AndroidConfiguration it needs to build the foreground notification.
-      // Skipping this caused a crash when FCM arrived in a fresh process where
-      // the Flutter engine had not yet run main().
       await BackgroundMonitoringService.initialize();
       final service = FlutterBackgroundService();
       if (!await service.isRunning()) {
@@ -73,34 +89,62 @@ Future<void> main() async {
 
   FlutterForegroundTask.initCommunicationPort();
 
+  // Wire global error handlers FIRST so crashes during Firebase init are visible
+  // in logs rather than silently swallowed.
+  FlutterError.onError = (details) {
+    FlutterError.dumpErrorToConsole(details);
+    debugPrint('[FLUTTER ERROR] ${details.exceptionAsString()}');
+    try {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+      _writeChildCrashEvent('flutter_error', details.exceptionAsString());
+    } catch (_) {}
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('[UNCAUGHT ASYNC ERROR] $error');
+    debugPrintStack(stackTrace: stack);
+    try {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      _writeChildCrashEvent('flutter_error', error.toString());
+    } catch (_) {}
+    return true;
+  };
+
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // Firebase MUST be initialized before Crashlytics handlers are wired up
+  // ── Firebase initialization ────────────────────────────────────────────────
+  // Using explicit FirebaseOptions so the child APK works even if the
+  // google-services.json embedded at build time contained a placeholder API key.
+  // Guard against [core/duplicate-app] from the FCM background handler which
+  // may have already called initializeApp() in this same process.
+  bool firebaseOk = false;
+  String? firebaseInitError;
+
   try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    debugPrint('Firebase init error: $e');
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(options: _childFirebaseOptions);
+    } else {
+      debugPrint('[Firebase] Reusing existing Firebase app (child).');
+    }
+    firebaseOk = true;
+  } catch (e, st) {
+    debugPrint('[FATAL] Firebase.initializeApp failed (child): $e');
+    debugPrintStack(stackTrace: st);
+    firebaseInitError = e.toString();
   }
 
-  // FIX-04: Enable RTDB offline persistence before any database reference
-  // is created. This must run in the UI isolate and in the background isolate.
+  if (!firebaseOk) {
+    runApp(_FirebaseErrorApp(error: firebaseInitError ?? 'Unknown error'));
+    return;
+  }
+
+  // Enable RTDB offline persistence before any database reference is created.
   try {
     FirebaseDatabase.instance.setPersistenceEnabled(true);
   } catch (_) {}
-
-  // Wire error handlers AFTER Firebase is ready
-  FlutterError.onError = (details) {
-    FirebaseCrashlytics.instance.recordFlutterFatalError(details);
-    _writeChildCrashEvent('flutter_error', details.exceptionAsString());
-  };
-  PlatformDispatcher.instance.onError = (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    _writeChildCrashEvent('flutter_error', error.toString());
-    return true;
-  };
 
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
@@ -112,6 +156,55 @@ Future<void> main() async {
   runApp(const ChildApp());
 }
 
+// ─── Shown when Firebase.initializeApp() itself fails ─────────────────────────
+class _FirebaseErrorApp extends StatelessWidget {
+  final String error;
+  const _FirebaseErrorApp({required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: const Color(0xFF34A853),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white, size: 64),
+                const SizedBox(height: 20),
+                const Text(
+                  'Startup Error',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  error,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Please check your internet connection and restart the app.',
+                  style: TextStyle(color: Colors.white54, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class ChildApp extends StatefulWidget {
   const ChildApp({super.key});
 
@@ -120,12 +213,6 @@ class ChildApp extends StatefulWidget {
 }
 
 class _ChildAppState extends State<ChildApp> {
-  // FIX-01: Removed _silentStreamSub / _silentStopSub.
-  // WebRTC is now driven directly inside the background-service isolate
-  // (background_monitoring_service.dart _setupMonitoringSession → _callsSub).
-  // Relaying through service.invoke meant WebRTC died when the UI was closed;
-  // direct calls keep it alive regardless of UI state.
-
   @override
   void initState() {
     super.initState();
