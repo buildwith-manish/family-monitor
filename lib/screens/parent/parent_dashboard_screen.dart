@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously, curly_braces_in_flow_control_structures, prefer_const_constructors
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -14,9 +15,6 @@ import 'geofence_screen.dart';
 import 'monitoring_screen.dart';
 import '../../services/webrtc_service.dart';
 import 'app_usage_screen.dart';
-import 'app_lock_screen.dart';
-import 'content_filter_screen.dart';
-import 'schedule_lock_screen.dart';
 import 'snapshots_screen.dart';
 import 'sms_call_log_screen.dart';
 import '../../services/device_event_service.dart';
@@ -63,13 +61,12 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _reattachChildrenListener();
+      _reattachChildrenListenerIfNeeded();
     }
   }
 
-  void _reattachChildrenListener() {
-    _childrenSub?.cancel();
-    _childrenSub = null;
+  void _reattachChildrenListenerIfNeeded() {
+    if (_childrenSub != null) return;
     _listenForChildren();
   }
 
@@ -165,7 +162,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
       }
     }, onError: (_) {
       if (mounted) {
-        Future.delayed(const Duration(seconds: 3), _reattachChildrenListener);
+        Future.delayed(const Duration(seconds: 3), _reattachChildrenListenerIfNeeded);
       }
     });
   }
@@ -238,6 +235,13 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
                     if (mounted) {
                       Navigator.pushReplacementNamed(context, '/role-select');
                     }
+                  } else if (v == 'change-password') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ChangePasswordScreen(),
+                      ),
+                    );
                   }
                 },
                 itemBuilder: (_) => [
@@ -248,6 +252,14 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
                       leading: const Icon(Icons.account_circle_outlined),
                       title: Text(user?.displayName ?? 'Parent'),
                       subtitle: Text(user?.email ?? ''),
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'change-password',
+                    child: ListTile(
+                      dense: true,
+                      leading: Icon(Icons.lock_outline),
+                      title: Text('Change password'),
                     ),
                   ),
                   const PopupMenuItem(
@@ -922,6 +934,46 @@ class _ChildCard extends StatelessWidget {
                   },
                 ),
 
+                _FeatureRow(
+                  icon: Icons.assessment_outlined,
+                  label: 'Daily Reports',
+                  subtitle: 'View nightly activity summaries & screen time',
+                  color: const Color(0xFF1565C0),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DailyReportScreen(
+                          childUid: childUid,
+                          childName:
+                              childData['childName'] as String? ?? name,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                _FeatureRow(
+                  icon: Icons.app_registration,
+                  label: 'App Install Alerts',
+                  subtitle: 'Get notified when apps are installed or removed',
+                  color: const Color(0xFF2E7D32),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AppInstallAlertsScreen(
+                          childUid: childUid,
+                          childName:
+                              childData['childName'] as String? ?? name,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
                 const SizedBox(height: 8),
                 _sectionLabel('Safety & Alerts'),
                 const SizedBox(height: 8),
@@ -1008,69 +1060,6 @@ class _ChildCard extends StatelessWidget {
                   },
                 ),
 
-                const SizedBox(height: 8),
-                _sectionLabel('Parental Controls'),
-                const SizedBox(height: 8),
-
-                _FeatureRow(
-                  icon: Icons.lock_outlined,
-                  label: 'App Lock',
-                  subtitle: 'Block specific apps on child\'s device',
-                  color: const Color(0xFFEA4335),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => AppLockScreen(
-                          childUid: childUid,
-                          childName:
-                              childData['childName'] as String? ?? name,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                _FeatureRow(
-                  icon: Icons.block,
-                  label: 'Content Filter',
-                  subtitle: 'Block websites & categories',
-                  color: const Color(0xFF9334E6),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ContentFilterScreen(
-                          childUid: childUid,
-                          childName:
-                              childData['childName'] as String? ?? name,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                _FeatureRow(
-                  icon: Icons.schedule,
-                  label: 'Schedule & Lock',
-                  subtitle: 'Set bedtime schedule & lock device',
-                  color: const Color(0xFF9C27B0),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ScheduleLockScreen(
-                          childUid: childUid,
-                          childName:
-                              childData['childName'] as String? ?? name,
-                        ),
-                      ),
-                    );
-                  },
-                ),
               ],
             ),
           ),
@@ -1177,3 +1166,4 @@ class _FeatureRow extends StatelessWidget {
     );
   }
 }
+

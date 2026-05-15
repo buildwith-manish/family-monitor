@@ -12,39 +12,180 @@ import 'screens/parent/add_child_screen.dart';
 import 'screens/parent/parent_auth_screen.dart';
 import 'screens/parent/parent_dashboard_screen.dart';
 
+// ─── Firebase options for the PARENT flavor ───────────────────────────────────
+// appId MUST match the entry for com.example.family_monitor.parent in
+// google-services.json (1:758644747673:android:ea45b7a53b3f2f2e22f708).
+// Using the base app's ID (69ef23a2fa4b508122f708) here was the root cause of
+// the black screen — Firebase detected the package/appId mismatch and threw a
+// [core/app-not-authorized] exception before runApp was ever reached.
+const FirebaseOptions _parentFirebaseOptions = FirebaseOptions(
+  apiKey: 'AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4',
+  authDomain: 'family-monitor-7aab3.firebaseapp.com',
+  databaseURL: 'https://family-monitor-7aab3-default-rtdb.firebaseio.com',
+  projectId: 'family-monitor-7aab3',
+  storageBucket: 'family-monitor-7aab3.firebasestorage.app',
+  messagingSenderId: '758644747673',
+  // FIXED: was 69ef23a2fa4b508122f708 (the base/default app) — now using the
+  // correct parent-flavor app ID registered under com.example.family_monitor.parent
+  appId: '1:758644747673:android:ea45b7a53b3f2f2e22f708',
+);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Wire global error handlers FIRST — before any async work — so that crashes
+  // during Firebase init are visible in logs rather than producing a black screen.
+  FlutterError.onError = (details) {
+    FlutterError.dumpErrorToConsole(details);
+    debugPrint('[FLUTTER ERROR] ${details.exceptionAsString()}');
+    // Crashlytics may not be ready yet if Firebase init failed; guard with a
+    // try/catch so the error handler itself never throws.
+    try {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+    } catch (_) {}
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('[UNCAUGHT ASYNC ERROR] $error');
+    debugPrintStack(stackTrace: stack);
+    try {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    } catch (_) {}
+    return true;
+  };
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  await Firebase.initializeApp(
-    options: const FirebaseOptions(
-      apiKey: 'AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4',
-      authDomain: 'family-monitor-7aab3.firebaseapp.com',
-      databaseURL: 'https://family-monitor-7aab3-default-rtdb.firebaseio.com',
-      projectId: 'family-monitor-7aab3',
-      storageBucket: 'family-monitor-7aab3.firebasestorage.app',
-      messagingSenderId: '758644747673',
-      appId: '1:758644747673:android:69ef23a2fa4b508122f708',
-    ),
-  );
+  // ── Firebase initialization ────────────────────────────────────────────────
+  // Wrapped in try/catch so that ANY failure (bad appId, duplicate-app,
+  // platform-channel error) shows a useful error screen instead of a black
+  // screen.  The most common failure mode was a package/appId mismatch that
+  // threw [core/app-not-authorized] — previously uncaught, so runApp was
+  // never called.
+  bool firebaseOk = false;
+  String? firebaseError;
+
+  try {
+    // Avoid [core/duplicate-app] if a background isolate or FCM handler has
+    // already called initializeApp() in this process.
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(options: _parentFirebaseOptions);
+    } else {
+      // Re-use the existing default app — no need to re-init.
+      debugPrint('[Firebase] Reusing existing Firebase app.');
+    }
+    firebaseOk = true;
+  } catch (e, st) {
+    debugPrint('[FATAL] Firebase.initializeApp failed: $e');
+    debugPrintStack(stackTrace: st);
+    firebaseError = e.toString();
+  }
+
+  if (!firebaseOk) {
+    // Show a visible error instead of a black screen.
+    runApp(_FirebaseErrorApp(error: firebaseError ?? 'Unknown error'));
+    return;
+  }
 
   // Enable RTDB offline persistence so the dashboard works without network.
   try {
     FirebaseDatabase.instance.setPersistenceEnabled(true);
   } catch (_) {}
 
-  // Wire Crashlytics error handlers identical to the child flavor.
-  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-  PlatformDispatcher.instance.onError = (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    return true;
+  // Replace the red crash screen with a branded error UI.
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      color: const Color(0xFF1A73E8),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 56),
+              const SizedBox(height: 20),
+              const Text(
+                'Something went wrong',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                details.exceptionAsString(),
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                textAlign: TextAlign.center,
+                maxLines: 5,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Please restart the app',
+                style: TextStyle(color: Colors.white54, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   };
 
   runApp(const ParentApp());
+}
+
+// ─── Shown when Firebase.initializeApp() itself fails ─────────────────────────
+class _FirebaseErrorApp extends StatelessWidget {
+  final String error;
+  const _FirebaseErrorApp({required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: const Color(0xFF1A73E8),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white, size: 64),
+                const SizedBox(height: 20),
+                const Text(
+                  'Firebase Initialization Failed',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  error,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Please check your internet connection and restart the app.',
+                  style: TextStyle(color: Colors.white54, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class ParentApp extends StatelessWidget {
@@ -56,11 +197,6 @@ class ParentApp extends StatelessWidget {
       title: 'Family Monitor Parent',
       debugShowCheckedModeBanner: false,
       theme: _buildTheme(),
-      // AUTH-FIX: Use _ParentAuthGate as the sole entry point.
-      // It checks FirebaseAuth.instance.currentUser (which is synchronously
-      // available after Firebase.initializeApp) and routes to the dashboard
-      // if the session is still valid. The login screen is only shown when
-      // currentUser is genuinely null (logged out, token revoked, or first run).
       home: const _ParentAuthGate(),
       routes: {
         '/parent/dashboard': (context) => const ParentDashboardScreen(),
@@ -133,16 +269,23 @@ class ParentApp extends StatelessWidget {
   }
 }
 
-/// AUTH-FIX: Process-death-safe auth gate for the parent flavor.
+/// AUTH GATE — process-death-safe auth gate for the parent flavor.
 ///
-/// After [Firebase.initializeApp] completes, [FirebaseAuth.instance.currentUser]
-/// is synchronously available from the locally-cached token. We listen to
-/// [authStateChanges] rather than reading [currentUser] once, so that:
-///   - Token revocations (password change, account deletion) log the user out.
-///   - The dashboard is shown immediately on resume without a login round-trip.
-///   - A brief loading indicator covers the ~1 frame before the first event fires.
-class _ParentAuthGate extends StatelessWidget {
+/// Uses [authStateChanges] so token revocations log the user out automatically.
+/// A [_navigated] flag prevents repeated pushes when the stream re-emits
+/// (e.g. hourly token refresh), which previously caused navigation-stack
+/// corruption manifesting as duplicate dashboard screens.
+class _ParentAuthGate extends StatefulWidget {
   const _ParentAuthGate();
+
+  @override
+  State<_ParentAuthGate> createState() => _ParentAuthGateState();
+}
+
+class _ParentAuthGateState extends State<_ParentAuthGate> {
+  // Guard: once we've scheduled navigation to the dashboard, don't schedule it
+  // again on the next authStateChanges emission (e.g. token refresh).
+  bool _navigated = false;
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +293,7 @@ class _ParentAuthGate extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         // While the first event is in-flight (typically < 1 frame after init),
-        // show the splash colour so there is no white flash.
+        // show the branded loading screen so there is no white/black flash.
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             backgroundColor: Color(0xFF1A73E8),
@@ -163,13 +306,15 @@ class _ParentAuthGate extends StatelessWidget {
         final user = snapshot.data;
 
         if (user != null) {
-          // Session valid — go straight to dashboard.
-          // Use a post-frame callback so we don't call Navigator during build.
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!context.mounted) return;
-            Navigator.of(context).pushReplacementNamed('/parent/dashboard');
-          });
-          // Return the splash while navigation is pending.
+          // Session valid — navigate to dashboard exactly once.
+          if (!_navigated) {
+            _navigated = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!context.mounted) return;
+              Navigator.of(context).pushReplacementNamed('/parent/dashboard');
+            });
+          }
+          // Return the splash-colored scaffold while navigation is pending.
           return const Scaffold(
             backgroundColor: Color(0xFF1A73E8),
             body: Center(
@@ -178,7 +323,8 @@ class _ParentAuthGate extends StatelessWidget {
           );
         }
 
-        // No session — show login/register.
+        // No session (or session was revoked) — reset the guard and show login.
+        _navigated = false;
         return const ParentAuthScreen();
       },
     );

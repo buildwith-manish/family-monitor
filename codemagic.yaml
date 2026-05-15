@@ -14,6 +14,28 @@ workflows:
     environment:
       flutter: stable
       java: 17
+      # ── Required Codemagic environment variables ───────────────────────────────
+      # Set all four in: Codemagic → Your app → Workflow settings → Environment variables
+      # Mark every one as "Secret" so values are masked in build logs.
+      #
+      #   FIREBASE_API_KEY          — Firebase Web API key
+      #                               Firebase Console → Project Settings → General → Web API key
+      #
+      #   FIREBASE_TOKEN            — Firebase CI token for App Distribution uploads
+      #                               Generate locally: firebase login:ci
+      #
+      #   PARENT_FIREBASE_APP_ID    — Firebase App ID for the parent flavor
+      #                               Firebase Console → Project Settings → Your apps
+      #                               → com.example.family_monitor.parent
+      #                               Value: 1:758644747673:android:ea45b7a53b3f2f2e22f708
+      #
+      #   CHILD_FIREBASE_APP_ID     — Firebase App ID for the child flavor
+      #                               Firebase Console → Project Settings → Your apps
+      #                               → com.example.family_monitor.child
+      #                               Value: 1:758644747673:android:32a2141244fb9c3222f708
+      #
+      # The build and APK steps complete successfully even if these are absent.
+      # The Distribute step is automatically skipped when FIREBASE_TOKEN is unset.
 
     cache:
       cache_paths:
@@ -22,9 +44,56 @@ workflows:
         - ~/.gradle/wrapper
 
     scripts:
+      # ── Pre-flight: confirm which secrets are present ─────────────────────────
+      # Prints masked confirmation of each variable so you can verify Codemagic
+      # substituted real values without exposing the secrets in the log.
+      - name: Pre-flight environment check
+        script: |
+          echo "=== Environment variable status ==="
+
+          if [ -n "${FIREBASE_API_KEY}" ]; then
+            echo "FIREBASE_API_KEY      ✓  (prefix: $(echo "$FIREBASE_API_KEY" | cut -c1-8)...)"
+          else
+            echo "FIREBASE_API_KEY      ✗  NOT SET — google-services.json will use placeholder"
+          fi
+
+          if [ -n "${FIREBASE_TOKEN}" ]; then
+            echo "FIREBASE_TOKEN        ✓  (set — App Distribution uploads enabled)"
+          else
+            echo "FIREBASE_TOKEN        ✗  NOT SET — Distribute step will be skipped"
+          fi
+
+          if [ -n "${PARENT_FIREBASE_APP_ID}" ]; then
+            echo "PARENT_FIREBASE_APP_ID ✓  ${PARENT_FIREBASE_APP_ID}"
+          else
+            echo "PARENT_FIREBASE_APP_ID ✗  NOT SET — will fall back to hardcoded ID"
+          fi
+
+          if [ -n "${CHILD_FIREBASE_APP_ID}" ]; then
+            echo "CHILD_FIREBASE_APP_ID  ✓  ${CHILD_FIREBASE_APP_ID}"
+          else
+            echo "CHILD_FIREBASE_APP_ID  ✗  NOT SET — will fall back to hardcoded ID"
+          fi
+
+          echo "==================================="
+
+      # ── Write google-services.json ────────────────────────────────────────────
+      # Uses an unquoted heredoc so $FIREBASE_API_KEY is substituted at runtime.
+      # With a quoted heredoc ('GSJSON') the literal string "$FIREBASE_API_KEY"
+      # would be written into the JSON, causing API_KEY_INVALID at runtime.
+      #
+      # NOTE: The Dart entry points (main_parent.dart, main_child.dart) now use
+      # explicit FirebaseOptions, so the app itself no longer depends on this
+      # file having a valid key. However, the Gradle Crashlytics plugin and
+      # Firebase App Distribution CLI both read google-services.json directly,
+      # so a valid key here is still required for those two steps.
       - name: Write google-services.json
         script: |
-          cat > android/app/google-services.json << 'GSJSON'
+          # Fall back to the known good key if FIREBASE_API_KEY is somehow absent.
+          # This is a last-resort safety net — the secret should always be set.
+          FIREBASE_API_KEY="${FIREBASE_API_KEY:-AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4}"
+
+          cat > android/app/google-services.json << GSJSON
           {
             "project_info": {
               "project_number": "758644747673",
@@ -41,7 +110,7 @@ workflows:
                   }
                 },
                 "oauth_client": [],
-                "api_key": [{"current_key": "AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4"}],
+                "api_key": [{"current_key": "$FIREBASE_API_KEY"}],
                 "services": {"appinvite_service": {"other_platform_oauth_client": []}}
               },
               {
@@ -52,7 +121,7 @@ workflows:
                   }
                 },
                 "oauth_client": [],
-                "api_key": [{"current_key": "AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4"}],
+                "api_key": [{"current_key": "$FIREBASE_API_KEY"}],
                 "services": {"appinvite_service": {"other_platform_oauth_client": []}}
               },
               {
@@ -63,7 +132,7 @@ workflows:
                   }
                 },
                 "oauth_client": [],
-                "api_key": [{"current_key": "AIzaSyAbX2gNNW3iZCIgn2UJjtbZdtQHM3CyjW4"}],
+                "api_key": [{"current_key": "$FIREBASE_API_KEY"}],
                 "services": {"appinvite_service": {"other_platform_oauth_client": []}}
               }
             ],
@@ -71,15 +140,127 @@ workflows:
           }
           GSJSON
 
+          echo "google-services.json written."
+          echo "API key prefix: $(echo "$FIREBASE_API_KEY" | cut -c1-8)..."
+
       - name: Get dependencies
         script: flutter pub get
 
+      # ── GATE 1: Dart format (auto-fix) ───────────────────────────────────────
+      # Formats all Dart files in place. Reports changes but never blocks the
+      # build — formatting is a style concern, not a correctness one.
+      - name: Dart format
+        script: |
+          echo "Formatting Dart files..."
+          FORMAT_OUTPUT=$(dart format lib/ 2>&1)
+          echo "$FORMAT_OUTPUT"
+          CHANGED=$(echo "$FORMAT_OUTPUT" | grep -c "^Changed" || true)
+          if [ "$CHANGED" -gt 0 ]; then
+            echo ""
+            echo "NOTE: $CHANGED file(s) were auto-formatted. Consider running"
+            echo "'dart format lib/' locally and committing the result to keep"
+            echo "the repository consistently formatted."
+          else
+            echo "All Dart files were already correctly formatted."
+          fi
+
+      # ── GATE 2: Flutter analyze ───────────────────────────────────────────────
+      # Catches Dart type errors, missing imports, and lint issues before the
+      # 3-minute Gradle build even starts — saving significant CI time.
+      - name: Flutter analyze
+        script: |
+          echo "Running flutter analyze..."
+          flutter analyze --no-pub 2>&1 | tee /tmp/analyze.log
+          # Fail only on errors, not on info/warnings
+          if grep -qE "^  error •" /tmp/analyze.log; then
+            echo ""
+            echo "ERROR: flutter analyze found errors. Fix them before building."
+            exit 1
+          fi
+          echo "Flutter analyze passed."
+
+      # ── GATE 3: Validate Gradle KTS syntax + manifest ────────────────────────
+      - name: Validate Gradle KTS syntax
+        script: |
+          echo "Scanning .gradle.kts files for Groovy-style syntax..."
+          ERRORS=0
+
+          GROOVY_DEPS=$(grep -rn --include="*.gradle.kts" \
+            -E '^\s*(implementation|api|compileOnly|runtimeOnly|testImplementation|androidTestImplementation|annotationProcessor|kapt|ksp|coreLibraryDesugaring)\s+"' \
+            android/ || true)
+
+          if [ -n "$GROOVY_DEPS" ]; then
+            echo ""
+            echo "ERROR: Groovy-style dependency syntax found in .gradle.kts file(s)."
+            echo "Use parentheses in Kotlin DSL:  implementation(\"...\")  not  implementation \"...\""
+            echo ""
+            echo "$GROOVY_DEPS"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          SINGLE_QUOTED=$(grep -rn --include="*.gradle.kts" \
+            -E "^\s*(implementation|api|compileOnly|runtimeOnly|testImplementation|androidTestImplementation|annotationProcessor|kapt|ksp|coreLibraryDesugaring)\s+'" \
+            android/ || true)
+
+          if [ -n "$SINGLE_QUOTED" ]; then
+            echo ""
+            echo "ERROR: Single-quoted dependency syntax found in .gradle.kts file(s)."
+            echo "Use double-quoted strings inside parentheses:  implementation(\"...\")"
+            echo ""
+            echo "$SINGLE_QUOTED"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          APPLY_PLUGIN=$(grep -rn --include="*.gradle.kts" \
+            -E "^apply plugin\s*:" \
+            android/ || true)
+
+          if [ -n "$APPLY_PLUGIN" ]; then
+            echo ""
+            echo "ERROR: Groovy-style 'apply plugin:' found in .gradle.kts file(s)."
+            echo "Use Kotlin DSL:  apply(plugin = \"...\")"
+            echo ""
+            echo "$APPLY_PLUGIN"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          echo "Scanning AndroidManifest.xml for duplicate permissions..."
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST" ]; then
+            DUPES=$(grep -o 'android:name="android\.permission\.[^"]*"' "$MANIFEST" \
+              | sort | uniq -d)
+            if [ -n "$DUPES" ]; then
+              echo ""
+              echo "ERROR: Duplicate uses-permission entries found in AndroidManifest.xml:"
+              echo "$DUPES"
+              echo "Remove the duplicate declaration(s) — each permission must appear only once."
+              ERRORS=$((ERRORS + 1))
+            fi
+          fi
+
+          if [ "$ERRORS" -eq 0 ]; then
+            echo "All checks passed."
+          else
+            echo ""
+            echo "Fix the $ERRORS error(s) above before building."
+            exit 1
+          fi
+
+      # ── BUILD: Parent APK ─────────────────────────────────────────────────────
       - name: Build Parent APK
         script: |
+          # Auto version code: total git commit count ensures every build is unique
+          # and traceable back to a specific commit without manual bumping.
+          GIT_COMMIT_COUNT=$(git rev-list --count HEAD)
+          GIT_SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "Version code: $GIT_COMMIT_COUNT  |  SHA: $GIT_SHORT_SHA"
+
           flutter build apk --release \
             --flavor parent \
             --target lib/main_parent.dart \
-            --no-tree-shake-icons
+            --no-tree-shake-icons \
+            --build-number="$GIT_COMMIT_COUNT" \
+            --build-name="1.0.$GIT_COMMIT_COUNT"
 
           mkdir -p build/app/outputs/flutter-apk
 
@@ -95,12 +276,19 @@ workflows:
           cp "$PARENT_APK" build/app/outputs/flutter-apk/parent-release.apk
           du -h build/app/outputs/flutter-apk/parent-release.apk
 
+      # ── BUILD: Child APK ──────────────────────────────────────────────────────
       - name: Build Child APK
         script: |
+          GIT_COMMIT_COUNT=$(git rev-list --count HEAD)
+          GIT_SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "Version code: $GIT_COMMIT_COUNT  |  SHA: $GIT_SHORT_SHA"
+
           flutter build apk --release \
             --flavor child \
             --target lib/main_child.dart \
-            --no-tree-shake-icons
+            --no-tree-shake-icons \
+            --build-number="$GIT_COMMIT_COUNT" \
+            --build-name="1.0.$GIT_COMMIT_COUNT"
 
           mkdir -p build/app/outputs/flutter-apk
 
@@ -118,6 +306,99 @@ workflows:
           cp "$CHILD_APK" build/app/outputs/flutter-apk/child-release.apk
           du -h build/app/outputs/flutter-apk/child-release.apk
 
+      # ── MAPPING: Archive ProGuard/R8 mapping files ───────────────────────────
+      # The Gradle Crashlytics plugin uploads mapping files automatically during
+      # the build (mappingFileUploadEnabled = true in build.gradle.kts).
+      # This step copies them to a known path for artifact archiving.
+      - name: Archive ProGuard mapping files
+        script: |
+          echo "Locating R8 mapping files..."
+          MAPPING_DIR="build/app/outputs/mapping"
+          mkdir -p "$MAPPING_DIR"
+
+          PARENT_MAP=$(find android/app/build/outputs/mapping -name "mapping.txt" \
+            -path "*parent*" 2>/dev/null | head -1)
+          if [ -n "$PARENT_MAP" ]; then
+            cp "$PARENT_MAP" "$MAPPING_DIR/parent-release-mapping.txt"
+            echo "Parent mapping: $(wc -l < "$MAPPING_DIR/parent-release-mapping.txt") lines"
+          else
+            echo "WARNING: Parent mapping file not found (Gradle plugin upload still active)"
+          fi
+
+          CHILD_MAP=$(find android/app/build/outputs/mapping -name "mapping.txt" \
+            -path "*child*" 2>/dev/null | head -1)
+          if [ -n "$CHILD_MAP" ]; then
+            cp "$CHILD_MAP" "$MAPPING_DIR/child-release-mapping.txt"
+            echo "Child mapping: $(wc -l < "$MAPPING_DIR/child-release-mapping.txt") lines"
+          else
+            echo "WARNING: Child mapping file not found (Gradle plugin upload still active)"
+          fi
+
+          echo "Mapping files archived to $MAPPING_DIR"
+
+      # ── DISTRIBUTE: Firebase App Distribution ────────────────────────────────
+      # Uploads both APKs to Firebase App Distribution. Testers receive an email
+      # with a download link automatically.
+      #
+      # Uses $PARENT_FIREBASE_APP_ID and $CHILD_FIREBASE_APP_ID from Codemagic
+      # environment variables (set via Codemagic UI → Environment variables).
+      # Falls back to the known hardcoded IDs if the variables are absent so
+      # the step works even if only FIREBASE_TOKEN is configured.
+      #
+      # Skipped automatically when FIREBASE_TOKEN is not set.
+      - name: Distribute to Firebase App Distribution
+        script: |
+          # Resolve app IDs: prefer the Codemagic env vars, fall back to the
+          # known hardcoded values so the step never fails due to a missing var.
+          PARENT_APP_ID="${PARENT_FIREBASE_APP_ID:-1:758644747673:android:ea45b7a53b3f2f2e22f708}"
+          CHILD_APP_ID="${CHILD_FIREBASE_APP_ID:-1:758644747673:android:32a2141244fb9c3222f708}"
+
+          echo "Parent App ID: $PARENT_APP_ID"
+          echo "Child  App ID: $CHILD_APP_ID"
+
+          # Skip gracefully if FIREBASE_TOKEN has not been configured.
+          if [ -z "${FIREBASE_TOKEN}" ]; then
+            echo ""
+            echo "FIREBASE_TOKEN is not set — skipping App Distribution upload."
+            echo "Add FIREBASE_TOKEN as a Secret environment variable in Codemagic"
+            echo "to enable automatic distribution to testers."
+            exit 0
+          fi
+
+          GIT_SHORT_SHA=$(git rev-parse --short HEAD)
+          GIT_MSG=$(git log -1 --pretty=format:"%s")
+          RELEASE_NOTES="Build from commit $GIT_SHORT_SHA: $GIT_MSG"
+          echo "Release notes: $RELEASE_NOTES"
+
+          # Install Firebase CLI if not already cached
+          if ! command -v firebase &> /dev/null; then
+            echo "Installing Firebase CLI..."
+            npm install -g firebase-tools@latest --silent
+          fi
+
+          echo ""
+          echo "Uploading Parent APK to Firebase App Distribution..."
+          firebase appdistribution:distribute \
+            build/app/outputs/flutter-apk/parent-release.apk \
+            --app "$PARENT_APP_ID" \
+            --release-notes "$RELEASE_NOTES" \
+            --groups "testers" \
+            --token "$FIREBASE_TOKEN"
+
+          echo ""
+          echo "Uploading Child APK to Firebase App Distribution..."
+          firebase appdistribution:distribute \
+            build/app/outputs/flutter-apk/child-release.apk \
+            --app "$CHILD_APP_ID" \
+            --release-notes "$RELEASE_NOTES" \
+            --groups "testers" \
+            --token "$FIREBASE_TOKEN"
+
+          echo ""
+          echo "Both APKs distributed successfully."
+
     artifacts:
       - build/app/outputs/flutter-apk/parent-release.apk
       - build/app/outputs/flutter-apk/child-release.apk
+      - build/app/outputs/mapping/parent-release-mapping.txt
+      - build/app/outputs/mapping/child-release-mapping.txt

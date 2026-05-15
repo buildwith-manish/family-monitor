@@ -1,3 +1,4 @@
+// ignore_for_file: no_leading_underscores_for_local_identifiers
 import 'dart:async';
 
 import 'package:firebase_database/firebase_database.dart';
@@ -30,6 +31,26 @@ class NotificationService {
   final _localNotif = FlutterLocalNotificationsPlugin();
 
   final Map<String, StreamSubscription> _subs = {};
+
+  // Instance-level seen-sets keyed by alert type + childUid.
+  // Keeping them at instance scope (not as local closure variables) prevents
+  // the sets being reset to empty every time watchChild() cancels and
+  // recreates a subscription, which would produce duplicate notifications.
+  final Map<String, Set<String>> _seenAlerts = {};
+
+  // P8-A: Bounded LRU-style pruning prevents unbounded memory growth over
+  // long monitoring sessions. Firebase push keys are lexicographically ordered
+  // by timestamp — removing the oldest 50 % when over 500 entries keeps memory
+  // bounded while still deduplicating any alert from the last ~30 days.
+  Set<String> _seenFor(String key) {
+    final set = _seenAlerts.putIfAbsent(key, () => <String>{});
+    if (set.length > 500) {
+      final sorted = set.toList()..sort();
+      set.removeAll(sorted.take(250));
+    }
+    return set;
+  }
+
   bool _initialized = false;
   int _notifId = 1000;
 
@@ -153,8 +174,12 @@ class NotificationService {
       final v = event.snapshot.value;
       if (v == null || v is! Map) return;
       final m = Map<String, dynamic>.from(v);
-      final level = (m['level'] as num?)?.toInt() ?? 0;
 
+      // Skip any alert that existed before this session started.
+      final ts = (m['timestamp'] as num?)?.toInt() ?? 0;
+      if (ts > 0 && ts < startMs) return;
+
+      final level = (m['level'] as num?)?.toInt() ?? 0;
       _show(
         '$childName — Low Battery',
         'Battery is at $level%. Charge the device soon.',
@@ -289,6 +314,13 @@ class NotificationService {
       );
     });
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Manual / one-shot notifications
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> showImmediate(String title, String body) =>
+      _show(title, body);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Show a local notification

@@ -1,6 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/auth_service.dart';
 
@@ -23,14 +26,43 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (!mounted) return;
 
-    final authService = AuthService();
+    // Wait for Firebase Auth to restore the persisted session.
+    // On cold start, currentUser can be null for 300-800ms even with a valid
+    // cached token — authStateChanges emits the true state within ~100ms.
+    // Capped at 3 seconds as a safety net against a hung Firebase init.
+    User? user;
+    try {
+      user = await FirebaseAuth.instance
+          .authStateChanges()
+          .first
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {
+      user = FirebaseAuth.instance.currentUser;
+    }
 
-    if (!authService.isLoggedIn) {
+    if (!mounted) return;
+
+    if (user == null) {
       Navigator.pushReplacementNamed(context, '/role-select');
       return;
     }
 
-    final role = await authService.getSavedRole();
+    // P1-B: Force a server round-trip to validate the cached token.
+    // Catches deleted/disabled accounts and revoked tokens that would
+    // otherwise appear authenticated until the local cache expires (~1 h).
+    // Only FirebaseAuthException (auth-specific) triggers sign-out —
+    // generic network errors are swallowed so offline users are not
+    // logged out during brief connectivity gaps.
+    try {
+      await user.getIdToken(true);
+    } on FirebaseAuthException {
+      await FirebaseAuth.instance.signOut();
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/role-select');
+      return;
+    }
+
+    final role = await AuthService().getSavedRole();
 
     if (!mounted) return;
 
@@ -42,7 +74,32 @@ class _SplashScreenState extends State<SplashScreen> {
         Navigator.pushReplacementNamed(context, '/child/home');
         break;
       case UserRole.unknown:
-        Navigator.pushReplacementNamed(context, '/role-select');
+        // HIGH-02: When the authenticated user's role is absent from
+        // SharedPreferences (device transfer, factory reset without full wipe,
+        // or crash during sign-out), fall back to the authoritative RTDB record
+        // rather than sending them to role-select and losing session context.
+        // If RTDB also has no role, fall through to role-select normally.
+        try {
+          final snap = await FirebaseDatabase.instance
+              .ref('users/${user.uid}/role')
+              .get();
+          final remoteRole = snap.value as String?;
+          if (!mounted) return;
+          if (remoteRole == 'parent' || remoteRole == 'child') {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('user_role', remoteRole!);
+            if (!mounted) return;
+            Navigator.pushReplacementNamed(
+              context,
+              remoteRole == 'parent' ? '/parent/dashboard' : '/child/home',
+            );
+          } else {
+            Navigator.pushReplacementNamed(context, '/role-select');
+          }
+        } catch (_) {
+          if (!mounted) return;
+          Navigator.pushReplacementNamed(context, '/role-select');
+        }
         break;
     }
   }

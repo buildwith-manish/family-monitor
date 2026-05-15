@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_const_constructors, deprecated_member_use
 import 'dart:async';
 
 import 'package:firebase_database/firebase_database.dart';
@@ -35,6 +36,7 @@ class _ChildSetupWizardScreenState
 
   int _currentPage = 0;
   bool _loading = false;
+  bool _navigationLock = false;
   String? _error;
 
   final _nameCtrl = TextEditingController();
@@ -47,7 +49,12 @@ class _ChildSetupWizardScreenState
 
   bool _cameraGranted = false;
   bool _micGranted = false;
+  bool _smsGranted = false;
+  bool _usageGranted = false;
   bool _notifGranted = false;
+  bool _contactsGranted = false;
+  bool _callLogGranted = false;
+  bool _locationGranted = false;
   bool _batteryExempt = false;
   bool _screenConsented = false;
   bool _notifDisabled = false;
@@ -68,6 +75,15 @@ class _ChildSetupWizardScreenState
     _pageCtrl = PageController();
     _refreshStatus();
     _loadGuide();
+    // Start listening for parent requests immediately if a UID is already
+    // known (re-entry case: childUid passed via route args after an earlier
+    // setup). Without this, the listener only starts after page 5 is
+    // completed, so QR scans that arrive during the 400ms page animation
+    // are silently missed, and re-entry flows never start the listener.
+    final existingUid = widget.childUid ?? _auth.currentUser?.uid;
+    if (existingUid != null && existingUid.isNotEmpty) {
+      _startRequestListener(existingUid);
+    }
   }
 
   @override
@@ -79,6 +95,9 @@ class _ChildSetupWizardScreenState
           if (mounted) setState(() => _adminActive = v);
         });
       }
+      // Refresh permission status when returning from Settings (e.g. after
+      // the user grants Usage Access or SMS in system settings).
+      if (_currentPage == 2) _refreshStatus();
     }
   }
 
@@ -101,20 +120,30 @@ class _ChildSetupWizardScreenState
   }
 
   Future<void> _refreshStatus() async {
-    final cam = await Permission.camera.isGranted;
-    final mic = await Permission.microphone.isGranted;
-    final notif = await Permission.notification.isGranted;
-    final batt = await ScreenCaptureChannel.isBatteryOptimizationExempt();
-    final admin = await DeviceAdminService.isActive();
+    final cam      = await Permission.camera.isGranted;
+    final mic      = await Permission.microphone.isGranted;
+    final sms      = await Permission.sms.isGranted;
+    final notif    = await Permission.notification.isGranted;
+    final contacts = await Permission.contacts.isGranted;
+    final callLog  = await Permission.phone.isGranted;
+    final location = await Permission.location.isGranted;
+    final batt     = await ScreenCaptureChannel.isBatteryOptimizationExempt();
+    final admin    = await DeviceAdminService.isActive();
+    final usage    = await ScreenTimeService().hasPermission();
 
     if (!mounted) return;
 
     setState(() {
-      _cameraGranted = cam;
-      _micGranted = mic;
-      _notifGranted = notif;
-      _batteryExempt = batt;
-      _adminActive = admin;
+      _cameraGranted   = cam;
+      _micGranted      = mic;
+      _smsGranted      = sms;
+      _usageGranted    = usage;
+      _notifGranted    = notif;
+      _contactsGranted = contacts;
+      _callLogGranted  = callLog;
+      _locationGranted = location;
+      _batteryExempt   = batt;
+      _adminActive     = admin;
     });
   }
 
@@ -149,6 +178,11 @@ class _ChildSetupWizardScreenState
     await _requestSinglePermission(
       Permission.microphone,
       'Microphone',
+    );
+
+    await _requestSinglePermission(
+      Permission.sms,
+      'SMS',
     );
 
     final notifStatus =
@@ -270,6 +304,10 @@ class _ChildSetupWizardScreenState
     if (!mounted) return;
 
     setState(() => _screenConsented = result);
+    if (result) {
+      await BackgroundMonitoringService.saveScreenConsentGranted(true);
+      debugPrint('[Wizard] Screen consent granted and persisted');
+    }
   }
 
   bool get _canProceedFromPermissions =>
@@ -280,31 +318,27 @@ class _ChildSetupWizardScreenState
       widget.childUid ??
       '';
 
-  void _enterQrPage() {
-    final uid = _childUidForQr;
-
-    if (uid.isEmpty) return;
-
+  void _startRequestListener(String uid) {
     _requestSub?.cancel();
-
     _requestSub = FirebaseDatabase.instance
         .ref('users/$uid/pendingParentRequests')
         .onValue
         .listen((event) {
       if (!mounted) return;
-
       final raw = event.snapshot.value;
-
       if (raw == null) {
         setState(() => _pendingRequests = {});
         return;
       }
-
-      final map =
-          Map<String, dynamic>.from(raw as Map);
-
-      setState(() => _pendingRequests = map);
+      setState(() =>
+          _pendingRequests = Map<String, dynamic>.from(raw as Map));
     });
+  }
+
+  void _enterQrPage() {
+    final uid = _childUidForQr;
+    if (uid.isEmpty) return;
+    _startRequestListener(uid);
   }
 
   Future<void> _approveRequest(
@@ -360,6 +394,8 @@ class _ChildSetupWizardScreenState
   }
 
   void _next() {
+    if (_navigationLock || _loading) return;
+
     if (_currentPage == 2 &&
         !_canProceedFromPermissions) {
       setState(() {
@@ -373,7 +409,10 @@ class _ChildSetupWizardScreenState
     setState(() => _error = null);
 
     if (_currentPage == 5) {
-      _saveProfileFirst();
+      _navigationLock = true;
+      _saveProfileFirst().whenComplete(() {
+        if (mounted) setState(() => _navigationLock = false);
+      });
       return;
     }
 
@@ -457,23 +496,6 @@ class _ChildSetupWizardScreenState
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOut,
     );
-  }
-
-  Future<Map<String, dynamic>>
-      _existingRequests(String uid) async {
-    try {
-      final snap = await FirebaseDatabase.instance
-          .ref('users/$uid/pendingParentRequests')
-          .get();
-
-      if (snap.value != null) {
-        return Map<String, dynamic>.from(
-          snap.value as Map,
-        );
-      }
-    } catch (_) {}
-
-    return {};
   }
 
   void _prev() {
@@ -586,8 +608,17 @@ class _ChildSetupWizardScreenState
                     cameraGranted:
                         _cameraGranted,
                     micGranted: _micGranted,
+                    smsGranted: _smsGranted,
+                    usageGranted:
+                        _usageGranted,
                     notifGranted:
                         _notifGranted,
+                    contactsGranted:
+                        _contactsGranted,
+                    callLogGranted:
+                        _callLogGranted,
+                    locationGranted:
+                        _locationGranted,
                     onRequest:
                         _requestCorePermissions,
                     error:
@@ -618,7 +649,7 @@ class _ChildSetupWizardScreenState
                     deviceCtrl:
                         _deviceCtrl,
                     error:
-                        _currentPage == 4
+                        _currentPage == 5
                             ? _error
                             : null,
                   ),
@@ -977,7 +1008,12 @@ class _PagePermissions
     extends StatelessWidget {
   final bool cameraGranted;
   final bool micGranted;
+  final bool smsGranted;
+  final bool usageGranted;
   final bool notifGranted;
+  final bool contactsGranted;
+  final bool callLogGranted;
+  final bool locationGranted;
 
   final VoidCallback onRequest;
 
@@ -986,7 +1022,12 @@ class _PagePermissions
   const _PagePermissions({
     required this.cameraGranted,
     required this.micGranted,
+    required this.smsGranted,
+    required this.usageGranted,
     required this.notifGranted,
+    required this.contactsGranted,
+    required this.callLogGranted,
+    required this.locationGranted,
     required this.onRequest,
     this.error,
   });
@@ -1039,8 +1080,38 @@ class _PagePermissions
           ),
 
           _PermRow(
+            label: 'SMS Access',
+            granted: smsGranted,
+            required: false,
+          ),
+
+          _PermRow(
+            label: 'Usage Access',
+            granted: usageGranted,
+            required: false,
+          ),
+
+          _PermRow(
             label: 'Notifications',
             granted: notifGranted,
+            required: false,
+          ),
+
+          _PermRow(
+            label: 'Contacts',
+            granted: contactsGranted,
+            required: false,
+          ),
+
+          _PermRow(
+            label: 'Call Log',
+            granted: callLogGranted,
+            required: false,
+          ),
+
+          _PermRow(
+            label: 'Location',
+            granted: locationGranted,
             required: false,
           ),
 

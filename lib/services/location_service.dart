@@ -1,3 +1,4 @@
+// ignore_for_file: unnecessary_cast
 import 'dart:async';
 
 import 'package:firebase_database/firebase_database.dart';
@@ -17,6 +18,19 @@ class LocationService {
   StreamSubscription<Position>? _positionSub;
   Timer? _geofenceCheckTimer;
   String? _activeUid;
+
+  // P3-B: Mutex prevents concurrent _checkGeofences() invocations.
+  // GPS position events can arrive faster than the ~200 ms Firebase round-trip
+  // for the geofences read, causing duplicate alert writes.
+  bool _checkingGeofences = false;
+
+  // HIGH-04: In-memory cache of each fence's last-known inside/outside state.
+  // Avoids writing state into the geofences config node (which the parent reads
+  // for fence configuration), eliminating spurious re-renders of the parent's
+  // geofence list on every GPS update. State is written to the dedicated
+  // geofence_state/$uid/$fenceId/inside node on actual transitions only.
+  // Cleared when tracking stops so the next session re-seeds from Firebase.
+  final Map<String, bool> _fenceInsideCache = {};
 
   final _db = FirebaseDatabase.instance.ref();
 
@@ -98,6 +112,10 @@ class LocationService {
     _geofenceCheckTimer?.cancel();
     _geofenceCheckTimer = null;
     _activeUid = null;
+    // HIGH-04: Clear the in-memory fence state cache so the next tracking
+    // session re-seeds from the geofence_state node in Firebase rather than
+    // using stale inside/outside values from a previous session.
+    _fenceInsideCache.clear();
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -106,6 +124,11 @@ class LocationService {
 
   Future<void> _checkGeofences(
       String uid, double lat, double lng) async {
+    // P3-B: Mutex guard — drop concurrent invocations. Position events can
+    // arrive within a single Firebase round-trip (~200 ms), causing two
+    // identical reads + writes and duplicate geofence alert entries.
+    if (_checkingGeofences) return;
+    _checkingGeofences = true;
     try {
       final snap = await _db.child('geofences/$uid').get();
       if (snap.value == null || snap.value is! Map) return;
@@ -121,7 +144,16 @@ class LocationService {
         final name = raw['name'] as String? ?? 'Zone';
         final alertOnExit = raw['alertOnExit'] as bool? ?? true;
         final alertOnEnter = raw['alertOnEnter'] as bool? ?? false;
-        final wasInside = raw['_lastInside'] as bool? ?? false;
+        // HIGH-04: Prefer in-memory cache for last-known state over the value
+        // embedded in the geofences config node. The cache is populated on the
+        // first transition event; until then we fall back to any stored value.
+        // Writing state into the geofences config node is intentionally removed
+        // to prevent the parent's watchGeofences() stream from firing on every
+        // GPS position update and to fix a security-rules violation (the
+        // geofences node is parent-writable only; the child had no write access).
+        final wasInside = _fenceInsideCache.containsKey(id)
+            ? _fenceInsideCache[id]!
+            : (raw['_lastInside'] as bool? ?? false);
 
         if (fenceLat == null || fenceLng == null) continue;
 
@@ -130,7 +162,12 @@ class LocationService {
 
         // State changed?
         if (nowInside != wasInside) {
-          await _db.child('geofences/$uid/$id/_lastInside').set(nowInside);
+          // Update in-memory cache immediately so subsequent position events
+          // within the same Firebase round-trip use the correct state.
+          _fenceInsideCache[id] = nowInside;
+          // Write to the dedicated state node — separated from the config node
+          // so parent UI only re-renders on actual enter/exit transitions.
+          await _db.child('geofence_state/$uid/$id/inside').set(nowInside);
 
           if (!nowInside && alertOnExit) {
             await _writeAlert(uid, id, name, 'exit', lat, lng);
@@ -141,6 +178,8 @@ class LocationService {
       }
     } catch (e) {
       debugPrint('[Location] geofence check error: $e');
+    } finally {
+      _checkingGeofences = false;
     }
   }
 
@@ -217,7 +256,6 @@ class LocationService {
       'radiusMeters': radiusMeters,
       'alertOnExit': alertOnExit,
       'alertOnEnter': alertOnEnter,
-      '_lastInside': false,
       'createdAt': DateTime.now().millisecondsSinceEpoch,
     });
   }

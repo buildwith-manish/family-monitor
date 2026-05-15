@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">Family Monitor Child</string>
     <string name="accessibility_service_description">Required for device management</string>
+    <color name="ic_launcher_background">#FF1565C0</color>
 </resources>

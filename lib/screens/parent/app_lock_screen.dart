@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use
 import 'dart:async';
 
 import 'package:firebase_database/firebase_database.dart';
@@ -34,8 +35,15 @@ class _AppLockScreenState extends State<AppLockScreen> {
   @override
   void initState() {
     super.initState();
+    _requestSync();
     _loadApps();
     _listenBlocked();
+  }
+
+  Future<void> _requestSync() async {
+    await _db
+        .child('commands/${widget.childUid}/syncAppList/requested')
+        .set(true);
   }
 
   @override

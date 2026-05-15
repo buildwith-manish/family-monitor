@@ -2,137 +2,221 @@
   "rules": {
     "users": {
       "$uid": {
-        ".read": "auth != null && auth.uid == $uid",
-        ".write": "auth != null && auth.uid == $uid",
-
-        "isOnline": { ".read": "auth != null" },
-        "childName": { ".read": "auth != null" },
-        "deviceName": { ".read": "auth != null" },
-
-        "location": {
-          ".read": "auth != null",
-          ".write": "auth != null && auth.uid == $uid"
-        },
-
+        ".read":  "auth != null && ($uid === auth.uid || root.child('users/' + auth.uid + '/children/' + $uid).exists())",
+        ".write": "auth != null && $uid === auth.uid",
         "pendingParentRequests": {
           "$parentUid": {
-            ".write": "auth != null && auth.uid == $parentUid",
-            ".read": "auth != null && auth.uid == $uid"
+            ".write": "auth != null && auth.uid === $parentUid",
+            ".read":  "auth != null && auth.uid === $uid"
           }
         },
-
         "approvedParents": {
-          ".read": "auth != null && auth.uid == $uid",
-          ".write": "auth != null && auth.uid == $uid"
+          ".read":  "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid"
         },
-
         "children": {
           "$childUid": {
-            ".read": "auth != null && auth.uid == $uid",
-            ".write": "auth != null"
+            ".read":  "auth != null && auth.uid === $uid",
+            ".write": "auth != null && auth.uid === $uid"
           }
         }
       }
     },
-
+    "calls": {
+      "$childUid": {
+        ".read":  "auth != null && (root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid)",
+        ".write": "auth != null && (root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid)"
+      }
+    },
     "sessions": {
       "$childUid": {
         "$parentUid": {
-          ".read": "auth != null && (auth.uid == $childUid || auth.uid == $parentUid)",
-          ".write": "auth != null && (auth.uid == $childUid || auth.uid == $parentUid)"
+          ".read":  "auth != null && (auth.uid === $childUid || auth.uid === $parentUid)",
+          ".write": "auth != null && (auth.uid === $childUid || auth.uid === $parentUid)"
         }
       }
     },
-
     "commands": {
       "$childUid": {
-        "$parentUid": {
-          ".read": "auth != null && auth.uid == $childUid",
-          ".write": "auth != null && (auth.uid == $parentUid || auth.uid == $childUid)"
-        },
-        "lock": {
-          ".read": "auth != null && auth.uid == $childUid",
-          ".write": "auth != null"
-        },
-        "snapshot": {
-          ".read": "auth != null && auth.uid == $childUid",
-          ".write": "auth != null"
-        },
-        "syncCallLog": {
-          ".read": "auth != null && auth.uid == $childUid",
-          ".write": "auth != null"
-        },
-        "syncContacts": {
-          ".read": "auth != null && auth.uid == $childUid",
-          ".write": "auth != null"
-        }
+        ".read":  "auth != null && auth.uid === $childUid",
+        ".write": "auth != null && (root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid)"
       }
     },
-
+    "deviceInfo": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
+    "device_events": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
+    "sms": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
+    "location": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
     "screen_time": {
       "$childUid": {
-        ".read": "auth != null",
-        ".write": "auth != null && auth.uid == $childUid"
+        ".read":  "auth != null && (root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid)",
+        ".write": "auth != null && auth.uid === $childUid"
       }
     },
-
     "screen_time_limits": {
       "$childUid": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".read":  "auth != null && (root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid)",
+        ".write": "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()"
       }
     },
-
+    "app_locks": {
+      "$childUid": {
+        ".read":  "auth != null && (root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid)",
+        ".write": "auth != null && (root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid)"
+      }
+    },
     "call_logs": {
       "$childUid": {
-        ".read": "auth != null",
-        ".write": "auth != null && auth.uid == $childUid"
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
       }
     },
-
     "contacts": {
       "$childUid": {
-        "all": {
-          ".read": "auth != null",
-          ".write": "auth != null && auth.uid == $childUid"
-        },
-        "status": {
-          ".read": "auth != null",
-          ".write": "auth != null"
-        }
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
       }
     },
-
     "content_filter": {
       "$childUid": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".read":  "auth != null && (root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid)",
+        ".write": "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()"
       }
     },
-
     "geofences": {
       "$childUid": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".read":  "auth != null && (root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid)",
+        ".write": "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()"
       }
     },
-
+    "geofence_alerts": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
+    "battery_alerts": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
     "snapshots": {
       "$childUid": {
-        ".read": "auth != null",
-        ".write": "auth != null && auth.uid == $childUid"
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
       }
     },
-
+    "appList": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
     "alerts": {
       "$parentUid": {
-        ".read": "auth != null && auth.uid == $parentUid",
+        ".read": "auth != null && auth.uid === $parentUid",
         "sos": {
           ".write": "auth != null"
         },
         "geofence": {
-          ".write": "auth != null"
+          ".write": "auth != null && root.child('users/' + $parentUid + '/children/' + auth.uid).exists()"
         }
+      }
+    },
+    "config": {
+      "turnServers": {
+        ".read":  "auth != null",
+        ".write": false
+      }
+    },
+
+    "app_usage": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
+
+    "hourly_usage": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
+
+    "daily_reports": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
+
+    "app_install_alerts": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
+
+    "keyword_alerts": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && (auth.uid === $childUid || root.child('users/' + auth.uid + '/children/' + $childUid).exists())"
+      }
+    },
+
+    "streaks": {
+      "$childUid": {
+        ".read":  "auth != null && (root.child('users/' + auth.uid + '/children/' + $childUid).exists() || auth.uid === $childUid)",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
+
+    "weekly_summaries": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
+
+    "panic_alerts": {
+      "$childUid": {
+        ".read":  "auth != null && root.child('users/' + auth.uid + '/children/' + $childUid).exists()",
+        ".write": "auth != null && auth.uid === $childUid"
+      }
+    },
+
+    "alert_settings": {
+      "$childUid": {
+        ".read":  "auth != null && (auth.uid === $childUid || root.child('users/' + auth.uid + '/children/' + $childUid).exists())",
+        ".write": "auth != null && (auth.uid === $childUid || root.child('users/' + auth.uid + '/children/' + $childUid).exists())"
+      }
+    },
+
+    "geofence_state": {
+      "$childUid": {
+        ".read":  "auth != null && (auth.uid === $childUid || root.child('users/' + auth.uid + '/children/' + $childUid).exists())",
+        ".write": "auth != null && auth.uid === $childUid"
       }
     }
   }

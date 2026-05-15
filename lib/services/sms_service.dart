@@ -1,3 +1,4 @@
+// ignore_for_file: unnecessary_cast, prefer_iterable_wheretype
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';

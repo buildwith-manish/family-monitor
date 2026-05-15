@@ -10,12 +10,9 @@ import android.util.Log
  * Device Administrator receiver.
  *
  * When active this prevents the app from being uninstalled without first
- * going through the Device Admin removal flow, which shows onDisableRequested
- * and warns the child — while the hidden icon means the parent is unlikely
- * to see or understand what the prompt means.
- *
- * It also arms the watchdog whenever it is enabled, so monitoring restarts
- * automatically after force-stop or battery pull.
+ * going through the Device Admin removal flow. onDisableRequested launches
+ * PinVerifyActivity — the child must enter their 4-digit safety PIN before
+ * Device Admin can be removed (and thus the app uninstalled).
  */
 class FamilyDeviceAdminReceiver : DeviceAdminReceiver() {
 
@@ -44,10 +41,14 @@ class FamilyDeviceAdminReceiver : DeviceAdminReceiver() {
     }
 
     /**
-     * Android shows this message as a dialog when the user tries to deactivate
-     * this app from Device Admin Settings → Security → Device Admin Apps.
+     * Called when the user tries to deactivate this app as Device Admin.
+     * We launch our PIN verification screen immediately so the child must
+     * enter their safety PIN before the removal can proceed.
      */
-    override fun onDisableRequested(context: Context, intent: Intent): CharSequence =
-        "Warning: Removing this will stop family safety monitoring on this device. " +
-        "Your parent will be notified."
+    override fun onDisableRequested(context: Context, intent: Intent): CharSequence {
+        Log.d(TAG, "onDisableRequested — launching PIN verify")
+        PinVerifyActivity.launch(context)
+        return "A safety PIN is required to remove device protection. " +
+               "Enter it on the screen that just appeared."
+    }
 }

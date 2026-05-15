@@ -9,6 +9,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'screens/child/child_home_screen.dart';
 import 'screens/child/child_setup_wizard_screen.dart';
 import 'screens/parent/add_child_screen.dart';
+import 'screens/parent/change_password_screen.dart';
+import 'screens/parent/forgot_password_screen.dart';
 import 'screens/parent/parent_auth_screen.dart';
 import 'screens/parent/parent_dashboard_screen.dart';
 import 'screens/role_selection_screen.dart';
@@ -40,16 +42,51 @@ Future<void> main() async {
     return true;
   };
 
+  // Replace the red crash screen with a clean branded error UI so widget
+  // build exceptions never expose raw stack traces to end users.
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      color: const Color(0xFF1A73E8),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 56),
+              const SizedBox(height: 20),
+              const Text(
+                'Something went wrong',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                details.exceptionAsString(),
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                textAlign: TextAlign.center,
+                maxLines: 5,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Please restart the app',
+                style: TextStyle(color: Colors.white54, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  };
+
   runApp(const FamilyMonitorApp());
 }
 
-// ---------------------------------------------------------------------------
-// Temporary test helper – wire to a debug button, then REMOVE before release.
-// Usage: call testCrashlytics(), restart the app, check the Firebase console.
-// ---------------------------------------------------------------------------
-void testCrashlytics() {
-  FirebaseCrashlytics.instance.crash();
-}
 
 class FamilyMonitorApp extends StatelessWidget {
   const FamilyMonitorApp({super.key});
@@ -68,6 +105,10 @@ class FamilyMonitorApp extends StatelessWidget {
         '/parent/dashboard': (BuildContext context) =>
             const ParentDashboardScreen(),
         '/parent/add-child': (BuildContext context) => const AddChildScreen(),
+        '/parent/forgot-password': (BuildContext context) =>
+            const ForgotPasswordScreen(),
+        '/parent/change-password': (BuildContext context) =>
+            const ChangePasswordScreen(),
         '/child/home': (BuildContext context) => const ChildHomeScreen(),
       },
       onGenerateRoute: (RouteSettings settings) {

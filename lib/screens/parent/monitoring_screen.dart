@@ -26,7 +26,7 @@ class MonitoringScreen extends StatefulWidget {
 class _MonitoringScreenState extends State<MonitoringScreen> {
   final _webrtc = WebRTCService();
   bool _hasStream = false;
-  bool _isMuted = false;
+  bool _isMuted = true;
   bool _showControls = true;
   String _status = 'Connecting...';
   bool _isChildOnline = false;
@@ -51,13 +51,18 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       });
       _timeout?.cancel();
       _startControlsTimer();
+      // Enforce muted-by-default: send the mute command as soon as the
+      // stream connects so the child's mic is silenced from the first frame.
+      _webrtc.sendMuteCommand(widget.childUid, true).catchError((_) {});
     };
     _startMonitoring();
     _listenToPresence();
     _timeout = Timer(const Duration(seconds: 30), () {
       if (mounted && !_hasStream) {
         setState(() {
-          _status = 'Waiting for child device...\nMake sure the child app has camera permission granted.';
+          _status = widget.mode == StreamMode.screen
+              ? 'Waiting for child screen share...\nOpen the child app — screen capture permission must be re-granted after each restart.'
+              : 'Waiting for child device...\nMake sure the child app is open and camera permission has been granted.';
         });
       }
     });
@@ -96,6 +101,12 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
   Future<void> _startMonitoring() async {
     try {
+      // Clear any stale screenError from a previous session so it doesn't
+      // bleed into this new session as a false-positive banner.
+      await FirebaseDatabase.instance
+          .ref('calls/${widget.childUid}/screenError')
+          .remove();
+
       await _webrtc.startAsParent(
           childUid: widget.childUid, mode: widget.mode);
       if (!mounted) return;
@@ -156,15 +167,22 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     _heartbeatSub?.cancel();
     _webrtc.onRemoteStream = null;
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    // LC-02: Only send endCall from dispose if _endSession() was NOT already
-    // called (i.e. the user used a system back gesture bypassing _endSession).
-    // Without this guard, endCall fires twice — once from _endSession and
-    // once from dispose — which can produce a second 'ended' write that
-    // races with a new session the parent immediately starts.
+    // P5-B: Chain endCall → dispose so the Firebase 'ended' write reaches the
+    // child's _callsSub before the peer connection is torn down. The old
+    // fire-and-forget approach called dispose() immediately after endCall(),
+    // which cancelled all subscriptions (including _statusSub) before the
+    // write could propagate — leaving the child's camera active for up to 30 s.
+    // Using whenComplete() defers WebRTC teardown until after the write settles
+    // (or fails) while still calling super.dispose() synchronously, which is
+    // correct: the widget framework considers the widget disposed immediately,
+    // and the async WebRTC cleanup runs safely after.
     if (!_callEnded) {
-      _webrtc.endCall(widget.childUid).catchError((_) {});
+      _webrtc.endCall(widget.childUid)
+          .catchError((_) {})
+          .whenComplete(() => _webrtc.dispose());
+    } else {
+      _webrtc.dispose();
     }
-    _webrtc.dispose();
     super.dispose();
   }
 

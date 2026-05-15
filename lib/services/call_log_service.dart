@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_iterable_wheretype
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';

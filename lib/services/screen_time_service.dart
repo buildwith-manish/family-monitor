@@ -163,42 +163,152 @@ class ScreenTimeService {
     });
   }
 
-  String _friendlyName(String pkg) {
+  String _friendlyName(String pkg) => ScreenTimeService.friendlyAppName(pkg);
+
+  static String friendlyAppName(String pkg) {
     const names = {
+      // Google & Core Android
       'com.google.android.youtube': 'YouTube',
+      'com.google.android.youtube.tv': 'YouTube TV',
+      'com.google.android.apps.youtube.music': 'YouTube Music',
+      'com.google.android.youtube.kids': 'YouTube Kids',
+      'com.google.android.gm': 'Gmail',
+      'com.google.android.apps.maps': 'Google Maps',
+      'com.android.chrome': 'Chrome',
+      'com.google.android.googlequicksearchbox': 'Google',
+      'com.google.android.apps.tachyon': 'Google Meet',
+      'com.google.android.talk': 'Google Chat',
+      'com.google.android.apps.docs': 'Google Docs',
+      'com.google.android.apps.spreadsheets': 'Google Sheets',
+      'com.google.android.apps.presentations': 'Google Slides',
+      'com.google.android.apps.photos': 'Google Photos',
+      'com.google.android.apps.fitness': 'Google Fit',
+      'com.google.android.apps.classroom': 'Google Classroom',
+      'com.google.android.calendar': 'Calendar',
+      'com.google.android.dialer': 'Phone',
+      'com.google.android.contacts': 'Contacts',
+      'com.google.android.messaging': 'Messages',
+      'com.google.android.deskclock': 'Clock',
+      'com.google.android.calculator': 'Calculator',
+      'com.google.android.GoogleCamera': 'Camera',
+      'com.google.android.apps.nexuslauncher': 'Pixel Launcher',
+      'com.google.android.play.games': 'Play Games',
+      'com.android.vending': 'Play Store',
+      'com.google.android.gms': 'Play Services',
+      // Social & Messaging
       'com.instagram.android': 'Instagram',
       'com.zhiliaoapp.musically': 'TikTok',
+      'com.ss.android.ugc.trill': 'TikTok',
+      'com.ss.android.ugc.aweme': 'Douyin',
       'com.snapchat.android': 'Snapchat',
       'com.facebook.katana': 'Facebook',
+      'com.facebook.orca': 'Messenger',
+      'com.facebook.lite': 'Facebook Lite',
       'com.twitter.android': 'X (Twitter)',
       'com.whatsapp': 'WhatsApp',
-      'com.google.android.gm': 'Gmail',
-      'com.google.android.apps.maps': 'Maps',
-      'com.android.chrome': 'Chrome',
-      'com.netflix.mediaclient': 'Netflix',
-      'com.google.android.play.games': 'Play Games',
-      'com.roblox.client': 'Roblox',
-      'com.mojang.minecraftpe': 'Minecraft',
+      'com.whatsapp.w4b': 'WhatsApp Business',
+      'org.telegram.messenger': 'Telegram',
+      'org.telegram.plus': 'Telegram X',
       'com.discord': 'Discord',
       'com.reddit.frontpage': 'Reddit',
+      'com.pinterest': 'Pinterest',
+      'com.tumblr': 'Tumblr',
+      'tv.twitch.android.app': 'Twitch',
+      'com.linkedin.android': 'LinkedIn',
+      'com.viber.voip': 'Viber',
+      'jp.naver.line.android': 'LINE',
+      'com.kakao.talk': 'KakaoTalk',
+      'com.tencent.mm': 'WeChat',
+      'com.imo.android.imoim': 'imo',
+      // Entertainment
+      'com.netflix.mediaclient': 'Netflix',
+      'com.amazon.avod.thirdpartyclient': 'Prime Video',
+      'com.hulu.plus': 'Hulu',
+      'com.disneyplus': 'Disney+',
+      'com.hbo.max': 'Max',
+      'com.spotify.music': 'Spotify',
+      'com.soundcloud.android': 'SoundCloud',
+      'com.shazam.android': 'Shazam',
+      'com.apple.android.music': 'Apple Music',
+      // Games
+      'com.roblox.client': 'Roblox',
+      'com.mojang.minecraftpe': 'Minecraft',
+      'com.supercell.clashofclans': 'Clash of Clans',
+      'com.supercell.clashroyale': 'Clash Royale',
+      'com.king.candycrushsaga': 'Candy Crush',
+      'com.activision.callofduty.shooter': 'Call of Duty Mobile',
+      'com.garena.freefire': 'Free Fire',
+      'com.tencent.ig': 'PUBG Mobile',
+      'com.vng.pubgmobile': 'PUBG Mobile',
+      'com.miHoYo.GenshinImpact': 'Genshin Impact',
+      // Microsoft
+      'com.microsoft.teams': 'Teams',
+      'com.microsoft.office.word': 'Word',
+      'com.microsoft.office.excel': 'Excel',
+      'com.microsoft.office.powerpoint': 'PowerPoint',
+      'com.microsoft.office.onenote': 'OneNote',
+      'com.skype.raider': 'Skype',
+      'com.microsoft.bing': 'Bing',
+      // Browsers
+      'org.mozilla.firefox': 'Firefox',
+      'com.opera.browser': 'Opera',
+      'com.brave.browser': 'Brave',
+      'com.duckduckgo.mobile.android': 'DuckDuckGo',
+      // Shopping & Finance
+      'com.amazon.mShop.android.shopping': 'Amazon',
+      'com.paypal.android.p2pmobile': 'PayPal',
+      'com.venmo': 'Venmo',
+      'com.cashapp': 'Cash App',
+      'com.walmart.android': 'Walmart',
+      'com.target.ui': 'Target',
+      // Transport & Food
+      'com.ubercab': 'Uber',
+      'com.ubercab.eats': 'Uber Eats',
+      'com.lyft.android': 'Lyft',
+      'com.doordash.diner': 'DoorDash',
+      'com.grubhub.android': 'Grubhub',
+      // Education
+      'com.duolingo': 'Duolingo',
+      'org.khanacademy.android': 'Khan Academy',
+      'com.zoom.videomeetings': 'Zoom',
+      'us.zoom.videomeetings': 'Zoom',
+      // Samsung
+      'com.samsung.android.messaging': 'Samsung Messages',
+      'com.samsung.android.contacts': 'Samsung Contacts',
+      'com.samsung.android.dialer': 'Samsung Phone',
+      'com.samsung.android.app.notes': 'Samsung Notes',
+      'com.samsung.android.calendar': 'Samsung Calendar',
+      'com.sec.android.gallery3d': 'Gallery',
+      // System
+      'com.android.settings': 'Settings',
+      'com.android.systemui': 'System UI',
+      'com.android.dialer': 'Phone',
+      'com.android.contacts': 'Contacts',
+      'com.android.mms': 'Messages',
+      'com.android.calendar': 'Calendar',
+      'com.android.deskclock': 'Clock',
+      'com.android.calculator2': 'Calculator',
+      'com.android.camera': 'Camera',
+      'com.android.camera2': 'Camera',
+      'com.android.browser': 'Browser',
+      'com.android.gallery3d': 'Gallery',
+      // Fitness
+      'com.nike.plusgps': 'Nike Run Club',
+      'com.adidas.running': 'Adidas Running',
     };
 
-    if (names.containsKey(pkg)) {
-      return names[pkg]!;
-    }
+    if (names.containsKey(pkg)) return names[pkg]!;
 
     final parts = pkg.split('.');
-
     if (parts.length >= 2) {
       return parts.last
           .replaceAll('_', ' ')
           .split(' ')
-          .map(
-            (w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '',
-          )
+          .map((w) => w.isNotEmpty
+              ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}'
+              : '')
           .join(' ');
     }
-
     return pkg;
   }
 }

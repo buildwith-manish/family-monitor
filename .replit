@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "python-3.12"]
+modules = ["nodejs-20", "web"]
 [agent]
 expertMode = true
 stack = "BEST_EFFORT_FALLBACK"
@@ -33,6 +33,10 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 9005
+externalPort = 3001
 
 [deployment]
 deploymentTarget = "autoscale"

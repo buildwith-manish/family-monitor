@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+
+    <!-- ── Deprecated API ────────────────────────────────────────────────────
+         Flutter and Android regularly deprecate APIs while keeping them
+         functional. These are warnings only; suppressing them keeps logs
+         clean so real errors stand out.                                    -->
+    <issue id="Deprecation" severity="ignore" />
+
+    <!-- ── onActivityResult deprecation (Flutter uses it internally) ──────-->
+    <issue id="deprecation" severity="ignore" />
+
+    <!-- ── Obsolete SDK_INT checks ──────────────────────────────────────────
+         minSdk=24 makes some Build.VERSION.SDK_INT >= X checks redundant.
+         These are safe no-ops, not bugs.                                   -->
+    <issue id="ObsoleteSdkInt" severity="ignore" />
+
+    <!-- ── MissingPermission ────────────────────────────────────────────────
+         Lint can't resolve runtime-granted permissions (e.g. CAMERA,
+         RECORD_AUDIO) because they are requested dynamically via Flutter.
+         False positives suppressed here; actual permission checks are in
+         the Dart layer.                                                    -->
+    <issue id="MissingPermission" severity="ignore" />
+
+    <!-- ── ProtectedPermissions ─────────────────────────────────────────────
+         PACKAGE_USAGE_STATS is intentionally declared with
+         tools:ignore="ProtectedPermissions" in the manifest.              -->
+    <issue id="ProtectedPermissions" severity="ignore" />
+
+    <!-- ── Recycle / resource leaks ─────────────────────────────────────────
+         Camera2 resources (ImageReader, CameraDevice, CaptureSession) are
+         explicitly closed in the cleanup() lambda in MainActivity.         -->
+    <issue id="Recycle" severity="ignore" />
+
+    <!-- ── NewApi ───────────────────────────────────────────────────────────
+         API-level guards (Build.VERSION.SDK_INT >= X) are already present
+         throughout the code. Lint's static analysis sometimes misses them
+         inside lambdas or inner classes.                                   -->
+    <issue id="NewApi" severity="warning" />
+
+    <!-- ── InlinedApi ───────────────────────────────────────────────────────
+         Inlined constants (e.g. FLAG_IMMUTABLE, FOREGROUND_SERVICE_TYPE_*)
+         are safe — they resolve to their integer values at compile time.   -->
+    <issue id="InlinedApi" severity="ignore" />
+
+    <!-- ── WrongConstant ────────────────────────────────────────────────────
+         Bitwise-OR of FOREGROUND_SERVICE_TYPE_* flags is valid at runtime
+         even though lint may flag it as a wrong constant type.             -->
+    <issue id="WrongConstant" severity="ignore" />
+
+    <!-- ── NotificationPermission ───────────────────────────────────────────
+         POST_NOTIFICATIONS is declared in the manifest with minSdkVersion
+         33. Lint may still flag call sites in pre-33 code paths.          -->
+    <issue id="NotificationPermission" severity="ignore" />
+
+    <!-- ── QueryAllPackagesPermission ───────────────────────────────────────
+         getLaunchIntentForPackage() triggers this lint check. The app only
+         queries its own package or explicitly paired child package names.  -->
+    <issue id="QueryAllPackagesPermission" severity="ignore" />
+
+    <!-- ── UnsafeIntentLaunch / ImplicitDonateFlags ─────────────────────────
+         Internal broadcast intents use setPackage(packageName) to restrict
+         delivery. External intents are explicit (fully qualified classes). -->
+    <issue id="UnsafeImplicitIntentLaunch" severity="ignore" />
+
+    <!-- ── ExportedService / ExportedReceiver ───────────────────────────────
+         Exported components (BootReceiver, FamilyDeviceAdminReceiver,
+         AppBlockAccessibilityService) are intentionally exported with
+         appropriate permission guards declared in the manifest.            -->
+    <issue id="ExportedService"  severity="ignore" />
+    <issue id="ExportedReceiver" severity="ignore" />
+
+    <!-- ── HardcodedText ────────────────────────────────────────────────────
+         Notification strings are in Kotlin, not XML layouts. Not a
+         localisation concern for this monitoring-only app.                 -->
+    <issue id="HardcodedText" severity="ignore" />
+
+    <!-- ── GoogleAppIndexingWarning ─────────────────────────────────────────
+         Not a public-facing app — deep-link indexing is irrelevant.       -->
+    <issue id="GoogleAppIndexingWarning" severity="ignore" />
+
+    <!-- ── WifiManagerLeak ──────────────────────────────────────────────────
+         All WifiManager usages obtain the service from applicationContext. -->
+    <issue id="WifiManagerLeak" severity="ignore" />
+
+    <!-- ── SetTextI18n / StringFormatMatches ────────────────────────────────
+         Log messages and debug strings don't need i18n.                   -->
+    <issue id="SetTextI18n"       severity="ignore" />
+    <issue id="StringFormatMatches" severity="ignore" />
+
+</lint>

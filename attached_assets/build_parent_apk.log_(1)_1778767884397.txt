@@ -1,0 +1,23 @@
+Version code: 50  |  SHA: 0eb6257
+Running Gradle task 'assembleParentRelease'...                  
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+A problem occurred configuring project ':app'.
+> Conflicting configuration : 'armeabi-v7a,arm64-v8a,x86_64' in ndk abiFilters cannot be present when splits abi filters are set : armeabi-v7a,x86_64,arm64-v8a
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 49s
+Running Gradle task 'assembleParentRelease'...                     50.3s
+Gradle task assembleParentRelease failed with exit code 1
+ERROR: Parent APK not found
+
+
+Build failed :|
+Step 9 script `Build Parent APK` exited with status code 1

@@ -1,7 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'forgot_password_screen.dart';
 
 class ParentAuthScreen extends StatefulWidget {
   const ParentAuthScreen({super.key});
@@ -56,6 +60,21 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
     setState(() => _loading = false);
 
     if (result['success'] == true) {
+      // Save parent FCM token to Firebase so the child device can send
+      // push notifications to this parent. Without this, all FCM pushes
+      // to the parent are silently dropped.
+      try {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null) {
+          final token = await FirebaseMessaging.instance.getToken();
+          if (token != null) {
+            await FirebaseDatabase.instance
+                .ref('users/$uid/fcmToken')
+                .set(token);
+          }
+        }
+      } catch (_) {}
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/parent/dashboard');
     } else {
       setState(() { _error = result['error']; });
@@ -207,7 +226,36 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                   },
                 ).animate(delay: 300.ms).fadeIn().slideX(begin: -0.1, end: 0),
 
-                const SizedBox(height: 28),
+                // Forgot password link (login mode only)
+                if (_isLogin) ...[
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ForgotPasswordScreen(),
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        'Forgot password?',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: const Color(0xFF1A73E8),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+
+                const SizedBox(height: 20),
 
                 // Submit
                 SizedBox(

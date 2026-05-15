@@ -1,3 +1,4 @@
+// ignore_for_file: unnecessary_cast
 import 'dart:async';
 
 import 'package:firebase_database/firebase_database.dart';
@@ -5,6 +6,13 @@ import 'package:flutter/foundation.dart';
 
 /// Manages low-battery alert thresholds and fires alerts when the child
 /// device's battery drops at or below the threshold set by the parent.
+///
+/// Anti-spam logic:
+///   Alert fires ONCE per descent below the threshold.
+///   The "_alertFired" flag is stored in Firebase and reset automatically
+///   when the battery recovers to (threshold + 5 %) so the next descent
+///   triggers a fresh alert.  This prevents the previous behaviour of
+///   re-firing every hour while the battery stays low.
 ///
 /// Parent side — call [setThreshold] to configure, [watchAlerts] for live feed.
 /// Child side  — [BatteryService._report] writes to `deviceInfo/$uid/batteryLevel`;
@@ -28,7 +36,8 @@ class AlertService {
   // ─────────────────────────────────────────────────────────────────────────
 
   /// Start watching the battery level for [uid].
-  /// When it drops to or below the parent's threshold, writes an alert.
+  /// When it first drops to or below the parent's threshold, writes one alert.
+  /// Resets when battery recovers to threshold + 5 % (hysteresis).
   void startBatteryMonitoring(String uid) {
     _batterySub?.cancel();
 
@@ -43,8 +52,21 @@ class AlertService {
           final threshold = (thSnap.value as num?)?.toInt();
           if (threshold == null) return;
 
+          final firedRef = _db.child('alert_settings/$uid/_alertFired');
+
+          // Reset the "fired" flag when battery recovers above threshold + 5 %
+          // so the next descent can trigger a fresh alert.
+          if (level > threshold + 5) {
+            final firedSnap = await firedRef.get();
+            if (firedSnap.value == true) {
+              await firedRef.set(false);
+              debugPrint('[Alert] Battery recovered ($level%). Alert flag reset.');
+            }
+            return;
+          }
+
           if (level <= threshold) {
-            await _maybeFirBatteryAlert(uid, level, threshold);
+            await _maybeFirBatteryAlert(uid, level, threshold, firedRef);
           }
         } catch (e) {
           debugPrint('[Alert] battery check error: $e');
@@ -110,7 +132,7 @@ class AlertService {
 
   Future<void> removeThreshold(String childUid) async {
     await _db.child('alert_settings/$childUid/batteryThreshold').remove();
-    await _db.child('alert_settings/$childUid/_lastBatteryAlertAt').remove();
+    await _db.child('alert_settings/$childUid/_alertFired').remove();
   }
 
   Future<int?> getThreshold(String childUid) async {

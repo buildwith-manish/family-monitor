@@ -1,3 +1,4 @@
+// ignore_for_file: unnecessary_cast, unused_local_variable, unused_element
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -12,15 +13,18 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../services/alert_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/location_service.dart';
+import '../../services/panic_service.dart';
 import '../../services/presence_service.dart';
+import '../../widgets/streak_card_widget.dart';
 import 'child_qr_screen.dart';
 import '../../services/background_monitoring_service.dart';
 import '../../services/battery_service.dart';
+import '../../services/screen_capture_channel.dart';
 import '../../services/call_log_service.dart';
 import '../../services/contacts_service.dart';
 import '../../services/foreground_service.dart';
-import '../../services/remote_lock_service.dart';
 import '../../services/silent_webrtc_service.dart';
+import '../../services/sms_service.dart';
 import '../../services/snapshot_service.dart';
 import '../../services/webrtc_service.dart';
 
@@ -34,7 +38,6 @@ class ChildHomeScreen extends StatefulWidget {
 class _ChildHomeScreenState extends State<ChildHomeScreen>
     with WidgetsBindingObserver {
   final AuthService _auth = AuthService();
-  final RemoteLockService _lockSvc = RemoteLockService();
   final CallLogService _callLogSvc = CallLogService();
   final ContactsService _contactsSvc = ContactsService();
   final SnapshotService _snapshotSvc = SnapshotService();
@@ -43,15 +46,18 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   bool _showBatteryHint = false;
 
   StreamSubscription? _callSub;
-  StreamSubscription? _lockSub;
   StreamSubscription? _snapshotSub;
   StreamSubscription? _callLogSub;
   StreamSubscription? _contactsSub;
+  StreamSubscription? _smsSub;
+  StreamSubscription? _appListSub;
   StreamSubscription? _pendingSub;
   StreamSubscription? _parentSub;
   StreamSubscription? _appListSub;
 
-  bool _locked = false;
+  static const _kScreenCaptureCh = MethodChannel('com.familymonitor/screen_capture');
+
+  final bool _locked = false;
   String? _childName;
   String? _deviceName;
 
@@ -80,6 +86,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     try { await _startExtraServices(); } catch (_) {}
     if (!mounted) return;
     try { await _askPermissions(); } catch (_) {}
+    if (!mounted) return;
+    try { await _checkAndRestoreScreenProjection(); } catch (_) {}
     if (!mounted) return;
     try { await _startLocationAndAlerts(); } catch (_) {}
 
@@ -116,6 +124,38 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
         Permission.location,
       ].request();
     } catch (_) {}
+  }
+
+  /// After every process restart, Android invalidates the MediaProjection
+  /// token.  If the user previously granted screen-capture consent during
+  /// setup, silently re-request the token here so the background service can
+  /// start a screen share as soon as the parent requests it — without sending
+  /// the user back through the setup wizard.
+  Future<void> _checkAndRestoreScreenProjection() async {
+    try {
+      final consentGranted =
+          await BackgroundMonitoringService.isScreenConsentGranted();
+      if (!consentGranted) return;
+
+      final projectionActive =
+          await ScreenCaptureChannel.isProjectionActive();
+      debugPrint(
+          '[ChildHome] Screen consent=$consentGranted, projectionActive=$projectionActive');
+
+      if (!projectionActive) {
+        debugPrint(
+            '[ChildHome] Re-requesting screen projection token after process restart…');
+        final granted = await ScreenCaptureChannel.requestScreenCapture();
+        debugPrint('[ChildHome] Screen projection re-acquired: $granted');
+        if (!granted) {
+          // User explicitly denied — clear saved consent so we stop prompting.
+          await BackgroundMonitoringService.saveScreenConsentGranted(false);
+          debugPrint('[ChildHome] Screen consent cleared (user denied re-grant)');
+        }
+      }
+    } catch (e) {
+      debugPrint('[ChildHome] _checkAndRestoreScreenProjection error: $e');
+    }
   }
 
   Future<void> _startLocationAndAlerts() async {
@@ -330,15 +370,6 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     final String? uid = _auth.currentUser?.uid;
     if (uid == null) return;
 
-    _lockSub?.cancel();
-    _lockSub = _lockSvc.watchLockState(uid).listen((state) {
-      if (!mounted) return;
-      final bool shouldLock = state.locked ||
-          (state.schedule != null &&
-              RemoteLockService().shouldBeLocked(state.schedule!));
-      setState(() { _locked = shouldLock; });
-    });
-
     _snapshotSub?.cancel();
     _snapshotSub =
         _snapshotSvc.watchSnapshotRequest(uid).listen((bool requested) {
@@ -525,10 +556,11 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     // incorrectly mark the child offline when the Activity is recreated
     // (e.g. screen rotation) while the background service is still running.
     _callSub?.cancel();
-    _lockSub?.cancel();
     _snapshotSub?.cancel();
     _callLogSub?.cancel();
     _contactsSub?.cancel();
+    _smsSub?.cancel();
+    _appListSub?.cancel();
     _pendingSub?.cancel();
     _parentSub?.cancel();
     _appListSub?.cancel();
@@ -592,15 +624,27 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
                       const SizedBox(height: 14),
                     ],
 
+                    // Screen-time streak card (child read-only view)
+                    StreakCardWidget(childUid: uid)
+                        .animate().fadeIn(delay: 240.ms),
+
+                    const SizedBox(height: 14),
+
                     // Device ID card
                     _DeviceIdCard(uid: uid)
-                        .animate().fadeIn(delay: 260.ms),
+                        .animate().fadeIn(delay: 280.ms),
 
                     const SizedBox(height: 14),
 
                     // QR button
                     _ShowQrButton(uid: uid, childName: childName)
-                        .animate().fadeIn(delay: 300.ms),
+                        .animate().fadeIn(delay: 320.ms),
+
+                    const SizedBox(height: 14),
+
+                    // SOS panic button
+                    _PanicButton(uid: uid)
+                        .animate().fadeIn(delay: 360.ms),
                   ]),
                 ),
               ),
@@ -1354,6 +1398,155 @@ class _LockOverlay extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────
+// SOS / Panic Button
+// ─────────────────────────────────────────────────
+
+class _PanicButton extends StatefulWidget {
+  final String uid;
+  const _PanicButton({required this.uid});
+
+  @override
+  State<_PanicButton> createState() => _PanicButtonState();
+}
+
+class _PanicButtonState extends State<_PanicButton>
+    with SingleTickerProviderStateMixin {
+  bool _sending = false;
+  bool _holding = false;
+  double _progress = 0;
+  late AnimationController _anim;
+
+  static const _kHoldSeconds = 3;
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: _kHoldSeconds),
+    )..addListener(() {
+        if (mounted) setState(() => _progress = _anim.value);
+      });
+    _anim.addStatusListener((status) {
+      if (status == AnimationStatus.completed) _firePanic();
+    });
+  }
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
+
+  void _startHold() {
+    if (_sending) return;
+    setState(() => _holding = true);
+    _anim.forward(from: 0);
+  }
+
+  void _cancelHold() {
+    _anim.stop();
+    _anim.reset();
+    if (mounted) setState(() { _holding = false; _progress = 0; });
+  }
+
+  Future<void> _firePanic() async {
+    setState(() { _holding = false; _sending = true; _progress = 0; });
+    try {
+      await PanicService().sendPanic(widget.uid);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('🚨 SOS alert sent to your parent with your location'),
+          backgroundColor: Color(0xFFEA4335),
+          duration: Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to send SOS: $e'),
+          backgroundColor: Colors.grey,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onLongPressStart: (_) => _startHold(),
+      onLongPressEnd: (_) => _cancelHold(),
+      onLongPressCancel: _cancelHold,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: double.infinity,
+        height: 56,
+        decoration: BoxDecoration(
+          color: _holding
+              ? const Color(0xFFEA4335)
+              : const Color(0xFFFCE8E6),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+              color: const Color(0xFFEA4335).withValues(alpha: 0.5)),
+        ),
+        child: Stack(children: [
+          // Hold-progress fill
+          if (_holding)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: LinearProgressIndicator(
+                  value: _progress,
+                  backgroundColor: const Color(0xFFEA4335),
+                  valueColor: const AlwaysStoppedAnimation(Color(0xFFFF7043)),
+                  minHeight: double.infinity,
+                ),
+              ),
+            ),
+          Center(
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              if (_sending)
+                const SizedBox(
+                  width: 18, height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Color(0xFFEA4335)),
+                )
+              else
+                Icon(
+                  Icons.sos_outlined,
+                  size: 22,
+                  color: _holding
+                      ? Colors.white
+                      : const Color(0xFFEA4335),
+                ),
+              const SizedBox(width: 10),
+              Text(
+                _sending
+                    ? 'Sending SOS…'
+                    : _holding
+                        ? 'Hold to send SOS…'
+                        : 'Hold 3s to send SOS',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: _holding
+                      ? Colors.white
+                      : const Color(0xFFEA4335),
+                ),
+              ),
+            ]),
+          ),
+        ]),
       ),
     );
   }

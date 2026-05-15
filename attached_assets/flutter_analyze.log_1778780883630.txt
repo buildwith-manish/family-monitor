@@ -1,0 +1,19 @@
+Running flutter analyze...
+Analyzing clone...                                              
+
+warning • 'unnecessary_cast' isn't a recognized lint rule • analysis_options.yaml:26:5 • undefined_lint
+warning • 'unused_local_variable' isn't a recognized lint rule • analysis_options.yaml:27:5 • undefined_lint
+warning • 'unused_element' isn't a recognized lint rule • analysis_options.yaml:28:5 • undefined_lint
+warning • 'unused_field' isn't a recognized lint rule • analysis_options.yaml:29:5 • undefined_lint
+warning • 'deprecated_member_use' isn't a recognized lint rule • analysis_options.yaml:33:5 • undefined_lint
+   info • The private field _locked could be 'final' • lib/screens/child/child_home_screen.dart:57:8 • prefer_final_fields
+warning • Unused import: 'package:firebase_database/firebase_database.dart' • lib/screens/parent/daily_report_screen.dart:5:8 • unused_import
+  error • Undefined name '_reattachChildrenListener' • lib/screens/parent/parent_dashboard_screen.dart:160:52 • undefined_identifier
+
+8 issues found. (ran in 13.5s)
+
+ERROR: flutter analyze found errors. Fix them before building.
+
+
+Build failed :|
+Step 7 script `Flutter analyze` exited with status code 1

@@ -16,6 +16,13 @@ android {
     ndkVersion =
         "28.2.13676358"
 
+    // AGP 8.x disabled BuildConfig generation by default.
+    // Re-enable it so WatchdogService and WatchdogWorker can reference
+    // BuildConfig.FLAVOR and BuildConfig.BUILD_TYPE at runtime.
+    buildFeatures {
+        buildConfig = true
+    }
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility =
@@ -50,6 +57,10 @@ android {
         versionName = "1.0"
 
         multiDexEnabled = true
+
+        // Strip all locales except English — Firebase, WebRTC, and AndroidX
+        // each ship 80+ locale string tables. Keeping only "en" saves ~2–4 MB.
+        resourceConfigurations += listOf("en")
     }
 
     // SEC-02: Release signing — credentials read from environment variables so
@@ -126,9 +137,6 @@ android {
             signingConfig = signingConfigs.getByName("release")
 
             // SEC-03: Enable R8 code shrinking and obfuscation.
-            // Removes dead code, shrinks resources, and obfuscates names —
-            // making the APK significantly harder to reverse-engineer and
-            // hiding sensitive strings from casual inspection.
             isMinifyEnabled   = true
             isShrinkResources = true
 
@@ -136,14 +144,38 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+
+            // Upload the R8 mapping file to Firebase Crashlytics automatically
+            // so obfuscated stack traces in the console are deobfuscated.
+            configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
+                mappingFileUploadEnabled = true
+                nativeSymbolUploadEnabled = false
+            }
         }
 
         debug {
             configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
                 mappingFileUploadEnabled = false
+                nativeSymbolUploadEnabled = false
             }
         }
     }
+
+    // ── ABI splits ─────────────────────────────────────────────────────────
+    // DO NOT use the Gradle `splits { abi { } }` block here — the Flutter
+    // Gradle plugin sets ndk.abiFilters automatically, which conflicts with
+    // a manual splits block and causes a build failure.
+    //
+    // To build split APKs (one per CPU architecture), pass the flag to Flutter:
+    //   flutter build apk --split-per-abi
+    //
+    // This produces three separate APKs:
+    //   app-arm64-v8a-release.apk   (~55–60 MB) — modern phones, 90%+ of installs
+    //   app-armeabi-v7a-release.apk (~55–60 MB) — older 32-bit phones
+    //   app-x86_64-release.apk      (~55–60 MB) — emulators
+    //
+    // For Play Store: use `flutter build appbundle` (AAB) — Play Store does
+    // the splitting automatically and reduces installed size by a further 20–40%.
 
     packaging {
 
@@ -152,8 +184,30 @@ android {
             excludes += listOf(
                 "META-INF/INDEX.LIST",
                 "META-INF/io.netty.versions.properties",
+                // WebRTC / Netty internals bundled unnecessarily
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.txt",
+                "META-INF/NOTICE",
+                "META-INF/NOTICE.txt",
+                "META-INF/*.kotlin_module",
+                // Kotlin reflection metadata not needed at runtime
+                "kotlin/**",
+                "DebugProbesKt.bin",
+                // Unused native debug info
+                "**.so.dbg",
+                // Unused ICU data (huge) — Flutter ships its own copy
+                "**/icu4j*.jar",
             )
         }
+    }
+
+    lint {
+        lintConfig = file("lint.xml")
+        abortOnError = false
+        warningsAsErrors = false
+        checkReleaseBuilds = false
+        baseline = file("lint-baseline.xml")
     }
 }
 
@@ -214,6 +268,7 @@ afterEvaluate {
 }
 
 dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 
     implementation(

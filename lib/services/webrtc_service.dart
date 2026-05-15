@@ -27,9 +27,23 @@ class WebRTCService {
   StreamSubscription? _candidateSub;
   StreamSubscription? _connectivitySub;
 
+  // Hard cap on reconnect attempts — after this many consecutive failures the
+  // peer is considered unreachable and reconnection stops entirely.
+  static const int _maxReconnectAttempts = 10;
+
   bool _initialized = false;
   bool _answerSet = false;
   bool _disposed = false;
+
+  // P5-A: Mutex prevents concurrent _scheduleReconnect() invocations.
+  // Multiple ICE failure callbacks can fire within the same event-loop tick,
+  // each calling _scheduleReconnect(). Without this guard every callback would
+  // schedule its own Timer, consuming its own reconnect-attempts budget.
+  bool _reconnecting = false;
+
+  // Promoted from local closure variable so it survives async gaps and can be
+  // properly reset in _cancelSubs(), preventing offer reprocessing on error.
+  bool _offerProcessed = false;
 
   int _reconnectAttempts = 0;
 
@@ -222,9 +236,10 @@ class WebRTCService {
         },
       );
 
+      _offerProcessed = false;
       _offerSub =
           _db.child('calls/$childUid/offer').onValue.listen((event) async {
-        if (_disposed) return;
+        if (_disposed || _offerProcessed) return;
 
         final value = event.snapshot.value;
 
@@ -233,6 +248,8 @@ class WebRTCService {
         final map = Map<String, dynamic>.from(value);
 
         if (map['sdp'] == null) return;
+
+        _offerProcessed = true;
 
         try {
           await _peerConnection?.setRemoteDescription(
@@ -252,6 +269,7 @@ class WebRTCService {
           });
         } catch (e) {
           debugPrint('[WebRTC] answer error: $e');
+          _offerProcessed = false;
         }
       });
 
@@ -398,9 +416,23 @@ class WebRTCService {
   }) {
     if (_disposed) return;
 
+    // P5-A: Mutex guard — drop concurrent calls. Multiple ICE failure/state
+    // callbacks can fire in the same event-loop tick; each would otherwise
+    // schedule its own Timer and burn through _reconnectAttempts independently.
+    if (_reconnecting) return;
+    _reconnecting = true;
+
     _reconnectTimer?.cancel();
 
     _reconnectAttempts++;
+
+    // Give up after the hard cap — prevents infinite battery drain when the
+    // peer is permanently gone (app killed, no network, device offline).
+    if (_reconnectAttempts > _maxReconnectAttempts) {
+      debugPrint('[WebRTC] Max reconnect attempts reached — stopping.');
+      _reconnecting = false;
+      return;
+    }
 
     final seconds = _reconnectAttempts > 5 ? 60 : (1 << _reconnectAttempts);
 
@@ -411,6 +443,9 @@ class WebRTCService {
     );
 
     _reconnectTimer = Timer(delay, () async {
+      // Release the mutex before the async reconnect so that failures inside
+      // startAsChild/startAsParent can themselves schedule the next attempt.
+      _reconnecting = false;
       if (_disposed) return;
 
       if (isChild && mode != null) {
@@ -429,6 +464,7 @@ class WebRTCService {
 
   Future<MediaStream> _getStream(StreamMode mode) async {
     if (mode == StreamMode.camera) {
+      // Camera mode — use getUserMedia only.
       return navigator.mediaDevices.getUserMedia({
         'video': {
           'facingMode': 'environment',
@@ -440,28 +476,23 @@ class WebRTCService {
       });
     }
 
-    try {
-      final granted = await ScreenCaptureChannel.requestScreenCapture();
+    // Screen mode — use MediaProjection/getDisplayMedia only.
+    // NEVER fall back to camera; if this throws, let the exception propagate
+    // so the caller can surface a clean error instead of a silent camera switch.
+    final granted = await ScreenCaptureChannel.requestScreenCapture();
 
-      if (!granted) {
-        throw Exception('Screen capture permission denied');
-      }
-
-      return navigator.mediaDevices.getDisplayMedia({
-        'video': {
-          'frameRate': 15,
-          'width': 720,
-        },
-        'audio': false,
-      });
-    } catch (e) {
-      debugPrint('[WebRTC] Screen capture fallback: $e');
-
-      return navigator.mediaDevices.getUserMedia({
-        'video': true,
-        'audio': true,
-      });
+    if (!granted) {
+      throw Exception('Screen capture permission denied by user');
     }
+
+    return navigator.mediaDevices.getDisplayMedia({
+      'video': {
+        'frameRate': 15,
+        'width': 1280,
+        'height': 720,
+      },
+      'audio': false,
+    });
   }
 
   Future<void> _cancelSubs() async {
@@ -474,6 +505,7 @@ class WebRTCService {
     _candidateSub = null;
 
     _answerSet = false;
+    _offerProcessed = false;
   }
 
   Future<void> _closePC() async {
@@ -513,6 +545,7 @@ class WebRTCService {
 
   Future<void> dispose() async {
     _disposed = true;
+    _reconnectAttempts = 0;
 
     _reconnectTimer?.cancel();
     _connectionTimer?.cancel();

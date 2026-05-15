@@ -1,0 +1,51 @@
+Running Gradle task 'assembleParentRelease'...                  
+e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
+    1. Kotlin compile daemon is ready
+Checking the license for package Android SDK Build-Tools 34 in /usr/local/share/android-sdk/licenses
+License for package Android SDK Build-Tools 34 accepted.
+Preparing "Install Android SDK Build-Tools 34 v.34.0.0".
+"Install Android SDK Build-Tools 34 v.34.0.0" ready.
+Installing Android SDK Build-Tools 34 in /usr/local/share/android-sdk/build-tools/34.0.0
+"Install Android SDK Build-Tools 34 v.34.0.0" complete.
+"Install Android SDK Build-Tools 34 v.34.0.0" finished.
+Checking the license for package Android SDK Platform 36 in /usr/local/share/android-sdk/licenses
+License for package Android SDK Platform 36 accepted.
+Preparing "Install Android SDK Platform 36 (revision 2)".
+"Install Android SDK Platform 36 (revision 2)" ready.
+Installing Android SDK Platform 36 in /usr/local/share/android-sdk/platforms/android-36
+"Install Android SDK Platform 36 (revision 2)" complete.
+"Install Android SDK Platform 36 (revision 2)" finished.
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+e: file:///Users/builder/clone/android/app/src/main/kotlin/com/example/family_monitor/WatchdogScheduler.kt:27:41 Unresolved reference 'MIN_BACKOFF_MILLIS'.
+e: file:///Users/builder/clone/android/app/src/main/kotlin/com/example/family_monitor/WatchdogService.kt:64:13 Unresolved reference 'GeneratedPluginRegistrant'.
+e: file:///Users/builder/clone/android/app/src/main/kotlin/com/example/family_monitor/WatchdogService.kt:82:31 Unresolved reference 'BuildConfig'.
+e: file:///Users/builder/clone/android/app/src/main/kotlin/com/example/family_monitor/WatchdogWorker.kt:23:58 Unresolved reference 'BuildConfig'.
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileParentReleaseKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 3m
+Running Gradle task 'assembleParentRelease'...                    181.1s
+Gradle task assembleParentRelease failed with exit code 1
+ERROR: Parent APK not found
+
+
+Build failed :|
+Step 7 script `Build Parent APK` exited with status code 1
