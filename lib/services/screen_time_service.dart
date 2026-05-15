@@ -56,15 +56,24 @@ class ScreenTimeService {
 
     final entries = await getTodayUsage();
 
+    // BUG-FIX: was set() which wiped the entire node on every sync, causing
+    // data loss when two processes both uploaded usage. update() merges fields.
     final data = <String, dynamic>{
       '_updatedAt': DateTime.now().millisecondsSinceEpoch,
     };
 
     for (final e in entries) {
-      data[e.packageName] = e.minutes;
+      // Firebase keys cannot contain dots — replace with underscores.
+      final key = e.packageName.replaceAll('.', '_');
+      data[key] = {
+        'pkg':         e.packageName,
+        'appName':     e.appName,
+        'minutes':     e.minutes,
+        'updatedAt':   DateTime.now().millisecondsSinceEpoch,
+      };
     }
 
-    await _db.child('screen_time/$uid/today').set(data);
+    await _db.child('screen_time/$uid/today').update(data);
   }
 
   Stream<List<AppUsageEntry>> watchChildUsage(String childUid) {
@@ -76,16 +85,40 @@ class ScreenTimeService {
       final map =
           raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
 
-      final entries = map.entries
-          .where((e) => e.key != '_updatedAt' && e.value is int)
-          .map(
-            (e) => AppUsageEntry(
-              packageName: e.key,
-              appName: _friendlyName(e.key),
-              minutes: e.value as int,
-            ),
-          )
-          .toList();
+      final entries = <AppUsageEntry>[];
+
+      for (final entry in map.entries) {
+        if (entry.key == '_updatedAt') continue;
+
+        final v = entry.value;
+        int minutes = 0;
+        String pkg = entry.key;
+        String name = _friendlyName(entry.key);
+
+        if (v is Map) {
+          // New format: { pkg, appName, minutes, updatedAt }
+          final m = Map<String, dynamic>.from(v);
+          pkg     = m['pkg']     as String? ?? entry.key;
+          name    = m['appName'] as String? ?? _friendlyName(pkg);
+          minutes = (m['minutes'] as num?)?.toInt() ?? 0;
+        } else if (v is num) {
+          // Legacy format: packageName → minutes (int)
+          minutes = v.toInt();
+          // Keys stored with underscores replacing dots — reverse for display
+          pkg = entry.key.replaceAll('_', '.');
+          name = _friendlyName(pkg);
+        } else {
+          continue;
+        }
+
+        if (minutes > 0) {
+          entries.add(AppUsageEntry(
+            packageName: pkg,
+            appName:     name,
+            minutes:     minutes,
+          ));
+        }
+      }
 
       entries.sort((a, b) => b.minutes.compareTo(a.minutes));
 
@@ -108,9 +141,11 @@ class ScreenTimeService {
 
     if (snap.value == null) return {};
 
+    // BUG-FIX: `v as int` threw TypeError when Firebase stored the value as
+    // a double (e.g. 30.0). Use (v as num?)?.toInt() ?? 0 for safe casting.
     return Map<String, int>.from(
       (snap.value as Map).map(
-        (k, v) => MapEntry(k.toString(), v as int),
+        (k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0),
       ),
     );
   }

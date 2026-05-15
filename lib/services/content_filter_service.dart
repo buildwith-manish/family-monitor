@@ -70,6 +70,8 @@ class ContentFilterService {
       'domain': clean,
       'addedAt': DateTime.now().millisecondsSinceEpoch,
     });
+
+    _invalidateCache(childUid);
   }
 
   Future<void> unblockDomain(
@@ -81,6 +83,8 @@ class ContentFilterService {
           'content_filter/$childUid/blocked/${_keyOf(domain)}',
         )
         .remove();
+
+    _invalidateCache(childUid);
   }
 
   Future<void> blockCategory(
@@ -102,6 +106,7 @@ class ContentFilterService {
     updates['content_filter/$childUid/blockedCategories/$category'] = true;
 
     await _db.update(updates);
+    _invalidateCache(childUid);
   }
 
   Future<void> unblockCategory(
@@ -119,6 +124,7 @@ class ContentFilterService {
     updates['content_filter/$childUid/blockedCategories/$category'] = null;
 
     await _db.update(updates);
+    _invalidateCache(childUid);
   }
 
   Stream<List<BlockedDomain>> watchBlockedDomains(
@@ -195,49 +201,71 @@ class ContentFilterService {
     });
   }
 
-  Future<bool> isBlocked(
-    String childUid,
-    String url,
-  ) async {
-    final Uri? uri = Uri.tryParse(url);
+  // ── In-memory blocklist cache ────────────────────────────────────────────
+  //
+  // BUG-FIX: isBlocked() was downloading the ENTIRE blocked-domains list from
+  // Firebase on EVERY URL check. On a device checking many URLs per session
+  // this resulted in hundreds of unnecessary network round-trips, burned
+  // battery, and caused visible latency in the blocking decision.
+  //
+  // Fix: cache the Set<String> of blocked domains per child UID with a 60-
+  // second TTL. Writes (blockDomain / blockCategory) invalidate the cache
+  // immediately so the blocker picks up new rules within one cache window.
 
-    final String domain = uri?.host ?? '';
+  final Map<String, Set<String>> _domainCache  = {};
+  final Map<String, DateTime>    _cacheExpiry  = {};
+  static const _cacheTtl = Duration(seconds: 60);
 
-    if (domain.isEmpty) {
-      return false;
+  void _invalidateCache(String childUid) {
+    _domainCache.remove(childUid);
+    _cacheExpiry.remove(childUid);
+  }
+
+  Future<Set<String>> _getBlockedDomainSet(String childUid) async {
+    final expiry = _cacheExpiry[childUid];
+    if (expiry != null &&
+        DateTime.now().isBefore(expiry) &&
+        _domainCache.containsKey(childUid)) {
+      return _domainCache[childUid]!;
     }
 
-    final DataSnapshot snapshot = await _db
-        .child(
-          'content_filter/$childUid/blocked',
-        )
+    final snapshot = await _db
+        .child('content_filter/$childUid/blocked')
         .get();
 
-    final dynamic raw = snapshot.value;
+    final raw = snapshot.value;
+    final domains = <String>{};
 
-    if (raw == null || raw is! Map) {
-      return false;
+    if (raw is Map) {
+      for (final value in raw.values) {
+        if (value is Map) {
+          final d = value['domain'] as String?;
+          if (d != null && d.isNotEmpty) domains.add(d);
+        }
+      }
     }
 
-    final Map<String, dynamic> map = Map<String, dynamic>.from(raw);
+    _domainCache[childUid] = domains;
+    _cacheExpiry[childUid] = DateTime.now().add(_cacheTtl);
+    return domains;
+  }
 
-    for (final dynamic value in map.values) {
-      if (value is! Map) {
-        continue;
-      }
+  Future<bool> isBlocked(String childUid, String url) async {
+    final uri = Uri.tryParse(url);
+    final domain = uri?.host ?? '';
+    if (domain.isEmpty) return false;
 
-      final String blocked = value['domain'] as String? ?? '';
+    // Strip leading 'www.' for canonical matching.
+    final canonical = domain.startsWith('www.')
+        ? domain.substring(4)
+        : domain;
 
-      if (blocked.isEmpty) {
-        continue;
-      }
+    final blocked = await _getBlockedDomainSet(childUid);
 
-      if (domain.endsWith(
-            blocked,
-          ) ||
-          blocked.endsWith(
-            domain,
-          )) {
+    for (final entry in blocked) {
+      if (canonical == entry ||
+          canonical.endsWith('.$entry') ||
+          entry.endsWith('.$canonical')) {
         return true;
       }
     }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -14,16 +15,40 @@ class SmsService {
 
   Future<void> syncSms(String childUid) async {
     try {
-      if (!await Permission.sms.isGranted) return;
+      final status = await Permission.sms.status;
+      if (!status.isGranted) {
+        debugPrint('[SmsService] READ_SMS not granted — status: $status');
+        return;
+      }
+
       final List raw = await _ch.invokeMethod('readSms', {'limit': 100});
+
       final Map<String, dynamic> data = {};
       for (final m in raw) {
         final mm = Map<String, dynamic>.from(m as Map);
-        final key = '${mm["date"]}_${(mm["address"] as String).replaceAll(RegExp(r"[^0-9+]"), "")}';
+        // Key = timestamp + sanitised address — guarantees uniqueness and
+        // stable identity so repeated syncs don't create duplicate entries.
+        final address = (mm['address'] as String? ?? '')
+            .replaceAll(RegExp(r'[^0-9+]'), '');
+        final date = mm['date']?.toString() ?? '0';
+        final key = '${date}_$address';
         data[key] = mm;
       }
-      await _db.child('sms/$childUid').set(data);
-    } on PlatformException catch (_) {}
+
+      // BUG-FIX: was set() which wiped all SMS history on every sync.
+      // update() merges the new batch into the existing dataset, so older
+      // messages that fall outside the current query window are preserved.
+      if (data.isNotEmpty) {
+        await _db.child('sms/$childUid').update(data);
+        debugPrint('[SmsService] Synced ${data.length} SMS to Firebase');
+      }
+    } on PlatformException catch (e) {
+      // BUG-FIX: was silently ignored. Log so developers see the failure.
+      debugPrint('[SmsService] PlatformException in readSms: '
+          'code=${e.code} message=${e.message}');
+    } catch (e, st) {
+      debugPrint('[SmsService] syncSms error: $e\n$st');
+    }
   }
 
   Stream<bool> watchSyncRequest(String childUid) =>

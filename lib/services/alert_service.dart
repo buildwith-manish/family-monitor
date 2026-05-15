@@ -17,6 +17,12 @@ class AlertService {
   final _db = FirebaseDatabase.instance.ref();
   StreamSubscription? _batterySub;
 
+  // BUG-FIX: in-memory flag to prevent a duplicate-alert race condition.
+  // Two rapid battery events can both read _lastBatteryAlertAt = 0 before
+  // either has written the new timestamp, firing two alerts in the same
+  // 1-hour cooldown window. This flag serialises the check-and-write.
+  bool _batteryAlertInFlight = false;
+
   // ─────────────────────────────────────────────────────────────────────────
   // Child side — monitoring
   // ─────────────────────────────────────────────────────────────────────────
@@ -54,26 +60,42 @@ class AlertService {
 
   /// Fires a battery alert only if one hasn't been fired in the last hour
   /// (prevents flooding the alert feed with duplicates while battery stays low).
+  ///
+  /// Uses [_batteryAlertInFlight] to serialise concurrent calls so that two
+  /// rapid battery updates cannot both read lastFiredAt = 0 and both fire.
   Future<void> _maybeFirBatteryAlert(
       String uid, int level, int threshold) async {
-    final lastFiredRef =
-        _db.child('alert_settings/$uid/_lastBatteryAlertAt');
-    final lastFiredSnap = await lastFiredRef.get();
-    final lastFired = (lastFiredSnap.value as num?)?.toInt() ?? 0;
-    final now = DateTime.now().millisecondsSinceEpoch;
+    // BUG-FIX: guard against concurrent invocations racing through the
+    // cooldown check before either has written the new timestamp to Firebase.
+    if (_batteryAlertInFlight) return;
+    _batteryAlertInFlight = true;
 
-    if (now - lastFired < 60 * 60 * 1000) return; // 1-hour cooldown
+    try {
+      final lastFiredRef =
+          _db.child('alert_settings/$uid/_lastBatteryAlertAt');
+      final lastFiredSnap = await lastFiredRef.get();
+      final lastFired = (lastFiredSnap.value as num?)?.toInt() ?? 0;
+      final now = DateTime.now().millisecondsSinceEpoch;
 
-    await lastFiredRef.set(now);
+      if (now - lastFired < 60 * 60 * 1000) return; // 1-hour cooldown
 
-    final alertRef = _db.child('battery_alerts/$uid').push();
-    await alertRef.set({
-      'level': level,
-      'threshold': threshold,
-      'timestamp': now,
-      'read': false,
-    });
-    debugPrint('[Alert] Low battery alert fired: $level% (threshold $threshold%)');
+      // Write the timestamp FIRST so any parallel call that slips past the
+      // in-memory flag will also be blocked by the Firebase cooldown check.
+      await lastFiredRef.set(now);
+
+      final alertRef = _db.child('battery_alerts/$uid').push();
+      await alertRef.set({
+        'level':     level,
+        'threshold': threshold,
+        'timestamp': now,
+        'read':      false,
+      });
+      debugPrint('[Alert] Low battery alert fired: $level% (threshold $threshold%)');
+    } catch (e) {
+      debugPrint('[Alert] _maybeFirBatteryAlert error: $e');
+    } finally {
+      _batteryAlertInFlight = false;
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────

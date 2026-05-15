@@ -13,6 +13,7 @@ import '../../services/background_monitoring_service.dart';
 import '../../services/battery_service.dart';
 import '../../services/device_admin_service.dart';
 import '../../services/screen_capture_channel.dart';
+import '../../services/screen_time_service.dart';
 
 class ChildSetupWizardScreen extends StatefulWidget {
   final String? childUid;
@@ -155,6 +156,45 @@ class _ChildSetupWizardScreenState
 
     if (mounted) {
       setState(() => _notifGranted = notifStatus.isGranted);
+    }
+
+    // BUG-FIX: location and usage-stats permissions were never requested
+    // in the wizard, so background location tracking and app-usage reporting
+    // silently failed on fresh installs.
+    await _requestSinglePermission(
+      Permission.locationWhenInUse,
+      'Location (While Using)',
+    );
+
+    // Request background location separately — Android requires the user to
+    // first grant "while in use", then "all the time" separately.
+    final locStatus = await Permission.locationWhenInUse.status;
+    if (locStatus.isGranted) {
+      await _requestSinglePermission(
+        Permission.locationAlways,
+        'Location (Always)',
+      );
+    }
+
+    // READ_SMS — needed for SMS sync feature.
+    await _requestSinglePermission(
+      Permission.sms,
+      'SMS Access',
+    );
+
+    // READ_CALL_LOG — needed for call log sync.
+    await _requestSinglePermission(
+      Permission.phone,
+      'Phone / Call Logs',
+    );
+
+    // PACKAGE_USAGE_STATS is a special permission that cannot be granted
+    // via the standard permission_handler dialog — it requires the user
+    // to navigate to Settings > Apps > Special app access > Usage access.
+    // Request it by opening the system settings page.
+    final hasUsage = await ScreenTimeService().hasPermission();
+    if (!hasUsage) {
+      await ScreenTimeService().requestPermission();
     }
 
     await _refreshStatus();
@@ -390,6 +430,11 @@ class _ChildSetupWizardScreenState
               ? 'My Phone'
               : _deviceCtrl.text.trim();
 
+      // BUG-FIX: was a set() equivalent (update with approvedParents: {})
+      // which wiped all existing approved parents on every profile save.
+      // Now uses update() WITHOUT the approvedParents field, and only sets
+      // pendingParentRequests when there are none yet (preserving existing ones).
+      final existingRequests = await _existingRequests(uid);
       await FirebaseDatabase.instance
           .ref('users/$uid')
           .update({
@@ -397,9 +442,8 @@ class _ChildSetupWizardScreenState
         'deviceName': deviceName,
         'role': 'child',
         'isOnline': false,
-        'pendingParentRequests':
-            await _existingRequests(uid),
-        'approvedParents': {},
+        if (existingRequests.isNotEmpty)
+          'pendingParentRequests': existingRequests,
       });
     } catch (_) {}
 

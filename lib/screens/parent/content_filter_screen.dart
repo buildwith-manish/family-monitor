@@ -26,6 +26,11 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
   late TabController _tabs;
   final _domainCtrl = TextEditingController();
 
+  // BUG-FIX: store subscriptions so they can be cancelled in dispose(),
+  // preventing a memory/callback leak when the screen is popped.
+  StreamSubscription? _domainsSub;
+  StreamSubscription? _categoriesSub;
+
   static const _categoryIcons = {
     'Adult Content': (Icons.no_adult_content, Color(0xFFEA4335)),
     'Gambling': (Icons.casino, Color(0xFFFA7B17)),
@@ -38,17 +43,20 @@ class _ContentFilterScreenState extends State<ContentFilterScreen>
   void initState() {
     super.initState();
     _tabs = TabController(length: 2, vsync: this);
-    _svc.watchBlockedDomains(widget.childUid).listen((data) {
+    _domainsSub = _svc.watchBlockedDomains(widget.childUid).listen((data) {
       if (!mounted) return;
-    setState(() { _blocked = data; });
+      setState(() { _blocked = data; });
     });
-    _svc.watchBlockedCategories(widget.childUid).listen((data) {
+    _categoriesSub = _svc.watchBlockedCategories(widget.childUid).listen((data) {
       if (!mounted) return;
-    setState(() { _blockedCategories = data; });    });
+      setState(() { _blockedCategories = data; });
+    });
   }
 
   @override
   void dispose() {
+    _domainsSub?.cancel();
+    _categoriesSub?.cancel();
     _tabs.dispose();
     _domainCtrl.dispose();
     super.dispose();

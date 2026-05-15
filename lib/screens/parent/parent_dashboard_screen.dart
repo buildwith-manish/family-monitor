@@ -21,6 +21,7 @@ import 'snapshots_screen.dart';
 import 'sms_call_log_screen.dart';
 import '../../services/device_event_service.dart';
 import 'crash_report_screen.dart';
+import 'daily_report_screen.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});
@@ -40,6 +41,13 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
   final Map<String, bool> _presenceMap = {};
   final Map<String, int> _crashCounts = {};
   final Map<String, StreamSubscription> _crashCountSubs = {};
+  // BUG-FIX: track which child UIDs already have notification watchers so
+  // that NotificationService.watchChild() is NOT called on every snapshot
+  // update. Previously, every Firebase onValue event re-called watchChild(),
+  // which cancelled and recreated the underlying subscriptions and (before
+  // the _seen-set fix) fired duplicate local notifications for all unread
+  // alerts already in the database.
+  final Set<String> _notifWatched = {};
 
   StreamSubscription? _childrenSub;
 
@@ -122,10 +130,13 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
 
         // Push notification watchers — fire local alerts for battery,
         // geofence and offline events for each monitored child.
-        final childName = (newChildren[uid] as Map?)?['childName'] as String?
-            ?? (newChildren[uid] as Map?)?['displayName'] as String?
-            ?? 'Child';
-        NotificationService.instance.watchChild(uid, childName);
+        if (!_notifWatched.contains(uid)) {
+          _notifWatched.add(uid);
+          final childName = (newChildren[uid] as Map?)?['childName'] as String?
+              ?? (newChildren[uid] as Map?)?['displayName'] as String?
+              ?? 'Child';
+          NotificationService.instance.watchChild(uid, childName);
+        }
         if (!_crashCountSubs.containsKey(uid)) {
           _crashCountSubs[uid] =
               DeviceEventService.watchUnreadCount(uid).listen((count) {
@@ -146,6 +157,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen>
         _presenceSubs.remove(uid);
         _presenceMap.remove(uid);
         NotificationService.instance.unwatchChild(uid);
+        _notifWatched.remove(uid);
         _crashCountSubs[uid]?.cancel();
         _crashCountSubs.remove(uid);
         _crashCounts.remove(uid);
@@ -820,6 +832,26 @@ class _ChildCard extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => AppUsageScreen(
+                          childUid: childUid,
+                          childName:
+                              childData['childName'] as String? ?? name,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                _FeatureRow(
+                  icon: Icons.summarize_outlined,
+                  label: 'Daily Reports',
+                  subtitle: 'Screen time, alerts & location — day by day',
+                  color: const Color(0xFF34A853),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DailyReportScreen(
                           childUid: childUid,
                           childName:
                               childData['childName'] as String? ?? name,

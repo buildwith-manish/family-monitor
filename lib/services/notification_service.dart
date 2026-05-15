@@ -33,6 +33,17 @@ class NotificationService {
   bool _initialized = false;
   int _notifId = 1000;
 
+  // BUG-FIX: _seen sets were declared as LOCAL variables inside each
+  // _watch* method. Every time watchChild() was called (e.g. after an app
+  // resume / _reattachChildrenListener), a NEW empty _seen set was created,
+  // causing every existing unread alert to fire a duplicate notification.
+  //
+  // Fix: hoist them to instance-level maps keyed by childUid so the sets
+  // survive subscription re-creations.
+  final Map<String, Set<String>> _seenBattery   = {};
+  final Map<String, Set<String>> _seenGeofence  = {};
+  final Map<String, Set<String>> _seenCrash     = {};
+
   // ─────────────────────────────────────────────────────────────────────────
   // Initialization (call once from ParentDashboardScreen.initState)
   // ─────────────────────────────────────────────────────────────────────────
@@ -97,6 +108,12 @@ class NotificationService {
     _subs.remove('geofence_$childUid');
     _subs.remove('offline_$childUid');
     _subs.remove('crash_$childUid');
+    // Also clear the seen-key sets for this child so we don't leak memory
+    // for removed children, and so that if the child is re-added later its
+    // alert history is treated as fresh.
+    _seenBattery.remove(childUid);
+    _seenGeofence.remove(childUid);
+    _seenCrash.remove(childUid);
   }
 
   void dispose() {
@@ -104,6 +121,9 @@ class NotificationService {
       s.cancel();
     }
     _subs.clear();
+    _seenBattery.clear();
+    _seenGeofence.clear();
+    _seenCrash.clear();
     _initialized = false;
   }
 
@@ -115,8 +135,10 @@ class NotificationService {
     final key = 'battery_$childUid';
     _subs[key]?.cancel();
 
-    // Track already-seen alert keys so we don't re-notify on reconnect.
-    final Set<String> _seen = {};
+    // BUG-FIX: use the instance-level map instead of a local variable so the
+    // set survives subscription re-creation on app resume.
+    _seenBattery[childUid] ??= {};
+    final seen = _seenBattery[childUid]!;
 
     _subs[key] = _db
         .child('battery_alerts/$childUid')
@@ -125,8 +147,8 @@ class NotificationService {
         .onChildAdded
         .listen((event) {
       final alertKey = event.snapshot.key;
-      if (alertKey == null || _seen.contains(alertKey)) return;
-      _seen.add(alertKey);
+      if (alertKey == null || seen.contains(alertKey)) return;
+      seen.add(alertKey);
 
       final v = event.snapshot.value;
       if (v == null || v is! Map) return;
@@ -149,7 +171,9 @@ class NotificationService {
     final key = 'geofence_$childUid';
     _subs[key]?.cancel();
 
-    final Set<String> _seen = {};
+    // BUG-FIX: use the instance-level map instead of a local variable.
+    _seenGeofence[childUid] ??= {};
+    final seen = _seenGeofence[childUid]!;
 
     _subs[key] = _db
         .child('geofence_alerts/$childUid')
@@ -158,8 +182,8 @@ class NotificationService {
         .onChildAdded
         .listen((event) {
       final alertKey = event.snapshot.key;
-      if (alertKey == null || _seen.contains(alertKey)) return;
-      _seen.add(alertKey);
+      if (alertKey == null || seen.contains(alertKey)) return;
+      seen.add(alertKey);
 
       final v = event.snapshot.value;
       if (v == null || v is! Map) return;
@@ -212,7 +236,9 @@ class NotificationService {
     final key = 'crash_$childUid';
     _subs[key]?.cancel();
 
-    final Set<String> seen = {};
+    // BUG-FIX: use the instance-level map instead of a local variable.
+    _seenCrash[childUid] ??= {};
+    final seen = _seenCrash[childUid]!;
     // Subtract 5 s so we do not miss events written just before we subscribed,
     // but skip anything older that belongs to a previous session.
     final int startMs = DateTime.now().millisecondsSinceEpoch - 5000;

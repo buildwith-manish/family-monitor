@@ -55,6 +55,16 @@ class LocationService {
   /// Checks against saved geofences after every position update.
   Future<void> startTracking(String uid) async {
     if (_activeUid == uid) return;
+
+    // BUG-FIX: verify permission before calling getPositionStream.
+    // Calling without permission throws a PermissionDeniedException that
+    // propagated unhandled and silently killed the tracking pipeline.
+    final granted = await hasPermission();
+    if (!granted) {
+      debugPrint('[Location] startTracking aborted — location permission not granted');
+      return;
+    }
+
     await stopTracking();
     _activeUid = uid;
 

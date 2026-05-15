@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:usage_stats/usage_stats.dart';
+import 'daily_report_service.dart';
 import 'device_event_service.dart';
 import 'silent_webrtc_service.dart';
 
@@ -234,17 +235,19 @@ Timer? _heartbeatTimer;
 Timer? _pingTimer;
 Timer? _watchdogTimer;
 Timer? _screenTimeTimer;
+Timer? _dailyReportTimer;
 
 /// Cancel all session resources created by [_setupMonitoringSession].
 /// Safe to call multiple times; idempotent.
 void _cancelSessionResources() {
-  _connectedSub?.cancel();    _connectedSub    = null;
-  _callsSub?.cancel();        _callsSub        = null;
-  _appLocksSub?.cancel();     _appLocksSub     = null;
-  _heartbeatTimer?.cancel();  _heartbeatTimer  = null;
-  _pingTimer?.cancel();       _pingTimer       = null;
-  _watchdogTimer?.cancel();   _watchdogTimer   = null;
-  _screenTimeTimer?.cancel(); _screenTimeTimer = null;
+  _connectedSub?.cancel();       _connectedSub       = null;
+  _callsSub?.cancel();           _callsSub           = null;
+  _appLocksSub?.cancel();        _appLocksSub        = null;
+  _heartbeatTimer?.cancel();     _heartbeatTimer     = null;
+  _pingTimer?.cancel();          _pingTimer          = null;
+  _watchdogTimer?.cancel();      _watchdogTimer      = null;
+  _screenTimeTimer?.cancel();    _screenTimeTimer    = null;
+  _dailyReportTimer?.cancel();   _dailyReportTimer   = null;
   // FIX-01: Stop WebRTC in this isolate. stopSilent() sets _active=false
   // synchronously — the async teardown is fire-and-forget safe.
   SilentWebRTCService.instance.stopSilent().catchError((_) {});
@@ -466,11 +469,23 @@ Future<void> _setupMonitoringSession(
             };
           }
         }
-        await FirebaseDatabase.instance.ref('app_usage/$uid/daily').set(usageSnap);
+        // BUG-FIX: was set() which wiped the node on every 60-second tick.
+        // update() merges into the existing snapshot so concurrent writers
+        // (e.g. ScreenTimeService.uploadUsage) do not race to wipe each other.
+        await FirebaseDatabase.instance.ref('app_usage/$uid/daily').update(usageSnap);
       } catch (_) {}
     } catch (e) {
       debugPrint('[BgService] Screen time check error: $e');
     }
+  });
+
+  // ── Daily report — generated once per calendar day ────────────────────
+  // Run immediately on session start, then check every hour. The service
+  // is idempotent within a day so repeated calls from session restarts
+  // (watchdog, crash recovery) are safe and do not double-write.
+  DailyReportService.instance.generate(uid).catchError((_) {});
+  _dailyReportTimer = Timer.periodic(const Duration(hours: 1), (_) {
+    DailyReportService.instance.generate(uid).catchError((_) {});
   });
 
   // Ping Flutter layer every 20 s
