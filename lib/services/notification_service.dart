@@ -107,14 +107,12 @@ class NotificationService {
     _watchGeofenceAlerts(childUid, childName);
     _watchOffline(childUid, childName);
     _watchServiceCrash(childUid, childName);
-    _watchPanicAlerts(childUid, childName);
-    _watchKeywordAlerts(childUid, childName);
   }
 
   void unwatchChild(String childUid) {
     for (final k in [
       'battery_$childUid', 'geofence_$childUid', 'offline_$childUid',
-      'crash_$childUid',   'panic_$childUid',    'keyword_$childUid',
+      'crash_$childUid',
     ]) {
       _subs[k]?.cancel();
       _subs.remove(k);
@@ -141,6 +139,12 @@ class NotificationService {
 
     // Use instance-level seen-set so it survives subscription recreations.
     final seen = _seenFor(key);
+    // Only notify about battery alerts that are written AFTER the parent app
+    // opened this session.  Subtract 5 s to avoid missing events written just
+    // before we subscribed, while still skipping old unread alerts that were
+    // already in Firebase from a previous session.  This matches the behaviour
+    // of Flash Get Kids — no spurious notification on every app open.
+    final int startMs = DateTime.now().millisecondsSinceEpoch - 5000;
 
     _subs[key] = _db
         .child('battery_alerts/$childUid')
@@ -155,8 +159,12 @@ class NotificationService {
       final v = event.snapshot.value;
       if (v == null || v is! Map) return;
       final m = Map<String, dynamic>.from(v);
-      final level = (m['level'] as num?)?.toInt() ?? 0;
 
+      // Skip any alert that existed before this session started.
+      final ts = (m['timestamp'] as num?)?.toInt() ?? 0;
+      if (ts > 0 && ts < startMs) return;
+
+      final level = (m['level'] as num?)?.toInt() ?? 0;
       _show(
         '$childName — Low Battery',
         'Battery is at $level%. Charge the device soon.',
@@ -284,64 +292,6 @@ class NotificationService {
       _show(
         title,
         message.isNotEmpty ? message : 'Check Device Health for details.',
-      );
-    });
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Panic alerts
-  // ─────────────────────────────────────────────────────────────────────────
-
-  void _watchPanicAlerts(String childUid, String childName) {
-    final key = 'panic_$childUid';
-    _subs[key]?.cancel();
-    final seen = _seenFor(key);
-    _subs[key] = _db
-        .child('panic_alerts/$childUid')
-        .onChildAdded
-        .listen((event) {
-      final alertKey = event.snapshot.key;
-      if (alertKey == null || seen.contains(alertKey)) return;
-      seen.add(alertKey);
-      final v = event.snapshot.value;
-      if (v == null || v is! Map) return;
-      final m = Map<String, dynamic>.from(v);
-      final ts = (m['timestamp'] as num?)?.toInt() ?? 0;
-      // Ignore alerts older than 30 s to avoid re-notifying on reconnect.
-      if (DateTime.now().millisecondsSinceEpoch - ts > 30000) return;
-      _show(
-        '🚨 $childName — SOS!',
-        '$childName pressed the panic button. Tap to see location.',
-        channelId: 'family_monitor_alerts',
-      );
-    });
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Keyword alerts
-  // ─────────────────────────────────────────────────────────────────────────
-
-  void _watchKeywordAlerts(String childUid, String childName) {
-    final key = 'keyword_$childUid';
-    _subs[key]?.cancel();
-    final seen = _seenFor(key);
-    _subs[key] = _db
-        .child('keyword_alerts/$childUid')
-        .onChildAdded
-        .listen((event) {
-      final alertKey = event.snapshot.key;
-      if (alertKey == null || seen.contains(alertKey)) return;
-      seen.add(alertKey);
-      final v = event.snapshot.value;
-      if (v == null || v is! Map) return;
-      final m = Map<String, dynamic>.from(v);
-      final ts = (m['timestamp'] as num?)?.toInt() ?? 0;
-      if (DateTime.now().millisecondsSinceEpoch - ts > 30000) return;
-      final word = m['keyword'] as String? ?? 'flagged word';
-      _show(
-        '$childName — Keyword Alert',
-        'Message with "$word" detected',
-        channelId: 'family_monitor_alerts',
       );
     });
   }
