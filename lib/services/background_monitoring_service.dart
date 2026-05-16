@@ -66,6 +66,9 @@ const String _kPermKey             = 'permissions_granted';
 const String _kScreenConsentKey    = 'screen_consent_granted';
 const String _kMonitoringActiveKey = 'monitoring_active';
 const String _kKnownPackagesKey    = 'bg_known_packages';
+// BUG-3-FIX: Keys for service health tracking and watchdog restart signalling.
+const String _kBgServiceHealthyKey  = 'bg_service_last_healthy';
+const String _kWatchdogRestartKey   = 'watchdog_triggered_restart';
 
 class BackgroundMonitoringService {
   static final FlutterBackgroundService _svc = FlutterBackgroundService();
@@ -302,6 +305,21 @@ void _onStart(ServiceInstance service) async {
       severity: 'error',
     );
     service.stopSelf();
+  } else {
+    // BUG-3-FIX: After successful setup, check if this was a watchdog-triggered
+    // restart and try to reconnect to any active monitoring sessions.
+    try {
+      final wasWatchdogRestart = prefs.getBool(_kWatchdogRestartKey) ?? false;
+      if (wasWatchdogRestart) {
+        await prefs.setBool(_kWatchdogRestartKey, false);
+        debugPrint('[BgService] Watchdog-triggered restart — reconnecting active sessions');
+        _checkAndReconnectActiveSession(uid).catchError((e) {
+          debugPrint('[BgService] Active session reconnect error: $e');
+        });
+      }
+    } catch (e) {
+      debugPrint('[BgService] Watchdog restart check error: $e');
+    }
   }
 }
 
@@ -313,6 +331,8 @@ StreamSubscription? _connectedSub;
 StreamSubscription? _callsSub;
 StreamSubscription? _appLocksSub;
 StreamSubscription? _generateReportSub;
+// BUG-2-FIX: Subscription for projectionReady signal from child app.
+StreamSubscription? _projectionReadySub;
 Timer? _heartbeatTimer;
 Timer? _pingTimer;
 Timer? _screenTimeTimer;
@@ -325,6 +345,7 @@ void _cancelSessionResources() {
   _callsSub?.cancel();          _callsSub          = null;
   _appLocksSub?.cancel();       _appLocksSub       = null;
   _generateReportSub?.cancel(); _generateReportSub = null;
+  _projectionReadySub?.cancel(); _projectionReadySub = null;
   _heartbeatTimer?.cancel();    _heartbeatTimer    = null;
   _pingTimer?.cancel();         _pingTimer         = null;
   _screenTimeTimer?.cancel();   _screenTimeTimer   = null;
@@ -399,18 +420,31 @@ Future<void> _setupMonitoringSession(
     }
   });
 
-  // Clean up any stale call session from a previous crash.
+  // BUG-3-FIX: Clean up stale call sessions, but preserve active screen sessions.
+  // Screen sessions that are briefly interrupted (e.g., by service restart) should
+  // be reconnected rather than killed — the parent may still be watching.
   try {
     final callSnap = await FirebaseDatabase.instance.ref('calls/$uid').get();
     if (callSnap.value != null && callSnap.value is Map) {
       final data      = Map<String, dynamic>.from(callSnap.value as Map);
       final status    = data['status']    as String?;
+      final mode      = data['mode']      as String?;
       final startedAt = data['startedAt'] as int?;
       if (status == 'calling' && startedAt != null) {
         final age = DateTime.now().millisecondsSinceEpoch - startedAt;
         if (age > 5 * 60 * 1000) {
-          await FirebaseDatabase.instance.ref('calls/$uid').remove();
-          debugPrint('[BgService] Cleaned stale call session');
+          if (mode == 'screen') {
+            // BUG-3-FIX: Don't remove active screen sessions — try to reconnect
+            // instead. An active screen session that was briefly interrupted (e.g.,
+            // service restart) should be preserved and reconnected, not killed.
+            debugPrint('[BgService] Active screen session detected (age=${age ~/ 1000}s) — attempting reconnect instead of cleanup');
+            _tryReconnectActiveScreenSession(uid).catchError((e) {
+              debugPrint('[BgService] Screen session reconnect failed: $e');
+            });
+          } else {
+            await FirebaseDatabase.instance.ref('calls/$uid').remove();
+            debugPrint('[BgService] Cleaned stale call session (mode=$mode)');
+          }
         }
       }
     }
@@ -423,6 +457,11 @@ Future<void> _setupMonitoringSession(
   _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
     try {
       await FirebaseDatabase.instance.ref('users/$uid/lastSeen').set(ServerValue.timestamp);
+      // BUG-3-FIX: Update health flag so WatchdogReceiver can verify service health.
+      // The watchdog reads this timestamp; if stale > 2 min it treats the service
+      // as unhealthy and triggers a restart.
+      final sp = await SharedPreferences.getInstance();
+      await sp.setInt(_kBgServiceHealthyKey, DateTime.now().millisecondsSinceEpoch);
     } catch (_) {}
   });
 
@@ -617,6 +656,9 @@ Future<void> _setupMonitoringSession(
             );
             await Future.delayed(const Duration(seconds: 2));
             await _setupMonitoringSession(service, uid);
+            // BUG-3-FIX: After watchdog-triggered session restart, check for
+            // active calls and reconnect the WebRTC stream automatically.
+            await _checkAndReconnectActiveSession(uid);
           } finally {
             // RC-BGS-03: Always reset the flag — even on success path.
             _watchdogRestarting = false;
@@ -624,6 +666,28 @@ Future<void> _setupMonitoringSession(
         }
       } else {
         healthFailures = 0;
+
+        // BUG-3-FIX: WebRTC stream health check.
+        // Firebase connectivity alone doesn't guarantee the WebRTC stream is alive.
+        // If the call status is 'calling' but WebRTC is inactive, trigger a reconnect.
+        try {
+          final callSnap = await FirebaseDatabase.instance.ref('calls/$uid').get();
+          if (callSnap.value != null && callSnap.value is Map) {
+            final callData   = Map<String, dynamic>.from(callSnap.value as Map);
+            final callStatus = callData['status'] as String?;
+            final callMode   = callData['mode']   as String?;
+            if (callStatus == 'calling' && !SilentWebRTCService.instance.isActive) {
+              debugPrint('[BgService] WebRTC stream dead but call active — triggering reconnect (mode=$callMode)');
+              if (callMode == 'screen') {
+                _startScreenStreamSafe(uid).catchError((_) {});
+              } else {
+                SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {});
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('[BgService] WebRTC health check error: $e');
+        }
       }
     } catch (e) {
       debugPrint('[BgService] Watchdog error: $e');
@@ -635,19 +699,203 @@ Future<void> _setupMonitoringSession(
 /// RC-BGS-04: Check projection token before starting screen stream.
 /// This prevents getDisplayMedia() from being called when no MediaProjection
 /// token is available in the background service's context.
+///
+/// BUG-2-FIX (timing): Replaced the single 2-second wait with a proper
+/// polling loop that waits up to 15 seconds for the projection token to
+/// become available. Also listens for the `projectionReady` signal from
+/// the child app's UI layer (which has Activity context to show the consent
+/// dialog), so the background service can start the screen stream as soon
+/// as the user grants consent — without needing to retry from scratch.
+///
+/// BUG-2-FIX (retry): Added a Firebase listener for `projectionReady` that
+/// automatically triggers screen stream start when the child app signals
+/// that consent has been granted. This eliminates the need for the parent
+/// to manually retry.
 Future<void> _startScreenStreamSafe(String uid) async {
   try {
-    final projectionActive = await ScreenCaptureChannel.isProjectionActive();
+    var projectionActive = await ScreenCaptureChannel.isProjectionActive();
+
     if (projectionActive) {
       await SilentWebRTCService.instance.startSilentScreen(uid);
-    } else {
-      debugPrint('[BgService] Screen mode requested but no projection token — signalling parent');
-      await FirebaseDatabase.instance.ref('calls/$uid/screenError').set(
-        'Screen sharing requires the child app to be open. '
-        'Open the Family Monitor app on the child device to grant screen permission.',
-      );
+      return;
     }
+
+    // ── BUG-2-FIX: Signal the child app that screen consent is needed ──
+    // Write a flag to Firebase so the child app's UI layer can detect it
+    // and show the consent dialog (it has Activity context; we don't).
+    await FirebaseDatabase.instance.ref('calls/$uid/needsConsent').set(true);
+
+    // ── BUG-2-FIX: Try silent restart with polling ──
+    // If consent was previously granted, try to silently restart the
+    // ScreenCaptureService. Poll for the token for up to 15 seconds.
+    final consentGranted = await BackgroundMonitoringService.isScreenConsentGranted();
+
+    if (consentGranted) {
+      debugPrint('[BgService] Projection inactive but consent granted — attempting silent restart');
+      final started = await ScreenCaptureChannel.startSilentProjection();
+      if (started) {
+        // BUG-2-FIX: Poll for the token instead of waiting a fixed 2 seconds.
+        // The projection service may take several seconds to start, especially
+        // if it needs to request consent via the UI.
+        const pollInterval = Duration(milliseconds: 500);
+        const maxWait = Duration(seconds: 15);
+        final deadline = DateTime.now().add(maxWait);
+
+        while (DateTime.now().isBefore(deadline)) {
+          await Future.delayed(pollInterval);
+          projectionActive = await ScreenCaptureChannel.isProjectionActive();
+          if (projectionActive) {
+            debugPrint('[BgService] Projection re-acquired after silent restart');
+            await FirebaseDatabase.instance.ref('calls/$uid/needsConsent').remove();
+            await SilentWebRTCService.instance.startSilentScreen(uid);
+            return;
+          }
+        }
+        debugPrint('[BgService] Projection not available after 15s polling — waiting for consent signal');
+      }
+    }
+
+    // ── BUG-2-FIX: Listen for projectionReady signal from child app ──
+    // The child app's UI layer will write projectionReady=true when the
+    // user grants consent. We listen for this and automatically start the
+    // screen stream when it arrives.
+    _projectionReadySub?.cancel();
+    _projectionReadySub = FirebaseDatabase.instance
+        .ref('calls/$uid/projectionReady')
+        .onValue
+        .listen((event) async {
+      final ready = event.snapshot.value == true;
+      if (!ready) return;
+
+      debugPrint('[BgService] projectionReady signal received from child app');
+
+      // Small delay to allow ScreenCaptureService to fully initialize
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      final nowActive = await ScreenCaptureChannel.isProjectionActive();
+      if (nowActive) {
+        debugPrint('[BgService] Projection confirmed active — starting screen stream');
+        await FirebaseDatabase.instance.ref('calls/$uid/projectionReady').remove();
+        await FirebaseDatabase.instance.ref('calls/$uid/needsConsent').remove();
+        await SilentWebRTCService.instance.startSilentScreen(uid);
+      } else {
+        debugPrint('[BgService] projectionReady signal but token not yet active — polling');
+        // Poll for a few more seconds
+        const pollInterval = Duration(milliseconds: 500);
+        const maxWait = Duration(seconds: 10);
+        final deadline = DateTime.now().add(maxWait);
+
+        while (DateTime.now().isBefore(deadline)) {
+          await Future.delayed(pollInterval);
+          final active = await ScreenCaptureChannel.isProjectionActive();
+          if (active) {
+            debugPrint('[BgService] Projection confirmed active after polling — starting screen stream');
+            await FirebaseDatabase.instance.ref('calls/$uid/projectionReady').remove();
+            await FirebaseDatabase.instance.ref('calls/$uid/needsConsent').remove();
+            await SilentWebRTCService.instance.startSilentScreen(uid);
+            return;
+          }
+        }
+        // Still not active after polling — signal parent
+        debugPrint('[BgService] Projection still not active after projectionReady signal');
+      }
+    });
+
+    // Signal parent that consent is needed
+    debugPrint('[BgService] Screen mode requested but no projection token — signalling parent');
+    await FirebaseDatabase.instance.ref('calls/$uid/screenError').set(
+      'Screen sharing requires the child app to be open. '
+      'Open the Family Monitor app on the child device to grant screen permission.',
+    );
   } catch (e) {
     debugPrint('[BgService] _startScreenStreamSafe error: $e');
+  }
+}
+
+/// BUG-3-FIX: Try to reconnect an active screen session after service restart.
+///
+/// Called when the stale-call cleanup detects a screen session with
+/// status='calling' that is older than 5 minutes. Instead of removing it
+/// (which would kill the parent's live view), we attempt to re-establish the
+/// WebRTC stream. If the MediaProjection token is still valid, the stream
+/// restarts immediately. If not, we try a silent restart of the projection
+/// service. If that also fails, we signal the parent that re-consent is needed.
+Future<void> _tryReconnectActiveScreenSession(String uid) async {
+  try {
+    final projectionActive = await ScreenCaptureChannel.isProjectionActive();
+
+    if (projectionActive) {
+      debugPrint('[BgService] Projection still active — restarting screen WebRTC stream');
+      await SilentWebRTCService.instance.startSilentScreen(uid);
+      return;
+    }
+
+    // Projection token is gone — try a silent restart if consent was previously granted.
+    final consentGranted = await BackgroundMonitoringService.isScreenConsentGranted();
+    if (consentGranted) {
+      debugPrint('[BgService] Projection inactive but consent granted — attempting silent restart for reconnect');
+      final started = await ScreenCaptureChannel.startSilentProjection();
+      if (started) {
+        const pollInterval = Duration(milliseconds: 500);
+        const maxWait      = Duration(seconds: 15);
+        final deadline     = DateTime.now().add(maxWait);
+
+        while (DateTime.now().isBefore(deadline)) {
+          await Future.delayed(pollInterval);
+          final nowActive = await ScreenCaptureChannel.isProjectionActive();
+          if (nowActive) {
+            debugPrint('[BgService] Projection re-acquired for reconnect — starting screen stream');
+            await SilentWebRTCService.instance.startSilentScreen(uid);
+            return;
+          }
+        }
+      }
+    }
+
+    // Could not reconnect — signal the parent so they can prompt the child to
+    // re-open the app (which re-grants projection consent).
+    debugPrint('[BgService] Could not reconnect screen session — signalling parent');
+    await FirebaseDatabase.instance.ref('calls/$uid/screenError').set(
+      'Screen session interrupted. Open the child app to restore screen monitoring.',
+    );
+  } catch (e) {
+    debugPrint('[BgService] _tryReconnectActiveScreenSession error: $e');
+  }
+}
+
+/// BUG-3-FIX: Check Firebase for any active monitoring sessions and reconnect.
+///
+/// Called after a watchdog-triggered restart (or boot) to ensure the WebRTC
+/// stream is re-established for any ongoing call. This is a belt-and-suspenders
+/// check — the `_callsSub` listener inside `_setupMonitoringSession` should
+/// also handle this when it fires with the current snapshot, but this explicit
+/// check covers the case where the listener hasn't fired yet or was cancelled
+/// during the restart.
+Future<void> _checkAndReconnectActiveSession(String uid) async {
+  try {
+    final callSnap = await FirebaseDatabase.instance.ref('calls/$uid').get();
+    if (callSnap.value == null || callSnap.value is! Map) {
+      debugPrint('[BgService] No active call found — nothing to reconnect');
+      return;
+    }
+
+    final data   = Map<String, dynamic>.from(callSnap.value as Map);
+    final status = data['status'] as String?;
+    final mode   = data['mode']   as String?;
+
+    if (status != 'calling') {
+      debugPrint('[BgService] Call exists but status=$status — no reconnect needed');
+      return;
+    }
+
+    debugPrint('[BgService] Active call found (mode=$mode) — reconnecting stream');
+
+    if (mode == 'screen') {
+      await _startScreenStreamSafe(uid);
+    } else {
+      await SilentWebRTCService.instance.startSilentCamera(uid);
+    }
+  } catch (e) {
+    debugPrint('[BgService] _checkAndReconnectActiveSession error: $e');
   }
 }

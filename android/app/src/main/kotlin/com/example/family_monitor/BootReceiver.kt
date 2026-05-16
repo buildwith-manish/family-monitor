@@ -105,17 +105,35 @@ class BootReceiver : BroadcastReceiver() {
                         context.startForegroundService(bgSvc)
                     else context.startService(bgSvc)
                     Log.d(TAG, "Flutter background service started")
+
+                    // BUG-3-FIX: Set watchdog restart flag so the background service
+                    // knows to reconnect to any active monitoring sessions after boot
+                    // or package update. Without this, the service starts fresh and
+                    // won't reconnect to any ongoing screen/camera sessions.
+                    try {
+                        val fp = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                        fp.edit().putBoolean("flutter.watchdog_triggered_restart", true).apply()
+                    } catch (_: Exception) {}
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to start background service: $e")
                 }
             }
 
             // ── 2. Screen-capture service (silent restart if token is saved) ────────
-            // MediaProjection tokens survive an in-process update (MY_PACKAGE_REPLACED)
-            // but are invalidated on a full reboot. Only attempt on package-replaced.
-            if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED &&
-                ScreenCaptureService.savedResultCode != 0 &&
-                ScreenCaptureService.savedResultData != null) {
+            // BUG-3-FIX: Start ScreenCaptureService on both BOOT_COMPLETED and
+            // MY_PACKAGE_REPLACED. On full reboot, MediaProjection tokens are
+            // invalidated, but the service still needs to start so it can:
+            //   - Hold the foreground notification (required by Android)
+            //   - Detect the invalid token and prompt re-consent via notification
+            // On MY_PACKAGE_REPLACED, saved tokens may still be valid.
+            val shouldStartCapture = when (intent.action) {
+                Intent.ACTION_MY_PACKAGE_REPLACED ->
+                    ScreenCaptureService.savedResultCode != 0 && ScreenCaptureService.savedResultData != null
+                Intent.ACTION_BOOT_COMPLETED, "android.intent.action.QUICKBOOT_POWERON" ->
+                    consentBefore  // previously granted consent
+                else -> false
+            }
+            if (shouldStartCapture) {
                 try {
                     val capSvc = Intent(context, ScreenCaptureService::class.java).apply {
                         action = ScreenCaptureService.ACTION_START_SILENT
@@ -123,7 +141,7 @@ class BootReceiver : BroadcastReceiver() {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
                         context.startForegroundService(capSvc)
                     else context.startService(capSvc)
-                    Log.d(TAG, "ScreenCaptureService silent restart attempted")
+                    Log.d(TAG, "ScreenCaptureService silent restart attempted (action=${intent.action})")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to restart capture service: $e")
                 }

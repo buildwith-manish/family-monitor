@@ -100,10 +100,18 @@ class WatchdogReceiver : BroadcastReceiver() {
 
             // ── 2. Check ScreenCaptureService health ────────────────────────────
             // RC-06: Check BOTH instance existence AND token validity.
+            // BUG-3-FIX: Also check SharedPreferences for persisted projection data
+            // since volatile static fields are cleared on process death.
             val serviceAlive  = ScreenCaptureService.instance != null
             val tokenValid    = ScreenCaptureService.projectionToken != null
-            val hasSavedToken = ScreenCaptureService.savedResultCode != 0 &&
+            val hasVolatileToken = ScreenCaptureService.savedResultCode != 0 &&
                     ScreenCaptureService.savedResultData != null
+            val hasPersistedToken = try {
+                val prefs = context.getSharedPreferences("fm_prefs", Context.MODE_PRIVATE)
+                prefs.getInt("projection_result_code", 0) != 0 &&
+                    !prefs.getString("projection_result_data_uri", null).isNullOrEmpty()
+            } catch (_: Exception) { false }
+            val hasSavedToken = hasVolatileToken || hasPersistedToken
 
             if (!serviceAlive || !tokenValid) {
                 Log.w(TAG, "ScreenCaptureService needs healing: " +
@@ -117,8 +125,35 @@ class WatchdogReceiver : BroadcastReceiver() {
         }
     }
 
+    /**
+     * BUG-3-FIX: Ensure the Flutter background service is running AND healthy.
+     *
+     * Previously this method unconditionally started the background service on
+     * every watchdog tick, which caused duplicate service starts after Doze wakeup.
+     * Now it also checks a SharedPreferences health flag (`bg_service_last_healthy`)
+     * that the Flutter background service updates every 30 s via its heartbeat timer.
+     * If the timestamp is stale (> 2 min), the service is considered unhealthy
+     * even if the Android process is technically alive — the Flutter isolate may
+     * have been killed while the native process persists.
+     *
+     * After restarting the service, writes `watchdog_triggered_restart = true`
+     * to SharedPreferences so the Flutter isolate knows to reconnect to any
+     * active monitoring sessions (camera or screen) that were interrupted.
+     */
     private fun ensureBackgroundServiceRunning(context: Context) {
         try {
+            val flutterPrefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val lastHealthy = flutterPrefs.getLong("flutter.bg_service_last_healthy", 0L)
+            val now = System.currentTimeMillis()
+            val isHealthy = (now - lastHealthy) < 120_000L  // 2 minutes
+
+            if (isHealthy) {
+                Log.d(TAG, "Flutter background service appears healthy (last heartbeat ${now - lastHealthy}ms ago)")
+                return
+            }
+
+            Log.w(TAG, "Flutter background service unhealthy (last heartbeat ${now - lastHealthy}ms ago) — restarting")
+
             val bgSvc = Intent(
                 context,
                 id.flutter.flutter_background_service.BackgroundService::class.java
@@ -127,7 +162,14 @@ class WatchdogReceiver : BroadcastReceiver() {
                 context.startForegroundService(bgSvc)
             else
                 context.startService(bgSvc)
-            Log.d(TAG, "Flutter background service start requested")
+
+            // BUG-3-FIX: Write watchdog restart flag so the background service
+            // knows to reconnect to any active sessions after restart.
+            flutterPrefs.edit()
+                .putBoolean("flutter.watchdog_triggered_restart", true)
+                .apply()
+
+            Log.d(TAG, "Flutter background service start requested + watchdog_triggered_restart flag set")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start/check bg service: $e")
         }
