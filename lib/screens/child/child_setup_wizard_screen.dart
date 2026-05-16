@@ -306,6 +306,11 @@ class _ChildSetupWizardScreenState
     setState(() => _screenConsented = result);
     if (result) {
       await BackgroundMonitoringService.saveScreenConsentGranted(true);
+      // BUG-3-FIX: Ensure background monitoring service is started
+      // so it can handle incoming screen requests even when app is in background.
+      try {
+        await BackgroundMonitoringService.startService();
+      } catch (_) {}
       debugPrint('[Wizard] Screen consent granted and persisted');
     }
   }

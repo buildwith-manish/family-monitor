@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -9,6 +11,9 @@ import 'package:flutter/services.dart';
 ///             MainActivity platform channel methods to Dart.
 /// RC-CH-02 — All methods now handle MissingPluginException, PlatformException,
 ///             and generic Exception consistently.
+///
+/// BUG-2-FIX: Added methods for Parcel-based Intent serialization and native
+/// screen frame capture as fallback when getDisplayMedia() fails.
 class ScreenCaptureChannel {
   static const MethodChannel _channel =
       MethodChannel('com.familymonitor/screen_capture');
@@ -85,18 +90,7 @@ class ScreenCaptureChannel {
     }
   }
 
-  // ── New methods for RC-CH-01 ─────────────────────────────────────────────
-
   /// RC-OEM-01: Deep-link to the OEM's battery/autostart settings screen.
-  ///
-  /// On aggressive OEMs (MIUI, ColorOS, FuntouchOS, EMUI), the app must be
-  /// whitelisted in the OEM's proprietary auto-start manager — otherwise the
-  /// system kills the background service within minutes even with a foreground
-  /// notification. This method opens the correct screen directly.
-  ///
-  /// Returns true if a matching OEM settings screen was found and opened.
-  /// Returns false on stock Android (where battery optimization exemption
-  /// via [requestBatteryOptimizationExemption] is sufficient).
   static Future<bool> openOemAutoStartSettings() async {
     try {
       final result = await _channel.invokeMethod<bool>('openOemAutoStartSettings');
@@ -138,6 +132,146 @@ class ScreenCaptureChannel {
       return false;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// Returns the saved MediaProjection result code and data URI.
+  /// Used by SilentWebRTCService to pass existing projection data to
+  /// getDisplayMedia(), avoiding the system consent dialog.
+  ///
+  /// BUG-2-FIX: Also returns Parcel-marshaled Intent bytes that preserve
+  /// the Binder extra needed by getMediaProjection() on Android 14+.
+  static Future<Map<String, dynamic>?> getProjectionParams() async {
+    try {
+      final result = await _channel.invokeMethod<Map>('getProjectionParams');
+      if (result != null) {
+        return Map<String, dynamic>.from(result);
+      }
+      return null;
+    } on MissingPluginException catch (_) {
+      return null;
+    } on PlatformException catch (_) {
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// BUG-2-FIX: Returns the Parcel-marshaled Intent bytes that preserve
+  /// the Binder extra. This is the PREFERRED way to pass projection data
+  /// to flutter_webrtc on Android 14+ where Intent.toUri() loses the Binder.
+  ///
+  /// Returns a map with:
+  ///   - 'resultCode': int - The result code from the consent dialog
+  ///   - 'resultDataParcel': Uint8List - Parcel-marshaled Intent bytes
+  /// Or null if no projection data is available.
+  static Future<Map<String, dynamic>?> getProjectionParamsParcel() async {
+    try {
+      final result = await _channel.invokeMethod<Map>('getProjectionParamsParcel');
+      if (result != null) {
+        final map = Map<String, dynamic>.from(result);
+        // Convert the byte array to Uint8List for Dart consumption
+        if (map['resultDataParcel'] != null) {
+          final rawBytes = map['resultDataParcel'];
+          if (rawBytes is List) {
+            map['resultDataParcel'] = Uint8List.fromList(rawBytes.cast<int>());
+          }
+        }
+        return map;
+      }
+      return null;
+    } on MissingPluginException catch (_) {
+      return null;
+    } on PlatformException catch (_) {
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// BUG-3-FIX: Start the ScreenCaptureService with ACTION_START_SILENT.
+  /// This can be called from the background service isolate where no
+  /// foreground Activity is available. The service will try to reuse the
+  /// saved MediaProjection token; if invalid, it will show a notification
+  /// prompting the user to re-grant consent.
+  static Future<bool> startSilentProjection() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('startSilentProjection');
+      return result ?? false;
+    } on MissingPluginException catch (_) {
+      return false;
+    } on PlatformException catch (_) {
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ── BUG-2-FIX: Native screen frame capture methods ─────────────────────
+
+  /// Start native screen frame capture using VirtualDisplay + ImageReader.
+  ///
+  /// This is used as a fallback when flutter_webrtc's getDisplayMedia()
+  /// fails (e.g., due to Intent URI serialization losing the Binder extra
+  /// on Android 14+). Frames are captured as JPEG and can be retrieved
+  /// via [getScreenFrame] or relayed to the parent via Firebase RTDB.
+  ///
+  /// Returns true if capture started successfully.
+  static Future<bool> startNativeScreenCapture({
+    int width = 720,
+    int height = 1280,
+    int fps = 5,
+  }) async {
+    try {
+      final result = await _channel.invokeMethod<bool>(
+        'startNativeScreenCapture',
+        {'width': width, 'height': height, 'fps': fps},
+      );
+      return result ?? false;
+    } on MissingPluginException catch (_) {
+      return false;
+    } on PlatformException catch (e) {
+      debugPrint('[ScreenCapture] startNativeScreenCapture error: $e');
+      return false;
+    } catch (e) {
+      debugPrint('[ScreenCapture] startNativeScreenCapture error: $e');
+      return false;
+    }
+  }
+
+  /// Stop native screen frame capture.
+  static Future<void> stopNativeScreenCapture() async {
+    try {
+      await _channel.invokeMethod('stopNativeScreenCapture');
+    } on MissingPluginException catch (_) {
+      // ignore
+    } on PlatformException catch (_) {
+      // ignore
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  /// Get the latest captured screen frame as JPEG bytes.
+  ///
+  /// Returns null if frame capture is not running or no frame is available.
+  static Future<Uint8List?> getScreenFrame() async {
+    try {
+      final result = await _channel.invokeMethod('getScreenFrame');
+      if (result == null) return null;
+      if (result is List) {
+        return Uint8List.fromList(result.cast<int>());
+      }
+      if (result is Uint8List) {
+        return result;
+      }
+      return null;
+    } on MissingPluginException catch (_) {
+      return null;
+    } on PlatformException catch (_) {
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 }

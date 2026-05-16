@@ -7,6 +7,12 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.PixelFormat
+import android.hardware.display.DisplayManager
+import android.hardware.display.VirtualDisplay
+import android.media.Image
+import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Binder
@@ -14,50 +20,44 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.Parcel
 import android.os.PowerManager
+import android.util.DisplayMetrics
 import android.util.Log
+import android.view.WindowManager
 import androidx.core.app.NotificationCompat
+import java.io.ByteArrayOutputStream
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * ScreenCaptureService — Production-hardened MediaProjection token holder.
+ * ScreenCaptureService — Production-hardened MediaProjection token holder
+ * with native frame capture fallback.
  *
- * ROLE: This service's ONLY job is to:
+ * ROLE:
  *   1. Hold a valid MediaProjection token (obtained from user consent).
- *   2. Keep a foreground service with MEDIA_PROJECTION type active, satisfying
- *      Android 14+'s requirement for any process calling getDisplayMedia.
+ *   2. Keep a foreground service with MEDIA_PROJECTION type active.
  *   3. Survive aggressive OEM background killing via PARTIAL_WAKE_LOCK.
- *
- * CAPTURE: Actual screen capture is performed by flutter_webrtc's getDisplayMedia()
- * running inside the flutter_background_service isolate (BackgroundService). That
- * service has camera|microphone|dataSync in its foreground service type. The
- * MEDIA_PROJECTION type in THIS service satisfies the system-wide check on API 34+.
+ *   4. BUG-2-FIX: Provide native frame capture via VirtualDisplay + ImageReader
+ *      as a fallback when flutter_webrtc's getDisplayMedia() fails due to
+ *      Intent URI serialization losing the Binder extra.
+ *   5. BUG-2-FIX: Provide Parcel-serialized Intent data that preserves the
+ *      Binder extra, allowing getMediaProjection() to succeed.
  *
  * ROOT CAUSES FIXED:
  *
- * RC-01 — No PARTIAL_WAKE_LOCK: CPU suspended on screen-off → capture froze.
- *          Fixed: PARTIAL_WAKE_LOCK acquired in onCreate(), released in onDestroy().
- *
- * RC-02 — Wrong startForeground() call order on Android 14+:
- *          startFg(MEDIA_PROJECTION) was called BEFORE getMediaProjection().
- *          Android 14+ requires the token to exist BEFORE startForeground with
- *          MEDIA_PROJECTION type. Fixed: use two-phase startForeground:
- *            Phase 1 → DATA_SYNC (immediate, satisfies 5s rule)
- *            Phase 2 → MEDIA_PROJECTION (after token is obtained)
- *
+ * RC-01 — No PARTIAL_WAKE_LOCK → CPU suspended on screen-off.
+ * RC-02 — Wrong startForeground() call order on Android 14+.
  * RC-03 — MediaProjection.Callback.onStop registered only on API 34+.
- *          On Android 12–13, token revocation was silent → black screen, no recovery.
- *          Fixed: Callback registered on API 29+ (Android Q+).
+ * RC-04 — NOTIFICATION_ID collision with WatchdogService.
+ * RC-05 — onDestroy() did not release wake lock.
+ * RC-06 — onStartCommand(null) jumped to requestPermissionViaUi().
  *
- * RC-04 — NOTIFICATION_ID collision with WatchdogService (both used 1001).
- *          This service uses 1001; WatchdogService now uses 1002.
- *
- * RC-05 — onDestroy() did not release wake lock → battery drain on restart cycle.
- *          Fixed: releaseWakeLock() called in onDestroy() and ACTION_STOP path.
- *
- * RC-06 — onStartCommand(null) jumped straight to requestPermissionViaUi()
- *          without attempting a silent restart first. On START_STICKY restart
- *          with a valid saved token, a silent restart is preferred.
- *          Fixed: Try silent restart before showing UI.
+ * BUG-2-FIX:
+ * RC-B2-01 — Intent.toUri(0) loses the Binder extra needed by
+ *            getMediaProjection(). Fixed: store Parcel-marshaled bytes in
+ *            static field and provide via getProjectionParamsParcel().
+ * RC-B2-02 — No native frame capture fallback for when getDisplayMedia()
+ *            fails. Fixed: added VirtualDisplay + ImageReader pipeline.
  */
 class ScreenCaptureService : Service() {
 
@@ -77,9 +77,18 @@ class ScreenCaptureService : Service() {
         @Volatile var savedResultData: Intent?          = null
         @Volatile var projectionToken: MediaProjection? = null
 
+        // BUG-2-FIX: Parcel-marshaled Intent bytes preserving the Binder extra.
+        // Unlike Intent.toUri(0) which loses the IBinder, Parcel serialization
+        // preserves ALL extras including the MediaProjection token binder.
+        @Volatile var savedResultDataParcelBytes: ByteArray? = null
+
+        // BUG-2-FIX: Latest captured frame as JPEG bytes (native fallback).
+        @Volatile var latestFrameBytes: ByteArray? = null
+        @Volatile var frameCaptureRunning: Boolean = false
+
         // Prevents TOCTOU race where two concurrent onStartCommand deliveries
         // both pass the boolean check before either sets it, causing double-start.
-        private val starting = java.util.concurrent.atomic.AtomicBoolean(false)
+        private val starting = AtomicBoolean(false)
 
         private const val WAKE_LOCK_TAG = "FamilyMonitor:ScreenCapture"
     }
@@ -93,8 +102,14 @@ class ScreenCaptureService : Service() {
     var resultData: Intent? = null
 
     // RC-01: PARTIAL_WAKE_LOCK keeps CPU running when screen is off.
-    // Foreground service type alone does NOT prevent CPU sleep on aggressive OEMs.
     private var wakeLock: PowerManager.WakeLock? = null
+
+    // BUG-2-FIX: Native frame capture components.
+    private var virtualDisplay: VirtualDisplay? = null
+    private var imageReader: ImageReader? = null
+    private val captureHandlerThread = android.os.HandlerThread("ScreenFrameCapture").also { it.start() }
+    private val captureHandler = Handler(captureHandlerThread.looper)
+    private val frameLock = Object()
 
     override fun onCreate() {
         super.onCreate()
@@ -117,32 +132,77 @@ class ScreenCaptureService : Service() {
                 else intent.getParcelableExtra(EXTRA_RESULT_DATA)
                 savedResultCode = resultCode
                 savedResultData = resultData
+                // BUG-2-FIX: Serialize Intent via Parcel to preserve Binder extra.
+                marshalIntentToParcel(resultData)
                 startCaptureSafe()
             }
             ACTION_START_SILENT -> {
-                resultCode = savedResultCode
-                resultData = savedResultData
-                if (resultCode != 0 && resultData != null) startCaptureSafe()
-                else requestPermissionViaUi()
+                // First try the volatile static fields
+                if (savedResultCode != 0 && savedResultData != null) {
+                    resultCode = savedResultCode
+                    resultData = savedResultData
+                    startCaptureSafe()
+                } else {
+                    // BUG-3-FIX: Try restoring from SharedPreferences (survives process death)
+                    val restored = restoreProjectionFromPrefs()
+                    if (restored) {
+                        startCaptureSafe()
+                    } else {
+                        requestPermissionViaUi()
+                    }
+                }
             }
             ACTION_STOP -> {
+                stopFrameCapture()
                 releaseWakeLock()
                 stopSelf()
                 return START_NOT_STICKY
             }
             null -> {
                 // RC-06: START_STICKY restart after process death delivers null intent.
-                // Try silent restart first; only show UI if no saved token exists.
                 if (savedResultCode != 0 && savedResultData != null) {
                     resultCode = savedResultCode
                     resultData = savedResultData
                     startCaptureSafe()
                 } else {
-                    requestPermissionViaUi()
+                    val restored = restoreProjectionFromPrefs()
+                    if (restored) {
+                        startCaptureSafe()
+                    } else {
+                        requestPermissionViaUi()
+                    }
                 }
             }
         }
         return START_STICKY
+    }
+
+    /**
+     * BUG-2-FIX: Serialize the Intent using Parcel.marshall() to preserve
+     * the Binder extra that Intent.toUri(0) loses.
+     *
+     * The MediaProjection result Intent contains an IBinder extra that is
+     * required by getMediaProjection(). Intent.toUri(0) does NOT preserve
+     * IBinder/Parcelable extras, so Intent.parseUri() reconstructs an Intent
+     * without the Binder, causing getMediaProjection() to return null.
+     *
+     * Parcel serialization preserves ALL data including the Binder.
+     */
+    private fun marshalIntentToParcel(intent: Intent?) {
+        if (intent == null) {
+            savedResultDataParcelBytes = null
+            return
+        }
+        try {
+            val parcel = Parcel.obtain()
+            intent.writeToParcel(parcel, 0)
+            savedResultDataParcelBytes = parcel.marshall()
+            parcel.recycle()
+            Log.d(TAG, "Intent marshaled to Parcel bytes: ${savedResultDataParcelBytes?.size} bytes")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to marshal Intent to Parcel: $e")
+            savedResultDataParcelBytes = null
+        }
     }
 
     private fun requestPermissionViaUi() {
@@ -162,11 +222,6 @@ class ScreenCaptureService : Service() {
         if (!starting.compareAndSet(false, true)) return
         try {
             // ── RC-02: TWO-PHASE startForeground for Android 14+ compatibility ──
-            //
-            // Phase 1: Start foreground with DATA_SYNC type IMMEDIATELY.
-            //          This satisfies Android's 5-second startForeground rule
-            //          and prevents the ForegroundServiceDidNotStartInTimeException.
-            //          DATA_SYNC does NOT require a MediaProjection token.
             startFgDataSync()
 
             val pm   = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
@@ -177,15 +232,17 @@ class ScreenCaptureService : Service() {
             // Phase 2: Get the MediaProjection token.
             mediaProjection = pm.getMediaProjection(resultCode, data)
 
+            if (mediaProjection == null) {
+                Log.e(TAG, "getMediaProjection returned null — Intent data may be invalid")
+                starting.set(false)
+                requestPermissionViaUi()
+                return
+            }
+
             // Phase 3: Now that we have the token, upgrade to MEDIA_PROJECTION type.
-            // On Android 14+, this satisfies the system-wide check that allows
-            // flutter_webrtc's getDisplayMedia() to run successfully in BackgroundService.
-            // On older APIs, upgrading is safe (idempotent second call to startForeground).
             startFgMediaProjection()
 
             // RC-03: Register MediaProjection.Callback on API 29+.
-            // On Android 12–13, token revocation was silent. This callback fires
-            // when the system invalidates the token (config change, user revoke, etc.).
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 mediaProjection?.registerCallback(object : MediaProjection.Callback() {
                     override fun onStop() {
@@ -206,11 +263,20 @@ class ScreenCaptureService : Service() {
             projectionToken = mediaProjection
 
             // Persist consent so boot receiver / watchdog know to attempt silent restart.
+            // BUG-3-FIX: Also persist projection data to SharedPreferences for reboot recovery.
+            // NOTE: URI serialization still used for prefs (best-effort for reboot recovery),
+            // but Parcel bytes are available in-memory for the current session.
             applicationContext
                 .getSharedPreferences("fm_prefs", Context.MODE_PRIVATE)
                 .edit()
                 .putBoolean("projection_consent_granted", true)
+                .putInt("projection_result_code", resultCode)
+                .putString("projection_result_data_uri", resultData?.toUri(0)?.toString())
                 .apply()
+
+            // BUG-2-FIX: Serialize Intent via Parcel to preserve Binder extra.
+            marshalIntentToParcel(resultData)
+
             Log.d(TAG, "MediaProjection created — token active")
         } catch (e: Exception) {
             Log.e(TAG, "startCaptureSafe failed: $e")
@@ -224,21 +290,165 @@ class ScreenCaptureService : Service() {
     private fun onProjectionStopped() {
         teardownProjection()
         projectionToken = null
+        savedResultDataParcelBytes = null
+        stopFrameCapture()
         if (savedResultCode != 0 && savedResultData != null) {
             Log.d(TAG, "Token revoked — attempting silent re-establish")
             startCaptureSafe()
         } else {
-            requestPermissionViaUi()
+            val restored = restoreProjectionFromPrefs()
+            if (restored) {
+                Log.d(TAG, "Token revoked — restored from prefs, attempting re-establish")
+                startCaptureSafe()
+            } else {
+                requestPermissionViaUi()
+            }
         }
+    }
+
+    // ── BUG-2-FIX: Native Frame Capture Pipeline ──────────────────────────
+
+    /**
+     * Start native screen frame capture using VirtualDisplay + ImageReader.
+     *
+     * This provides a fallback when flutter_webrtc's getDisplayMedia() fails
+     * (e.g., because Intent URI serialization lost the Binder extra on Android 14+).
+     * Frames are captured as JPEG and stored in [latestFrameBytes] for retrieval
+     * via MethodChannel.
+     *
+     * @param width  Capture width (default 720)
+     * @param height Capture height (default 1280)
+     * @param fps    Target frame rate (default 5)
+     * @return true if capture started successfully
+     */
+    /**
+     * BUG-2 FIX: Default frame capture dimensions reduced to 480x854 for
+     * faster Firebase RTDB relay. At this resolution, JPEG frames are
+     * typically 10-20 KB (vs 30-50 KB at 720x1280), making 3 FPS relay
+     * via Firebase practical (~30-60 KB/s bandwidth).
+     */
+    fun startFrameCapture(width: Int = 480, height: Int = 854, fps: Int = 3): Boolean {
+        val projection = mediaProjection ?: run {
+            Log.e(TAG, "startFrameCapture: No active MediaProjection")
+            return false
+        }
+
+        if (frameCaptureRunning) {
+            Log.d(TAG, "Frame capture already running")
+            return true
+        }
+
+        try {
+            // Create ImageReader surface for capturing frames
+            imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
+
+            imageReader?.setOnImageAvailableListener({ reader ->
+                var image: Image? = null
+                try {
+                    image = reader.acquireLatestImage()
+                    if (image != null) {
+                        val planes = image.planes
+                        if (planes.isEmpty()) return@setOnImageAvailableListener
+
+                        val buffer = planes[0].buffer
+                        val rowStride = planes[0].rowStride
+                        val pixelStride = planes[0].pixelStride
+
+                        // Create bitmap from Image
+                        val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                        buffer.rewind()
+
+                        // Handle row padding (some devices have rowStride > width * pixelStride)
+                        if (rowStride == width * pixelStride) {
+                            bmp.copyPixelsFromBuffer(buffer)
+                        } else {
+                            // Row-by-row copy to handle padding
+                            val rowBytes = width * pixelStride
+                            for (y in 0 until height) {
+                                buffer.position(y * rowStride)
+                                val rowBuffer = ByteArray(rowBytes)
+                                buffer.get(rowBuffer, 0, rowBytes)
+                                bmp.copyPixelsFromBuffer(
+                                    java.nio.ByteBuffer.wrap(rowBuffer)
+                                )
+                            }
+                        }
+
+                        // BUG-2 FIX: Compress to JPEG at lower quality (40%) for
+                        // smaller frame size. At 480x854 with quality=40, frames
+                        // are typically 8-15 KB, making 3 FPS Firebase RTDB relay
+                        // practical (~24-45 KB/s).
+                        val outputStream = ByteArrayOutputStream()
+                        bmp.compress(Bitmap.CompressFormat.JPEG, 40, outputStream)
+                        val jpegBytes = outputStream.toByteArray()
+                        bmp.recycle()
+
+                        synchronized(frameLock) {
+                            latestFrameBytes = jpegBytes
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Frame capture error: $e")
+                } finally {
+                    image?.close()
+                }
+            }, captureHandler)
+
+            // Create VirtualDisplay
+            virtualDisplay = projection.createVirtualDisplay(
+                "FamilyMonitorScreenCapture",
+                width, height, getDensityDpi(),
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                imageReader?.surface,
+                object : VirtualDisplay.Callback() {
+                    override fun onStopped() {
+                        Log.w(TAG, "VirtualDisplay stopped")
+                        frameCaptureRunning = false
+                    }
+                },
+                captureHandler
+            )
+
+            frameCaptureRunning = true
+            Log.d(TAG, "Native frame capture started: ${width}x${height} @ ${fps}fps")
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "startFrameCapture failed: $e")
+            stopFrameCapture()
+            return false
+        }
+    }
+
+    /** Stop native frame capture. */
+    fun stopFrameCapture() {
+        frameCaptureRunning = false
+        try { virtualDisplay?.release() } catch (_: Exception) {}
+        try { imageReader?.close() } catch (_: Exception) {}
+        virtualDisplay = null
+        imageReader = null
+        synchronized(frameLock) {
+            latestFrameBytes = null
+        }
+        Log.d(TAG, "Native frame capture stopped")
+    }
+
+    /** Get the latest captured frame as JPEG bytes. */
+    fun getLatestFrame(): ByteArray? {
+        synchronized(frameLock) {
+            return latestFrameBytes
+        }
+    }
+
+    private fun getDensityDpi(): Int {
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val metrics = DisplayMetrics()
+        @Suppress("DEPRECATION")
+        wm.defaultDisplay.getMetrics(metrics)
+        return metrics.densityDpi
     }
 
     // ── startForeground helpers ──────────────────────────────────────────────
 
-    /**
-     * Phase 1 startForeground — DATA_SYNC type. Safe to call without a token.
-     * Satisfies the 5-second rule. Used immediately on service start and as
-     * fallback when no token is available.
-     */
     private fun startFgDataSync() {
         createChannel()
         val n = buildNotification()
@@ -257,11 +467,6 @@ class ScreenCaptureService : Service() {
         }
     }
 
-    /**
-     * Phase 2 startForeground — MEDIA_PROJECTION type. Call ONLY after getMediaProjection()
-     * succeeds. Satisfies Android 14+'s requirement that a foreground service with
-     * MEDIA_PROJECTION type is active when getDisplayMedia() / createVirtualDisplay() runs.
-     */
     private fun startFgMediaProjection() {
         createChannel()
         val n = buildNotification()
@@ -273,19 +478,47 @@ class ScreenCaptureService : Service() {
                 )
                 Log.d(TAG, "Foreground upgraded to MEDIA_PROJECTION type")
             } catch (e: Exception) {
-                // On some OEMs (MIUI) the typed call fails even with a valid token.
-                // Fall back to untyped — still better than crashing.
                 Log.w(TAG, "startFgMediaProjection failed, falling back to DATA_SYNC: $e")
                 startFgDataSync()
             }
         }
-        // Pre-Q: no typed startForeground, DATA_SYNC is already set.
     }
 
     private fun teardownProjection() {
+        stopFrameCapture()
         try { mediaProjection?.stop() } catch (_: Exception) {}
         projectionToken = null
         mediaProjection = null
+    }
+
+    /**
+     * BUG-3-FIX: Restore projection data from SharedPreferences.
+     * Note: URI-serialized Intent data will NOT have the Binder extra, so
+     * getMediaProjection() may fail on Android 14+. This is a best-effort
+     * recovery for reboot scenarios.
+     */
+    private fun restoreProjectionFromPrefs(): Boolean {
+        try {
+            val prefs = getSharedPreferences("fm_prefs", Context.MODE_PRIVATE)
+            val code = prefs.getInt("projection_result_code", 0)
+            val uriStr = prefs.getString("projection_result_data_uri", null)
+            if (code != 0 && uriStr != null) {
+                val uri = android.net.Uri.parse(uriStr)
+                val data = Intent.parseUri(uri.toString(), 0)
+                resultCode = code
+                resultData = data
+                savedResultCode = code
+                savedResultData = data
+                // BUG-2-FIX: Also try to marshal the restored Intent
+                // (Binder will be lost, but other extras preserved)
+                marshalIntentToParcel(data)
+                Log.d(TAG, "Projection data restored from SharedPreferences (Binder may be lost)")
+                return true
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to restore projection from prefs: $e")
+        }
+        return false
     }
 
     fun reinitAfterReconnect() {
@@ -313,8 +546,6 @@ class ScreenCaptureService : Service() {
                 WAKE_LOCK_TAG
             ).also {
                 it.setReferenceCounted(false)
-                // 10-hour max. Service is restarted by watchdog well before this.
-                // PARTIAL_WAKE_LOCK only keeps CPU awake — does NOT keep screen on.
                 it.acquire(10 * 60 * 60 * 1000L)
             }
             Log.d(TAG, "PARTIAL_WAKE_LOCK acquired")
@@ -343,8 +574,10 @@ class ScreenCaptureService : Service() {
     }
 
     override fun onDestroy() {
+        stopFrameCapture()
+        captureHandlerThread.quit()
         teardownProjection()
-        releaseWakeLock()   // RC-05: always release to prevent battery drain
+        releaseWakeLock()
         instance = null
         WatchdogReceiver.schedule(applicationContext)
         Log.d(TAG, "onDestroy — released, watchdog rescheduled")

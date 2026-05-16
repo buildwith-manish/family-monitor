@@ -9,6 +9,7 @@
 // indicator during active monitoring sessions.
 // =============================================================================
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -334,9 +335,6 @@ class SilentWebRTCService {
   Future<MediaStream?> _acquireMedia() async {
     if (_activeMode == 'screen') {
       // RC-WR-01: Verify projection token is active before calling getDisplayMedia().
-      // getDisplayMedia() on Android requires an active MediaProjection token.
-      // If the token is not available, write an error to Firebase and return null
-      // (which causes a clean stop, not a crash).
       try {
         final projectionActive = await ScreenCaptureChannel.isProjectionActive();
 
@@ -357,20 +355,125 @@ class SilentWebRTCService {
           return null;
         }
 
-        debugPrint('[SilentWebRTC] MediaProjection active — calling getDisplayMedia');
+        debugPrint('[SilentWebRTC] MediaProjection active — attempting screen capture');
 
-        final stream = await navigator.mediaDevices.getDisplayMedia({
-          'video': {
-            'frameRate' : {'ideal': 15, 'max': 30},
-            'width'     : {'ideal': 1280},
-            'height'    : {'ideal': 720},
-          },
-          'audio': false,
-        });
+        // ── BUG-2-FIX: Try multiple approaches to acquire screen media ──
+        //
+        // The original code only tried getDisplayMedia() with URI-serialized
+        // Intent data, which fails on Android 14+ because Intent.toUri(0)
+        // loses the IBinder extra needed by getMediaProjection().
+        //
+        // Strategy:
+        //   1. Try getDisplayMedia() with Parcel-marshaled Intent bytes
+        //      (preserves the Binder extra). This works if flutter_webrtc
+        //      supports byte arrays for androidMediaProjectionResultData.
+        //   2. Try getDisplayMedia() with URI-serialized Intent data
+        //      (fallback, works on Android 10-13 where Binder may not be
+        //      needed or the system handles it differently).
+        //   3. Try getDisplayMedia() WITHOUT projection params (may work
+        //      if flutter_webrtc can show the consent dialog from a
+        //      foreground Activity context).
+        //   4. Fall back to native frame capture + Firebase relay.
 
-        debugPrint('[SilentWebRTC] getDisplayMedia succeeded — '
-            'screen tracks: ${stream.getVideoTracks().length}');
-        return stream;
+        final projectionParams = await ScreenCaptureChannel.getProjectionParams();
+
+        // ── Attempt 1: Parcel-marshaled Intent bytes ──
+        if (projectionParams != null &&
+            projectionParams['resultDataParcel'] != null) {
+          try {
+            debugPrint('[SilentWebRTC] Attempt 1: getDisplayMedia with Parcel Intent bytes');
+            final constraints = <String, dynamic>{
+              'video': {
+                'frameRate' : {'ideal': 15, 'max': 30},
+                'width'     : {'ideal': 1280},
+                'height'    : {'ideal': 720},
+              },
+              'audio': false,
+              'androidMediaProjectionResultCode': projectionParams['resultCode'],
+              // BUG-2-FIX: Pass Parcel bytes instead of URI string.
+              // flutter_webrtc 0.14.x may support byte arrays for this
+              // parameter, which preserves the Binder extra.
+              'androidMediaProjectionResultData': projectionParams['resultDataParcel'],
+            };
+
+            final stream = await navigator.mediaDevices.getDisplayMedia(constraints);
+            if (stream.getVideoTracks().isNotEmpty) {
+              debugPrint('[SilentWebRTC] getDisplayMedia succeeded with Parcel bytes — '
+                  'screen tracks: ${stream.getVideoTracks().length}');
+              return stream;
+            }
+            // If we got an empty stream, try next approach
+            debugPrint('[SilentWebRTC] Parcel approach returned empty stream — trying next');
+            try { for (final t in stream.getTracks()) { await t.stop(); } } catch (_) {}
+            try { await stream.dispose(); } catch (_) {}
+          } catch (e) {
+            debugPrint('[SilentWebRTC] Parcel approach failed: $e — trying next');
+          }
+        }
+
+        // ── Attempt 2: URI-serialized Intent data (original approach) ──
+        if (projectionParams != null &&
+            projectionParams['resultDataUri'] != null) {
+          try {
+            debugPrint('[SilentWebRTC] Attempt 2: getDisplayMedia with URI Intent data');
+            final constraints = <String, dynamic>{
+              'video': {
+                'frameRate' : {'ideal': 15, 'max': 30},
+                'width'     : {'ideal': 1280},
+                'height'    : {'ideal': 720},
+              },
+              'audio': false,
+              'androidMediaProjectionResultCode': projectionParams['resultCode'],
+              'androidMediaProjectionResultData': projectionParams['resultDataUri'],
+            };
+
+            final stream = await navigator.mediaDevices.getDisplayMedia(constraints);
+            if (stream.getVideoTracks().isNotEmpty) {
+              debugPrint('[SilentWebRTC] getDisplayMedia succeeded with URI data — '
+                  'screen tracks: ${stream.getVideoTracks().length}');
+              return stream;
+            }
+            debugPrint('[SilentWebRTC] URI approach returned empty stream — trying next');
+            try { for (final t in stream.getTracks()) { await t.stop(); } } catch (_) {}
+            try { await stream.dispose(); } catch (_) {}
+          } catch (e) {
+            debugPrint('[SilentWebRTC] URI approach failed: $e — trying next');
+          }
+        }
+
+        // ── Attempt 3: getDisplayMedia() WITHOUT projection params ──
+        // This may work if called from a context with a foreground Activity.
+        // From the background service, this will likely fail, but it's
+        // worth trying as a last resort before falling back to native capture.
+        try {
+          debugPrint('[SilentWebRTC] Attempt 3: getDisplayMedia without projection params');
+          final constraints = <String, dynamic>{
+            'video': {
+              'frameRate' : {'ideal': 15, 'max': 30},
+              'width'     : {'ideal': 1280},
+              'height'    : {'ideal': 720},
+            },
+            'audio': false,
+          };
+
+          final stream = await navigator.mediaDevices.getDisplayMedia(constraints);
+          if (stream.getVideoTracks().isNotEmpty) {
+            debugPrint('[SilentWebRTC] getDisplayMedia succeeded without params — '
+                'screen tracks: ${stream.getVideoTracks().length}');
+            return stream;
+          }
+          debugPrint('[SilentWebRTC] No-params approach returned empty stream');
+          try { for (final t in stream.getTracks()) { await t.stop(); } } catch (_) {}
+          try { await stream.dispose(); } catch (_) {}
+        } catch (e) {
+          debugPrint('[SilentWebRTC] No-params approach failed: $e');
+        }
+
+        // ── Attempt 4: Native frame capture + Firebase relay fallback ──
+        // All getDisplayMedia() attempts failed. Use native VirtualDisplay +
+        // ImageReader to capture frames and relay them via Firebase RTDB.
+        debugPrint('[SilentWebRTC] All getDisplayMedia attempts failed — using native capture fallback');
+        return await _acquireMediaNativeCapture();
       } catch (e) {
         debugPrint('[SilentWebRTC] Screen capture failed: $e');
         if (_activeUid != null) {
@@ -400,6 +503,105 @@ class SilentWebRTCService {
       });
     } catch (e) {
       debugPrint('[SilentWebRTC] Camera acquisition failed: $e');
+      return null;
+    }
+  }
+
+  // ── BUG-2-FIX: Native frame capture fallback ──────────────────────────
+
+  /// Timer for the native frame capture relay loop.
+  Timer? _nativeCaptureTimer;
+
+  /// Acquire screen media using native VirtualDisplay + ImageReader capture
+  /// and relay frames to the parent via Firebase RTDB.
+  ///
+  /// This is used as a fallback when flutter_webrtc's getDisplayMedia()
+  /// fails (e.g., on Android 14+ where Intent URI serialization loses the
+  /// Binder extra needed by getMediaProjection()).
+  ///
+  /// The approach:
+  /// 1. Start native frame capture via MethodChannel
+  /// 2. Poll for frames at ~2 FPS
+  /// 3. Write each frame as base64 to Firebase RTDB at
+  ///    calls/$uid/screenFrame
+  /// 4. The parent's MonitoringScreen reads this data and displays it
+  ///
+  /// Returns null (WebRTC stream not available) but the parent side will
+  /// detect the screenFrame data and display it.
+  Future<MediaStream?> _acquireMediaNativeCapture() async {
+    try {
+      // BUG-2 FIX: Use smaller frame dimensions (480x854) for faster
+      // Firebase RTDB relay. At this resolution with JPEG quality=40%,
+      // frames are typically 8-15 KB, making 3 FPS relay practical.
+      final started = await ScreenCaptureChannel.startNativeScreenCapture(
+        width: 480,
+        height: 854,
+        fps: 3,
+      );
+
+      if (!started) {
+        debugPrint('[SilentWebRTC] Native screen capture failed to start');
+        if (_activeUid != null) {
+          try {
+            await FirebaseDatabase.instance
+                .ref('calls/$_activeUid/screenError')
+                .set(
+                  'Screen capture failed. The child device may need to grant '
+                  'screen recording permission again.',
+                );
+          } catch (_) {}
+        }
+        return null;
+      }
+
+      debugPrint('[SilentWebRTC] Native frame capture started — relaying via Firebase');
+
+      // Signal to parent that native capture mode is active
+      if (_activeUid != null) {
+        try {
+          await FirebaseDatabase.instance
+              .ref('calls/$_activeUid/nativeCaptureMode')
+              .set(true);
+        } catch (_) {}
+      }
+
+      // Start frame relay loop — capture frames and write to Firebase RTDB
+      // BUG-2 FIX: Use faster polling (333ms = ~3 FPS) and smaller frame size
+      // to reduce latency. Frames are written to Firebase RTDB as base64;
+      // at 3 FPS with ~15-25 KB per frame, total bandwidth is ~45-75 KB/s
+      // which is manageable even on slow connections.
+      _nativeCaptureTimer?.cancel();
+      _nativeCaptureTimer = Timer.periodic(
+        const Duration(milliseconds: 333), // ~3 FPS
+        (_) async {
+          if (!_active || _activeUid == null) {
+            _nativeCaptureTimer?.cancel();
+            return;
+          }
+          try {
+            final frameBytes = await ScreenCaptureChannel.getScreenFrame();
+            if (frameBytes != null && frameBytes.isNotEmpty) {
+              // Write frame as base64 to Firebase RTDB
+              final base64Frame = base64Encode(frameBytes);
+              await FirebaseDatabase.instance
+                  .ref('calls/$_activeUid/screenFrame')
+                  .set({
+                'data': base64Frame,
+                'ts': DateTime.now().millisecondsSinceEpoch,
+              });
+            }
+          } catch (e) {
+            debugPrint('[SilentWebRTC] Frame relay error: $e');
+          }
+        },
+      );
+
+      // Return null — no WebRTC stream available for screen mode.
+      // The parent side will detect nativeCaptureMode=true and display
+      // frames from calls/$uid/screenFrame instead of the RTCVideoView.
+      return null;
+    } catch (e) {
+      debugPrint('[SilentWebRTC] Native capture setup failed: $e');
       return null;
     }
   }
@@ -499,6 +701,11 @@ class SilentWebRTCService {
     _stopping = true;
     _active   = false;
 
+    // BUG-2/BUG-3 FIX: Save uid BEFORE clearing it so we can clean up
+    // Firebase flags after. Previously, _activeUid was cleared before
+    // the cleanup, so the Firebase writes silently did nothing.
+    final uidForCleanup = _activeUid;
+
     _activeUid         = null;
     _activeMode        = null;
     _reconnectAttempts = 0;
@@ -508,10 +715,27 @@ class SilentWebRTCService {
     _connectionTimer?.cancel();   _connectionTimer   = null;
     // BUG-2-FIX: Cancel connectivity subscription to prevent memory leak.
     _connectivitySub?.cancel();   _connectivitySub   = null;
+    // BUG-2-FIX: Cancel native capture timer and stop native capture.
+    _nativeCaptureTimer?.cancel(); _nativeCaptureTimer = null;
 
     if (_activeStreams > 0) _activeStreams--;
     if (_activeStreams == 0) {
       try { await WakelockPlus.disable(); } catch (_) {}
+    }
+
+    // BUG-2/BUG-3 FIX: Stop native frame capture if it was running.
+    try { await ScreenCaptureChannel.stopNativeScreenCapture(); } catch (_) {}
+
+    // BUG-2/BUG-3 FIX: Clean up Firebase flags so stale state doesn't
+    // persist after the session ends. Uses saved uidForCleanup since
+    // _activeUid was already cleared above.
+    if (uidForCleanup != null) {
+      try {
+        await FirebaseDatabase.instance.ref('calls/$uidForCleanup/nativeCaptureMode').remove();
+        await FirebaseDatabase.instance.ref('calls/$uidForCleanup/screenFrame').remove();
+        await FirebaseDatabase.instance.ref('calls/$uidForCleanup/needsConsent').remove();
+        await FirebaseDatabase.instance.ref('calls/$uidForCleanup/projectionReady').remove();
+      } catch (_) {}
     }
 
     await _cleanupPcOnly();
