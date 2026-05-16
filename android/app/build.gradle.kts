@@ -61,6 +61,11 @@ android {
         // Strip all locales except English — Firebase, WebRTC, and AndroidX
         // each ship 80+ locale string tables. Keeping only "en" saves ~2–4 MB.
         resourceConfigurations += listOf("en")
+
+        // BASE_URL: The backend server base URL. Used to derive the WebSocket
+        // relay URL for screen streaming (https:// → wss://, http:// → ws://).
+        // Update this value when deploying to a real backend server.
+        buildConfigField("String", "BASE_URL", "\"https://family-monitor-7aab3-default-rtdb.firebaseio.com\"")
     }
 
     // SEC-02: Release signing — credentials read from environment variables so

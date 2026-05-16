@@ -18,6 +18,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
 import android.util.Log
+import com.example.family_monitor.BuildConfig
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -344,6 +345,15 @@ class MainActivity : FlutterActivity() {
                     } catch (e: Exception) {
                         Log.e(TAG, "saveStreamRelayUrl error: $e")
                         result.success(false)
+                    }
+                }
+
+                "getBaseUrl" -> {
+                    try {
+                        result.success(BuildConfig.BASE_URL)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "getBaseUrl error: $e")
+                        result.success("")
                     }
                 }
 

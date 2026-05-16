@@ -362,6 +362,24 @@ class ScreenCaptureChannel {
     }
   }
 
+  /// Get the BASE_URL from the native BuildConfig.
+  /// This is used to auto-derive the WebSocket relay URL.
+  static Future<String?> getBaseUrl() async {
+    try {
+      final result = await _channel.invokeMethod<String>('getBaseUrl');
+      return result;
+    } on MissingPluginException catch (_) {
+      debugPrint('[ScreenCapture] getBaseUrl method not available on native side');
+      return null;
+    } on PlatformException catch (e) {
+      debugPrint('[ScreenCapture] getBaseUrl error: $e');
+      return null;
+    } catch (e) {
+      debugPrint('[ScreenCapture] getBaseUrl unknown error: $e');
+      return null;
+    }
+  }
+
   /// Get the latest captured screen frame as JPEG bytes.
   ///
   /// Returns null if frame capture is not running or no frame is available.

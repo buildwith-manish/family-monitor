@@ -41,15 +41,11 @@ class _ChildSetupWizardScreenState
 
   final _nameCtrl = TextEditingController();
   final _deviceCtrl = TextEditingController();
-  // Stream relay URL controller — default placeholder can be updated later.
-  final _relayUrlCtrl = TextEditingController(
-    text: 'ws://192.168.1.100/?XTransformPort=3004',
-  );
 
   final _auth = AuthService();
   final _batterySvc = BatteryService();
 
-  static const int _totalPages = 10; // Added relay URL config page
+  static const int _totalPages = 9; // Removed relay URL config page (auto-configured)
 
   bool _cameraGranted = false;
   bool _micGranted = false;
@@ -63,7 +59,6 @@ class _ChildSetupWizardScreenState
   bool _screenConsented = false;
   bool _notifDisabled = false;
   bool _adminActive = false;
-  bool _relayUrlSaved = false;
 
   ManufacturerGuide? _guide;
 
@@ -94,7 +89,7 @@ class _ChildSetupWizardScreenState
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      if (_currentPage == 9) _checkNotifDisabled();
+      if (_currentPage == 8) _checkNotifDisabled();
       if (_currentPage == 4) {
         DeviceAdminService.isActive().then((v) {
           if (mounted) setState(() => _adminActive = v);
@@ -112,7 +107,6 @@ class _ChildSetupWizardScreenState
     _pageCtrl.dispose();
     _nameCtrl.dispose();
     _deviceCtrl.dispose();
-    _relayUrlCtrl.dispose();
     _requestSub?.cancel();
     super.dispose();
   }
@@ -535,35 +529,41 @@ class _ChildSetupWizardScreenState
     }
   }
 
-  /// Save the stream relay URL to SharedPreferences (both Flutter and fm_prefs)
-  /// and to Firebase so the parent can read it. Also sets wsStreamMode flag
-  /// so the parent knows WebSocket streaming is available.
-  Future<void> _saveStreamRelayUrl(String uid) async {
-    final url = _relayUrlCtrl.text.trim();
-    if (url.isEmpty) return;
-
+  /// Auto-configure the stream relay URL from BuildConfig.BASE_URL.
+  /// Derives the WebSocket URL by converting https:// → wss:// and http:// → ws://,
+  /// then saves it to SharedPreferences, fm_prefs, and Firebase.
+  Future<void> _autoConfigureRelayUrl(String uid) async {
     try {
-      // Save to FlutterSharedPreferences AND fm_prefs via MethodChannel
-      await ScreenCaptureChannel.configureStreamRelayUrl(url);
-      debugPrint('[Wizard] Stream relay URL saved: $url');
+      // Read BASE_URL from native BuildConfig via MethodChannel
+      String? baseUrl;
+      try {
+        baseUrl = await ScreenCaptureChannel.getBaseUrl();
+      } catch (_) {}
 
-      // Also save to Firebase at users/$uid/streamRelayUrl so the parent can read it
+      // Fallback: use the Firebase RTDB database URL to derive the base
+      baseUrl ??= 'https://family-monitor-7aab3-default-rtdb.firebaseio.com';
+
+      final relayUrl = baseUrl
+          .replaceAll('https://', 'wss://')
+          .replaceAll('http://', 'ws://');
+
+      // Save to FlutterSharedPreferences AND fm_prefs via MethodChannel
+      await ScreenCaptureChannel.configureStreamRelayUrl(relayUrl);
+      debugPrint('[Wizard] Auto-configured stream relay URL: $relayUrl');
+
+      // Save to Firebase at users/$uid/streamRelayUrl so the parent can read it
       await FirebaseDatabase.instance
           .ref('users/$uid/streamRelayUrl')
-          .set(url);
+          .set(relayUrl);
 
-      // Set wsStreamMode flag so parent knows WebSocket streaming is available
+      // Also mark wsStreamMode so the parent knows to use WebSocket
       await FirebaseDatabase.instance
           .ref('users/$uid/wsStreamMode')
           .set(true);
 
-      debugPrint('[Wizard] Stream relay URL and wsStreamMode saved to Firebase');
-
-      if (mounted) {
-        setState(() => _relayUrlSaved = true);
-      }
+      debugPrint('[Wizard] Relay URL auto-configured and saved to Firebase');
     } catch (e) {
-      debugPrint('[Wizard] Error saving stream relay URL: $e');
+      debugPrint('[Wizard] Error auto-configuring relay URL: $e');
     }
   }
 
@@ -597,8 +597,8 @@ class _ChildSetupWizardScreenState
       await BackgroundMonitoringService
           .savePermissionsGranted(true);
 
-      // STREAM-RELAY-URL: Save the relay URL during setup completion
-      await _saveStreamRelayUrl(uid);
+      // STREAM-RELAY-URL: Auto-configure the relay URL from BuildConfig
+      await _autoConfigureRelayUrl(uid);
 
       // ICON-FIX: hideAppIcon() removed — child app icon must always be visible.
 
@@ -743,15 +743,6 @@ class _ChildSetupWizardScreenState
                         _declineRequest,
                   ),
 
-                  _PageRelayUrlConfig(
-                    relayUrlCtrl: _relayUrlCtrl,
-                    relayUrlSaved: _relayUrlSaved,
-                    onSave: () async {
-                      final uid = _auth.currentUser?.uid ?? widget.childUid;
-                      if (uid != null) await _saveStreamRelayUrl(uid);
-                    },
-                  ),
-
                   _PageDisableNotifications(
                     notifDisabled: _notifDisabled,
                     onOpenSettings: _openNotifSettings,
@@ -832,7 +823,7 @@ class _ChildSetupWizardScreenState
 
   Widget _buildNavButtons() {
     final isPermPage = _currentPage == 2;
-    final isNotifPage = _currentPage == 9;
+    final isNotifPage = _currentPage == 8;
 
     final blocked =
         (isPermPage && !_canProceedFromPermissions) ||
@@ -2388,144 +2379,4 @@ class _InfoIconRow extends StatelessWidget {
   }
 }
 
-/// Relay URL configuration page for the child setup wizard.
-/// Allows the user to configure the WebSocket stream relay URL
-/// that the ScreenStreamService uses to push frames to the parent.
-/// Format: ws://SERVER_HOST/?XTransformPort=3004
-class _PageRelayUrlConfig extends StatelessWidget {
-  final TextEditingController relayUrlCtrl;
-  final bool relayUrlSaved;
-  final VoidCallback onSave;
 
-  const _PageRelayUrlConfig({
-    required this.relayUrlCtrl,
-    required this.relayUrlSaved,
-    required this.onSave,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 32),
-
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F0FE),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(
-              Icons.stream,
-              size: 44,
-              color: Color(0xFF1A73E8),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          Text(
-            'Stream Relay Server',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF202124),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          Text(
-            'Configure the WebSocket relay server for low-latency screen streaming. '
-            'This provides much faster live screen viewing compared to the default relay.',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: const Color(0xFF5F6368),
-              height: 1.5,
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          TextField(
-            controller: relayUrlCtrl,
-            decoration: InputDecoration(
-              labelText: 'Relay Server URL',
-              hintText: 'ws://192.168.1.100/?XTransformPort=3004',
-              prefixIcon: const Icon(Icons.link, size: 20),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            ),
-            style: GoogleFonts.inter(fontSize: 14),
-            keyboardType: TextInputType.url,
-          ),
-
-          const SizedBox(height: 12),
-
-          Text(
-            'Format: ws://SERVER_HOST/?XTransformPort=3004\n'
-            'Replace SERVER_HOST with your relay server IP address.',
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: Color(0xFF80868B),
-              height: 1.5,
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: onSave,
-              icon: Icon(
-                relayUrlSaved ? Icons.check_circle : Icons.save,
-                size: 20,
-                color: Colors.white,
-              ),
-              label: Text(
-                relayUrlSaved ? 'Saved' : 'Save Relay URL',
-                style: GoogleFonts.inter(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: relayUrlSaved
-                    ? const Color(0xFF34A853)
-                    : const Color(0xFF1A73E8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-
-          if (relayUrlSaved) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.check_circle, color: Color(0xFF34A853), size: 16),
-                const SizedBox(width: 6),
-                Text(
-                  'Relay URL saved. You can update it later in settings.',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: const Color(0xFF34A853),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
