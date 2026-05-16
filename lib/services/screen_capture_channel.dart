@@ -328,6 +328,21 @@ class ScreenCaptureChannel {
     }
   }
 
+  /// STREAM-FIX: Read the base URL from native BuildConfig.
+  /// Returns null if BASE_URL is not configured (common in production).
+  static Future<String?> getBaseUrl() async {
+    try {
+      final result = await _channel.invokeMethod<String>('getBaseUrl');
+      return result;
+    } on MissingPluginException catch (_) {
+      return null;
+    } on PlatformException catch (_) {
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// STREAM-RELAY-URL: Save the stream relay URL to SharedPreferences.
   /// This is called from the child setup wizard and other places that
   /// configure the WebSocket relay server.

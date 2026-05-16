@@ -795,6 +795,158 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     });
   }
 
+  Future<void> _showSignOutDialog() async {
+    final passwordCtrl = TextEditingController();
+    bool obscure = true;
+    String? errorMsg;
+    bool loading = false;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.logout, color: Color(0xFFEA4335), size: 22),
+              const SizedBox(width: 10),
+              Text(
+                'Sign Out',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Enter your account password to sign out.',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: const Color(0xFF5F6368),
+                ),
+              ),
+              const SizedBox(height: 16),
+              StatefulBuilder(
+                builder: (_, setFieldState) => TextField(
+                  controller: passwordCtrl,
+                  obscureText: obscure,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscure
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        setFieldState(() => obscure = !obscure);
+                      },
+                    ),
+                    errorText: errorMsg,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: loading ? null : () => Navigator.pop(ctx),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.inter(color: const Color(0xFF5F6368)),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: loading
+                  ? null
+                  : () async {
+                      final pw = passwordCtrl.text.trim();
+                      if (pw.isEmpty) {
+                        setDlgState(() => errorMsg = 'Enter your password');
+                        return;
+                      }
+                      setDlgState(() {
+                        loading = true;
+                        errorMsg = null;
+                      });
+
+                      try {
+                        // Re-authenticate with Firebase
+                        final email =
+                            _auth.currentUser?.email ?? '';
+                        await _auth.reauthenticate(email, pw);
+
+                        // Sign out — stop services first
+                        try {
+                          await BackgroundMonitoringService
+                              .setWizardDone(false);
+                          await BackgroundMonitoringService
+                              .stopService();
+                        } catch (_) {}
+
+                        await _auth.signOut();
+
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (mounted) {
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            '/child/auth',
+                            (route) => false,
+                          );
+                        }
+                      } catch (e) {
+                        setDlgState(() {
+                          loading = false;
+                          errorMsg =
+                              'Wrong password. Please try again.';
+                        });
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEA4335),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      'Sign Out',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    passwordCtrl.dispose();
+  }
+
   @override
   void dispose() {
     // LC-01: Do not call _setOnline(false) here — presence is managed by
@@ -995,6 +1147,16 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
                             ),
                           ],
                         ),
+                      // Sign Out button
+                      IconButton(
+                        icon: const Icon(
+                          Icons.logout,
+                          color: Colors.white70,
+                          size: 20,
+                        ),
+                        tooltip: 'Sign Out',
+                        onPressed: _showSignOutDialog,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 14),

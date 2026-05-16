@@ -829,27 +829,26 @@ Future<void> _startScreenStreamSafe(String uid) async {
     var projectionActive = await ScreenCaptureChannel.isProjectionActive();
 
     if (projectionActive) {
-      await _startWebSocketScreenStream(uid);
+      // Try WebSocket relay first; if no URL configured, use RTDB fallback
+      final started = await _tryStartStream(uid);
+      if (!started) {
+        await _startRtdbFrameRelay(uid);
+      }
       return;
     }
 
-    // ── BUG-2-FIX: Signal the child app that screen consent is needed ──
-    // Write a flag to Firebase so the child app's UI layer can detect it
-    // and show the consent dialog (it has Activity context; we don't).
-    await FirebaseDatabase.instance.ref('calls/$uid/needsConsent').set(true);
+    // Signal child app UI that consent is needed
+    await FirebaseDatabase.instance
+        .ref('calls/$uid/needsConsent')
+        .set(true);
 
-    // ── BUG-2-FIX: Try silent restart with polling ──
-    // If consent was previously granted, try to silently restart the
-    // ScreenCaptureService. Poll for the token for up to 15 seconds.
-    final consentGranted = await BackgroundMonitoringService.isScreenConsentGranted();
+    final consentGranted =
+        await BackgroundMonitoringService.isScreenConsentGranted();
 
     if (consentGranted) {
-      debugPrint('[BgService] Projection inactive but consent granted — attempting silent restart');
+      debugPrint('[BgService] Consent granted — attempting silent restart');
       final started = await ScreenCaptureChannel.startSilentProjection();
       if (started) {
-        // BUG-2-FIX: Poll for the token instead of waiting a fixed 2 seconds.
-        // The projection service may take several seconds to start, especially
-        // if it needs to request consent via the UI.
         const pollInterval = Duration(milliseconds: 500);
         const maxWait = Duration(seconds: 15);
         final deadline = DateTime.now().add(maxWait);
@@ -858,20 +857,21 @@ Future<void> _startScreenStreamSafe(String uid) async {
           await Future.delayed(pollInterval);
           projectionActive = await ScreenCaptureChannel.isProjectionActive();
           if (projectionActive) {
-            debugPrint('[BgService] Projection re-acquired after silent restart');
-            await FirebaseDatabase.instance.ref('calls/$uid/needsConsent').remove();
-            await _startWebSocketScreenStream(uid);
+            debugPrint('[BgService] Projection re-acquired');
+            await FirebaseDatabase.instance
+                .ref('calls/$uid/needsConsent')
+                .remove();
+            final wsStarted = await _tryStartStream(uid);
+            if (!wsStarted) {
+              await _startRtdbFrameRelay(uid);
+            }
             return;
           }
         }
-        debugPrint('[BgService] Projection not available after 15s polling — waiting for consent signal');
       }
     }
 
-    // ── BUG-2-FIX: Listen for projectionReady signal from child app ──
-    // The child app's UI layer will write projectionReady=true when the
-    // user grants consent. We listen for this and automatically start the
-    // screen stream when it arrives.
+    // Listen for projectionReady signal from child UI
     _projectionReadySub?.cancel();
     _projectionReadySub = FirebaseDatabase.instance
         .ref('calls/$uid/projectionReady')
@@ -880,48 +880,92 @@ Future<void> _startScreenStreamSafe(String uid) async {
       final ready = event.snapshot.value == true;
       if (!ready) return;
 
-      debugPrint('[BgService] projectionReady signal received from child app');
-
-      // Small delay to allow ScreenCaptureService to fully initialize
+      debugPrint('[BgService] projectionReady signal received');
       await Future.delayed(const Duration(milliseconds: 500));
 
       final nowActive = await ScreenCaptureChannel.isProjectionActive();
       if (nowActive) {
-        debugPrint('[BgService] Projection confirmed active — starting screen stream');
-        await FirebaseDatabase.instance.ref('calls/$uid/projectionReady').remove();
-        await FirebaseDatabase.instance.ref('calls/$uid/needsConsent').remove();
-        await _startWebSocketScreenStream(uid);
+        await FirebaseDatabase.instance
+            .ref('calls/$uid/projectionReady')
+            .remove();
+        await FirebaseDatabase.instance
+            .ref('calls/$uid/needsConsent')
+            .remove();
+        final wsStarted = await _tryStartStream(uid);
+        if (!wsStarted) {
+          await _startRtdbFrameRelay(uid);
+        }
       } else {
-        debugPrint('[BgService] projectionReady signal but token not yet active — polling');
-        // Poll for a few more seconds
+        // Poll a bit more
         const pollInterval = Duration(milliseconds: 500);
-        const maxWait = Duration(seconds: 10);
-        final deadline = DateTime.now().add(maxWait);
-
+        final deadline =
+            DateTime.now().add(const Duration(seconds: 10));
         while (DateTime.now().isBefore(deadline)) {
           await Future.delayed(pollInterval);
           final active = await ScreenCaptureChannel.isProjectionActive();
           if (active) {
-            debugPrint('[BgService] Projection confirmed active after polling — starting screen stream');
-            await FirebaseDatabase.instance.ref('calls/$uid/projectionReady').remove();
-            await FirebaseDatabase.instance.ref('calls/$uid/needsConsent').remove();
-            await _startWebSocketScreenStream(uid);
+            await FirebaseDatabase.instance
+                .ref('calls/$uid/projectionReady')
+                .remove();
+            await FirebaseDatabase.instance
+                .ref('calls/$uid/needsConsent')
+                .remove();
+            final wsStarted = await _tryStartStream(uid);
+            if (!wsStarted) {
+              await _startRtdbFrameRelay(uid);
+            }
             return;
           }
         }
-        // Still not active after polling — signal parent
-        debugPrint('[BgService] Projection still not active after projectionReady signal');
       }
     });
 
-    // Signal parent that consent is needed
-    debugPrint('[BgService] Screen mode requested but no projection token — signalling parent');
-    await FirebaseDatabase.instance.ref('calls/$uid/screenError').set(
-      'Screen sharing requires the child app to be open. '
-      'Open the Family Monitor app on the child device to grant screen permission.',
-    );
+    await FirebaseDatabase.instance
+        .ref('calls/$uid/screenError')
+        .set('Screen sharing requires the child app to be open. '
+            'Open Family Monitor on the child device to grant screen permission.');
   } catch (e) {
     debugPrint('[BgService] _startScreenStreamSafe error: $e');
+  }
+}
+
+/// Try WebSocket relay. Returns false if no relay URL → use RTDB instead.
+Future<bool> _tryStartStream(String uid) async {
+  final relayUrl = await _resolveRelayUrl(uid);
+  if (relayUrl == null || relayUrl.isEmpty) {
+    debugPrint('[BgService] No relay URL — will use RTDB frame relay');
+    return false;
+  }
+  return await _startWebSocketScreenStream(uid);
+}
+
+/// Start Firebase RTDB frame relay mode.
+/// Sets nativeCaptureMode=true so the parent switches to frame display.
+/// The ScreenCaptureService will write JPEG frames to calls/$uid/screenFrame.
+Future<void> _startRtdbFrameRelay(String uid) async {
+  try {
+    // Start native screen capture (VirtualDisplay → JPEG → Firebase)
+    final started = await ScreenCaptureChannel.startNativeScreenCapture(
+      width: 720,
+      height: 1280,
+      fps: 5,
+    );
+    if (started) {
+      await FirebaseDatabase.instance
+          .ref('calls/$uid/nativeCaptureMode')
+          .set(true);
+      await FirebaseDatabase.instance
+          .ref('calls/$uid/wsStreamMode')
+          .set(false);
+      debugPrint('[BgService] RTDB frame relay started');
+    } else {
+      await FirebaseDatabase.instance
+          .ref('calls/$uid/screenError')
+          .set('Screen capture failed to start. '
+              'Please ensure screen permission is granted.');
+    }
+  } catch (e) {
+    debugPrint('[BgService] _startRtdbFrameRelay error: $e');
   }
 }
 

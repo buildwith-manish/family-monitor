@@ -229,21 +229,31 @@ class _ChildAppState extends State<ChildApp> {
     if (!auth.isLoggedIn) return const ChildAuthScreen();
     final String? uid = auth.currentUser?.uid;
     if (uid == null) return const ChildAuthScreen();
-    final bool wizardDone = await BackgroundMonitoringService.isWizardDone();
-    if (!wizardDone) {
-      // BUG-4-FIX: Check if already bound to a parent (re-install case).
-      // If so, skip the Profile and QR Code steps in the wizard.
+
+    final bool wizardDone =
+        await BackgroundMonitoringService.isWizardDone();
+
+    // Check if already bound to a parent (re-install case)
+    bool alreadyBound = false;
+    try {
       final snap = await FirebaseDatabase.instance
           .ref('users/$uid/approvedParents')
-          .get();
-      final bool alreadyBound = snap.exists &&
+          .get()
+          .timeout(const Duration(seconds: 5));
+      alreadyBound = snap.exists &&
           snap.value is Map &&
           (snap.value as Map).isNotEmpty;
+    } catch (_) {}
+
+    if (!wizardDone) {
+      // Already bound: jump straight to step 7 (0-indexed page 7 = Disable Notifications)
+      // Skips Profile (5) and QR Code (6) since pairing is already done
       return ChildSetupWizardScreen(
         childUid: uid,
-        skipToStep: alreadyBound ? 7 : null, // skip to step 8 (0-indexed: page 7)
+        startAtPage: alreadyBound ? 7 : null,
       );
     }
+
     return const ChildHomeScreen();
   }
 
@@ -290,7 +300,7 @@ class _ChildAppState extends State<ChildApp> {
         ),
         routes: {
           '/child/auth': (_) => const ChildAuthScreen(),
-          '/child/setup': (_) => const ChildSetupWizardScreen(),
+          '/child/setup': (_) => const ChildSetupWizardScreen(startAtPage: null),
           '/child/home': (_) => const ChildHomeScreen(),
         },
       ),

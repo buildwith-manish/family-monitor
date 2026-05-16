@@ -249,6 +249,15 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       var prefs = await SharedPreferences.getInstance();
       var relayUrl = prefs.getString('stream_relay_url');
 
+      // STREAM-FIX: If relay URL is empty/null or is a Firebase RTDB URL,
+      // don't attempt WebSocket — use RTDB frame relay instead.
+      if (relayUrl == null ||
+          relayUrl.isEmpty ||
+          relayUrl.contains('firebaseio.com')) {
+        debugPrint('[MonitoringScreen] No WebSocket relay — using RTDB frame mode');
+        return false;
+      }
+
       // STREAM-RELAY-URL: Fallback — try reading the relay URL from the
       // child's Firebase data if not configured locally on the parent device.
       if (relayUrl == null || relayUrl.isEmpty) {

@@ -9,6 +9,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../services/auth_service.dart';
 import '../../services/background_monitoring_service.dart';
 import '../../services/battery_service.dart';
@@ -18,12 +20,12 @@ import '../../services/screen_time_service.dart';
 
 class ChildSetupWizardScreen extends StatefulWidget {
   final String? childUid;
-  final int? skipToStep; // if set, jump directly to this page index
+  final int? startAtPage;
 
   const ChildSetupWizardScreen({
     super.key,
     this.childUid,
-    this.skipToStep,
+    this.startAtPage,
   });
 
   @override
@@ -53,7 +55,6 @@ class _ChildSetupWizardScreenState
   bool _micGranted = false;
   bool _smsGranted = false;
   bool _usageGranted = false;
-  bool _notifGranted = false;
   bool _contactsGranted = false;
   bool _callLogGranted = false;
   bool _locationGranted = false;
@@ -82,13 +83,17 @@ class _ChildSetupWizardScreenState
     _refreshStatus();
     _loadGuide();
 
-    // BUG-4-FIX: If already bound to a parent, skip Profile & QR pages
-    if (widget.skipToStep != null) {
+    // Jump to startAtPage after first frame (already-bound user shortcut)
+    if (widget.startAtPage != null && widget.startAtPage! > 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _pageCtrl.jumpToPage(widget.skipToStep!);
-        setState(() => _currentPage = widget.skipToStep!);
+        if (!mounted) return;
+        _pageCtrl.jumpToPage(widget.startAtPage!);
+        setState(() {
+          _currentPage = widget.startAtPage!;
+          _error = null;
+        });
       });
- }
+    }
     // Start listening for parent requests immediately if a UID is already
     // known (re-entry case: childUid passed via route args after an earlier
     // setup). Without this, the listener only starts after page 5 is
@@ -139,7 +144,6 @@ class _ChildSetupWizardScreenState
     final cam      = await Permission.camera.isGranted;
     final mic      = await Permission.microphone.isGranted;
     final sms      = await Permission.sms.isGranted;
-    final notif    = await Permission.notification.isGranted;
     final contacts = await Permission.contacts.isGranted;
     final callLog  = await Permission.phone.isGranted;
     final location = await Permission.location.isGranted;
@@ -157,7 +161,6 @@ class _ChildSetupWizardScreenState
       _micGranted      = mic;
       _smsGranted      = sms;
       _usageGranted    = usage;
-      _notifGranted    = notif;
       _contactsGranted = contacts;
       _callLogGranted  = callLog;
       _locationGranted = location;
@@ -204,13 +207,6 @@ class _ChildSetupWizardScreenState
       Permission.sms,
       'SMS',
     );
-
-    final notifStatus =
-        await Permission.notification.request();
-
-    if (mounted) {
-      setState(() => _notifGranted = notifStatus.isGranted);
-    }
 
     // BUG-FIX: location and usage-stats permissions were never requested
     // in the wizard, so background location tracking and app-usage reporting
@@ -353,16 +349,14 @@ class _ChildSetupWizardScreenState
   bool get _canProceedFromPermissions =>
       _cameraGranted && _micGranted;
 
-  // BUG-4-FIX: Effective total pages when skipping Profile & QR pages
+  // Effective total pages when using startAtPage shortcut
   int get _effectiveTotalPages =>
-      widget.skipToStep != null ? 7 : _totalPages;
+      widget.startAtPage != null ? _totalPages - widget.startAtPage! + 1 : _totalPages;
 
-  // BUG-4-FIX: Map page index to logical step number for progress display
+  // Map page index to logical step number for progress display
   int get _effectiveStep {
-    if (widget.skipToStep == null) return _currentPage + 1;
-    // In skip flow: pages 0-4 map to steps 1-5, pages 7-8 map to steps 6-7
-    if (_currentPage >= widget.skipToStep!) return _currentPage - 1;
-    return _currentPage + 1;
+    if (widget.startAtPage == null) return _currentPage + 1;
+    return _currentPage - widget.startAtPage! + 1;
   }
 
   String get _childUidForQr =>
@@ -460,10 +454,10 @@ class _ChildSetupWizardScreenState
 
     setState(() => _error = null);
 
-    // BUG-4-FIX: When skipToStep is set, skip Profile & QR pages
-    if (widget.skipToStep != null && _currentPage == 4) {
-      _pageCtrl.jumpToPage(widget.skipToStep!);
-      setState(() => _currentPage = widget.skipToStep!);
+    // When startAtPage is set, skip Profile & QR pages
+    if (widget.startAtPage != null && _currentPage == 4) {
+      _pageCtrl.jumpToPage(widget.startAtPage!);
+      setState(() => _currentPage = widget.startAtPage!);
       return;
     }
 
@@ -576,8 +570,8 @@ class _ChildSetupWizardScreenState
     if (_currentPage > 0) {
       setState(() => _error = null);
 
-      // BUG-4-FIX: When skipToStep is set, skip back past Profile & QR pages
-      if (widget.skipToStep != null && _currentPage == widget.skipToStep) {
+      // When startAtPage is set, skip back past Profile & QR pages
+      if (widget.startAtPage != null && _currentPage == widget.startAtPage) {
         _pageCtrl.jumpToPage(4);
         setState(() => _currentPage = 4);
       } else {
@@ -589,41 +583,53 @@ class _ChildSetupWizardScreenState
     }
   }
 
-  /// Auto-configure the stream relay URL from BuildConfig.BASE_URL.
-  /// Derives the WebSocket URL by converting https:// → wss:// and http:// → ws://,
-  /// then saves it to SharedPreferences, fm_prefs, and Firebase.
+  /// STREAM-FIX: Auto-configure the stream relay URL.
+  /// If no valid relay URL is available (no BASE_URL in BuildConfig, or the URL
+  /// is a Firebase RTDB URL), clear any stale relay URL so the system falls back
+  /// to Firebase RTDB frame relay (which works out-of-the-box).
   Future<void> _autoConfigureRelayUrl(String uid) async {
     try {
-      // Read BASE_URL from native BuildConfig via MethodChannel
       String? baseUrl;
       try {
         baseUrl = await ScreenCaptureChannel.getBaseUrl();
       } catch (_) {}
 
-      // Fallback: use the Firebase RTDB database URL to derive the base
-      baseUrl ??= 'https://family-monitor-7aab3-default-rtdb.firebaseio.com';
+      if (baseUrl == null ||
+          baseUrl.isEmpty ||
+          baseUrl.contains('firebaseio.com') ||
+          baseUrl.contains('firebase')) {
+        // No valid relay URL — use Firebase RTDB frame relay fallback.
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('stream_relay_url');
+        await ScreenCaptureChannel.configureStreamRelayUrl('');
+
+        // Tell Firebase: no WebSocket relay, use RTDB frame path.
+        await FirebaseDatabase.instance
+            .ref('users/$uid/streamRelayUrl')
+            .remove();
+        await FirebaseDatabase.instance
+            .ref('users/$uid/wsStreamMode')
+            .set(false);
+
+        debugPrint('[Wizard] No valid relay URL — using Firebase RTDB frame relay');
+        return;
+      }
 
       final relayUrl = baseUrl
           .replaceAll('https://', 'wss://')
           .replaceAll('http://', 'ws://');
 
-      // Save to FlutterSharedPreferences AND fm_prefs via MethodChannel
       await ScreenCaptureChannel.configureStreamRelayUrl(relayUrl);
-      debugPrint('[Wizard] Auto-configured stream relay URL: $relayUrl');
-
-      // Save to Firebase at users/$uid/streamRelayUrl so the parent can read it
       await FirebaseDatabase.instance
           .ref('users/$uid/streamRelayUrl')
           .set(relayUrl);
-
-      // Also mark wsStreamMode so the parent knows to use WebSocket
       await FirebaseDatabase.instance
           .ref('users/$uid/wsStreamMode')
           .set(true);
 
-      debugPrint('[Wizard] Relay URL auto-configured and saved to Firebase');
+      debugPrint('[Wizard] Relay URL configured: $relayUrl');
     } catch (e) {
-      debugPrint('[Wizard] Error auto-configuring relay URL: $e');
+      debugPrint('[Wizard] Error configuring relay URL: $e');
     }
   }
 
@@ -657,7 +663,8 @@ class _ChildSetupWizardScreenState
       await BackgroundMonitoringService
           .savePermissionsGranted(true);
 
-      // STREAM-RELAY-URL: Auto-configure the relay URL from BuildConfig
+      // STREAM-RELAY-URL: Auto-configure relay URL — falls back to RTDB frame
+      // relay if no valid WebSocket relay URL is configured.
       await _autoConfigureRelayUrl(uid);
 
       // ICON-FIX: hideAppIcon() removed — child app icon must always be visible.
@@ -732,8 +739,6 @@ class _ChildSetupWizardScreenState
                     smsGranted: _smsGranted,
                     usageGranted:
                         _usageGranted,
-                    notifGranted:
-                        _notifGranted,
                     contactsGranted:
                         _contactsGranted,
                     callLogGranted:
@@ -850,7 +855,9 @@ class _ChildSetupWizardScreenState
               const Spacer(),
 
               Text(
-                'Step $_effectiveStep of $_effectiveTotalPages',
+                widget.startAtPage != null
+                    ? 'Step ${_currentPage - (widget.startAtPage! - 1)} of ${_totalPages - widget.startAtPage! + 1}'
+                    : 'Step ${_currentPage + 1} of $_totalPages',
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   color:
@@ -867,8 +874,10 @@ class _ChildSetupWizardScreenState
                 BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value:
-                  _effectiveStep /
-                  _effectiveTotalPages,
+                  widget.startAtPage != null
+                      ? (_currentPage - widget.startAtPage! + 1) /
+                          (_totalPages - widget.startAtPage! + 1)
+                      : (_currentPage + 1) / _totalPages,
               backgroundColor:
                   Colors.grey.shade200,
               color:
@@ -1131,7 +1140,6 @@ class _PagePermissions
   final bool micGranted;
   final bool smsGranted;
   final bool usageGranted;
-  final bool notifGranted;
   final bool contactsGranted;
   final bool callLogGranted;
   final bool locationGranted;
@@ -1145,7 +1153,6 @@ class _PagePermissions
     required this.micGranted,
     required this.smsGranted,
     required this.usageGranted,
-    required this.notifGranted,
     required this.contactsGranted,
     required this.callLogGranted,
     required this.locationGranted,
@@ -1209,12 +1216,6 @@ class _PagePermissions
           _PermRow(
             label: 'Usage Access',
             granted: usageGranted,
-            required: false,
-          ),
-
-          _PermRow(
-            label: 'Notifications',
-            granted: notifGranted,
             required: false,
           ),
 

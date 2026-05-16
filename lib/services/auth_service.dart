@@ -427,6 +427,18 @@ class AuthService {
     await prefs.remove('user_role');
   }
 
+  /// Re-authenticates the current user with email + password.
+  /// Throws FirebaseAuthException if the password is wrong.
+  Future<void> reauthenticate(String email, String password) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Not signed in');
+    final credential = EmailAuthProvider.credential(
+      email: email,
+      password: password,
+    );
+    await user.reauthenticateWithCredential(credential);
+  }
+
   // ─────────────────────────────
   // Child Auth
   // ─────────────────────────────
