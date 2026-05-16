@@ -250,7 +250,17 @@ class MainActivity : FlutterActivity() {
                         val uid = call.argument<String>("uid")
                         val serverUrl = call.argument<String>("serverUrl")
                         if (uid.isNullOrEmpty()) {
-                            result.success(false)
+                            result.error("INVALID_ARGS", "uid is required", null)
+                            return@setMethodCallHandler
+                        }
+                        // Rule 5: Check if a MediaProjection token is available.
+                        // ScreenCaptureService holds the token; if neither the live
+                        // projection nor saved result data exists, streaming cannot work.
+                        val hasToken = ScreenCaptureService.projectionToken != null ||
+                                (ScreenCaptureService.savedResultCode != 0 &&
+                                 ScreenCaptureService.savedResultData != null)
+                        if (!hasToken) {
+                            result.error("NO_TOKEN", "No MediaProjection token available — request screen capture permission first", null)
                             return@setMethodCallHandler
                         }
                         val streamIntent = Intent(this, ScreenStreamService::class.java).apply {
@@ -282,7 +292,7 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
-                "isScreenStreaming" -> {
+                "isScreenStreamRunning" -> {
                     result.success(ScreenStreamService.isStreaming)
                 }
 
@@ -296,6 +306,26 @@ class MainActivity : FlutterActivity() {
                         ))
                     } catch (e: Exception) {
                         result.success(null)
+                    }
+                }
+
+                // Save the stream relay URL to native SharedPreferences (fm_prefs)
+                // so that ScreenStreamService can read it on restart.
+                "saveStreamRelayUrl" -> {
+                    try {
+                        val url = call.argument<String>("url")
+                        if (!url.isNullOrEmpty()) {
+                            getSharedPreferences("fm_prefs", Context.MODE_PRIVATE)
+                                .edit()
+                                .putString("stream_relay_url", url)
+                                .apply()
+                            result.success(true)
+                        } else {
+                            result.success(false)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "saveStreamRelayUrl error: $e")
+                        result.success(false)
                     }
                 }
 

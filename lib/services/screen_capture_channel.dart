@@ -254,9 +254,9 @@ class ScreenCaptureChannel {
   }
 
   /// Returns true if the ScreenStreamService is currently streaming.
-  static Future<bool> isScreenStreaming() async {
+  static Future<bool> isScreenStreamRunning() async {
     try {
-      final result = await _channel.invokeMethod<bool>('isScreenStreaming');
+      final result = await _channel.invokeMethod<bool>('isScreenStreamRunning');
       return result ?? false;
     } on MissingPluginException catch (_) {
       return false;
