@@ -278,7 +278,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         }
       }
 
-      if (relayUrl.isEmpty) {
+      if (relayUrl?.isEmpty ?? true) {
         debugPrint('[MonitoringScreen] No WebSocket relay URL configured — using Firebase relay');
         return false;
       }
@@ -286,7 +286,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       debugPrint('[MonitoringScreen] Starting WebSocket viewer at $relayUrl');
       _stopWebSocketViewer(); // Clean up any existing viewer
 
-      _streamViewer = StreamViewerService(relayUrl: relayUrl);
+      _streamViewer = StreamViewerService(relayUrl: relayUrl!);
 
       // Listen for connection state changes
       _wsConnStateSub = _streamViewer!.connectionState.listen((state) {
