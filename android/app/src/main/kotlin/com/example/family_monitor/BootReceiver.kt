@@ -147,16 +147,40 @@ class BootReceiver : BroadcastReceiver() {
                 }
             }
 
-            // ── 3. Resume notification on reboot ────────────────────────────────────
+            // ── 3. Restart ScreenStreamService if streaming was active ────────────────
+            // FIX-6: If streaming was active before reboot/restart, restart the stream
+            // service so WebSocket streaming resumes automatically.
+            try {
+                val streamFmPrefs = context.getSharedPreferences("fm_prefs", Context.MODE_PRIVATE)
+                val streamWasActive = streamFmPrefs.getBoolean(
+                    ScreenStreamService.PREF_STREAM_WAS_ACTIVE, false)
+                val streamUid = streamFmPrefs.getString("stream_child_uid", null)
+                val streamUrl = streamFmPrefs.getString("stream_relay_url", null)
+                if (streamWasActive && !streamUid.isNullOrEmpty() && !streamUrl.isNullOrEmpty()) {
+                    val streamSvc = Intent(context, ScreenStreamService::class.java).apply {
+                        action = ScreenStreamService.ACTION_START_STREAM
+                        putExtra(ScreenStreamService.EXTRA_UID, streamUid)
+                        putExtra(ScreenStreamService.EXTRA_SERVER_URL, streamUrl)
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                        context.startForegroundService(streamSvc)
+                    else context.startService(streamSvc)
+                    Log.d(TAG, "ScreenStreamService restart attempted (stream_was_active=true)")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to restart ScreenStreamService: $e")
+            }
+
+            // ── 5. Resume notification on reboot ────────────────────────────────────
             val isReboot = intent.action != Intent.ACTION_MY_PACKAGE_REPLACED
             if (consentBefore && isReboot) {
                 showResumeNotification(context)
             }
 
-            // ── 4. Arm alarm-based watchdog ──────────────────────────────────────────
+            // ── 6. Arm alarm-based watchdog ──────────────────────────────────────────
             WatchdogReceiver.schedule(context)
 
-            // ── 5. WorkManager periodic watchdog ────────────────────────────────────
+            // ── 7. WorkManager periodic watchdog ────────────────────────────────────
             // RC-BOOT-03: CANCEL_AND_REENQUEUE on boot to reset schedule drift.
             try {
                 val workRequest = PeriodicWorkRequestBuilder<WatchdogWorker>(

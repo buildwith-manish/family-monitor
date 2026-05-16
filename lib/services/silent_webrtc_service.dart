@@ -198,9 +198,20 @@ class SilentWebRTCService {
         }
       };
 
-      _localStream = await _acquireMedia();
+      // BUG-FIX: When _acquireMedia() returns null in screen mode but
+      // WebSocket streaming was started, don't treat it as a failure.
+      // The ScreenStreamService handles frame delivery over WebSocket,
+      // so no WebRTC peer connection is needed. Keep _active = true.
+      final bool wsStreamActive = _activeMode == 'screen' && _localStream == null && _active;
 
       if (_localStream == null || !_active) {
+        if (wsStreamActive) {
+          debugPrint('[SilentWebRTC] WebSocket streaming active — skipping WebRTC track setup');
+          // Set up minimal keepalive flow via Firebase signaling only
+          _setupWsKeepalive(childUid);
+          _connecting = false;
+          return;
+        }
         _connecting = false;
         return;
       }
@@ -208,6 +219,12 @@ class SilentWebRTCService {
       final tracks = _localStream!.getTracks();
 
       if (tracks.isEmpty) {
+        if (wsStreamActive) {
+          debugPrint('[SilentWebRTC] No WebRTC tracks but WebSocket streaming active — continuing');
+          _setupWsKeepalive(childUid);
+          _connecting = false;
+          return;
+        }
         debugPrint('[SilentWebRTC] No tracks found');
         _active    = false;
         _connecting = false;
@@ -638,13 +655,37 @@ class SilentWebRTCService {
 
   /// STREAM-01: Get the WebSocket relay URL from SharedPreferences.
   /// This is configured during the child device setup wizard.
+  /// Also checks Firebase for a server-configured relay URL as fallback.
   Future<String?> _getStreamRelayUrl() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getString('stream_relay_url');
-    } catch (_) {
-      return null;
+      final localUrl = prefs.getString('stream_relay_url');
+      if (localUrl != null && localUrl.isNotEmpty) return localUrl;
+    } catch (_) {}
+
+    // Fallback: Check Firebase for a server-configured relay URL
+    if (_activeUid != null) {
+      try {
+        final snap = await FirebaseDatabase.instance
+            .ref('users/$_activeUid/streamRelayUrl')
+            .get()
+            .timeout(const Duration(seconds: 5));
+        if (snap.value is String) {
+          final firebaseUrl = snap.value as String;
+          if (firebaseUrl.isNotEmpty) {
+            debugPrint('[SilentWebRTC] Using Firebase relay URL: $firebaseUrl');
+            // Cache it locally for next time
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('stream_relay_url', firebaseUrl);
+            } catch (_) {}
+            return firebaseUrl;
+          }
+        }
+      } catch (_) {}
     }
+
+    return null;
   }
 
   /// STREAM-01: Monitor the health of the WebSocket stream service.
@@ -711,6 +752,49 @@ class SilentWebRTCService {
       if (!_active || _stopping) return;
       await _connect(childUid);
     });
+  }
+
+  /// Set up a minimal keepalive flow for WebSocket streaming mode.
+  /// No peer connection is needed — the ScreenStreamService handles frame
+  /// delivery over WebSocket. We only use Firebase for signaling/status
+  /// so the parent knows the child is streaming.
+  void _setupWsKeepalive(String childUid) {
+    final db = FirebaseDatabase.instance.ref();
+    debugPrint('[SilentWebRTC] Setting up WebSocket streaming keepalive for $childUid');
+
+    // Set status and wsStreamMode flags
+    db.child('calls/$childUid/status').set('calling').catchError((_) {});
+    db.child('calls/$childUid/wsStreamMode').set(true).catchError((_) {});
+    db.child('calls/$childUid/nativeCaptureMode').set(true).catchError((_) {});
+    db.child('calls/$childUid/mode').set('screen').catchError((_) {});
+
+    // Listen for the parent ending the session
+    _statusSub = db.child('calls/$childUid/status').onValue.listen((event) async {
+      final status = event.snapshot.value is String ? event.snapshot.value as String : null;
+      if (status == 'ended' || status == null) {
+        debugPrint('[SilentWebRTC] WS keepalive: session ended by parent');
+        await stopSilent();
+      }
+    });
+
+    // Listen for commands (mute/unmute etc.)
+    _commandSub = db.child('calls/$childUid/command').onValue.listen((event) async {
+      if (!_active) return;
+      final command = event.snapshot.value is String ? event.snapshot.value as String : null;
+      if (command == 'mute') {
+        debugPrint('[SilentWebRTC] WS mode: mute command received (no-op for screen)');
+      } else if (command == 'unmute') {
+        debugPrint('[SilentWebRTC] WS mode: unmute command received (no-op for screen)');
+      }
+    });
+
+    // Start heartbeat
+    _startHeartbeat(childUid, db);
+
+    // Start watchdog
+    _startWatchdog(childUid);
+
+    debugPrint('[SilentWebRTC] WebSocket streaming keepalive active (mode: $_activeMode)');
   }
 
   void _startWatchdog(String childUid) {

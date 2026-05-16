@@ -724,6 +724,27 @@ Future<void> _setupMonitoringSession(
 /// to manually retry.
 Future<void> _startScreenStreamSafe(String uid) async {
   try {
+    // STREAM-RELAY-URL: Ensure relay URL is saved to SharedPreferences
+    // before starting the screen stream.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final existingUrl = prefs.getString('stream_relay_url');
+      if (existingUrl == null || existingUrl.isEmpty) {
+        // Try reading from Firebase
+        try {
+          final snap = await FirebaseDatabase.instance
+              .ref('users/$uid/streamRelayUrl')
+              .get()
+              .timeout(const Duration(seconds: 5));
+          if (snap.value is String && (snap.value as String).isNotEmpty) {
+            final firebaseUrl = snap.value as String;
+            await prefs.setString('stream_relay_url', firebaseUrl);
+            debugPrint('[BgService] Saved Firebase relay URL to SharedPreferences: $firebaseUrl');
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+
     var projectionActive = await ScreenCaptureChannel.isProjectionActive();
 
     if (projectionActive) {
@@ -818,6 +839,28 @@ Future<void> _startScreenStreamSafe(String uid) async {
       'Screen sharing requires the child app to be open. '
       'Open the Family Monitor app on the child device to grant screen permission.',
     );
+
+    // STREAM-RELAY-URL: If WebRTC approach fails, try starting the
+    // ScreenStreamService directly via ScreenCaptureChannel.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final relayUrl = prefs.getString('stream_relay_url');
+      if (relayUrl != null && relayUrl.isNotEmpty && projectionActive) {
+        debugPrint('[BgService] WebRTC screen stream failed — trying direct ScreenStreamService');
+        final started = await ScreenCaptureChannel.startScreenStream(
+          uid: uid,
+          serverUrl: relayUrl,
+        );
+        if (started) {
+          debugPrint('[BgService] ScreenStreamService started directly — WebSocket streaming active');
+          await FirebaseDatabase.instance.ref('calls/$uid/wsStreamMode').set(true);
+          await FirebaseDatabase.instance.ref('calls/$uid/nativeCaptureMode').set(true);
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('[BgService] Direct ScreenStreamService start failed: $e');
+    }
   } catch (e) {
     debugPrint('[BgService] _startScreenStreamSafe error: $e');
   }
@@ -900,6 +943,33 @@ Future<void> _checkAndReconnectActiveSession(String uid) async {
     }
 
     debugPrint('[BgService] Active call found (mode=$mode) — reconnecting stream');
+
+    // STREAM-RELAY-URL: Also check for WebSocket stream mode and restart it if needed.
+    final wsStreamMode = data['wsStreamMode'] == true;
+    if (wsStreamMode) {
+      debugPrint('[BgService] WebSocket stream mode detected — attempting direct restart');
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final relayUrl = prefs.getString('stream_relay_url');
+        if (relayUrl != null && relayUrl.isNotEmpty) {
+          final projectionActive = await ScreenCaptureChannel.isProjectionActive();
+          if (projectionActive) {
+            final started = await ScreenCaptureChannel.startScreenStream(
+              uid: uid,
+              serverUrl: relayUrl,
+            );
+            if (started) {
+              debugPrint('[BgService] WebSocket stream restarted directly');
+              await FirebaseDatabase.instance.ref('calls/$uid/wsStreamMode').set(true);
+              await FirebaseDatabase.instance.ref('calls/$uid/nativeCaptureMode').set(true);
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('[BgService] WebSocket stream restart failed: $e');
+      }
+    }
 
     if (mode == 'screen') {
       await _startScreenStreamSafe(uid);

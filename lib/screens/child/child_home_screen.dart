@@ -25,6 +25,7 @@ import '../../services/foreground_service.dart';
 import '../../services/silent_webrtc_service.dart';
 import '../../services/snapshot_service.dart';
 import '../../services/webrtc_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ChildHomeScreen extends StatefulWidget {
   const ChildHomeScreen({super.key});
@@ -238,6 +239,26 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
           // Clear the screenError since we now have a valid projection
           await FirebaseDatabase.instance.ref('calls/$uid/screenError').remove();
           debugPrint('[ChildHome] projectionReady signal sent to background service');
+
+          // STREAM-RELAY-URL: Also start the ScreenStreamService if a relay URL is configured.
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final relayUrl = prefs.getString('stream_relay_url');
+            if (relayUrl != null && relayUrl.isNotEmpty) {
+              debugPrint('[ChildHome] Starting ScreenStreamService with relay URL');
+              final started = await ScreenCaptureChannel.startScreenStream(
+                uid: uid,
+                serverUrl: relayUrl,
+              );
+              if (started) {
+                debugPrint('[ChildHome] ScreenStreamService started — WebSocket streaming active');
+                await FirebaseDatabase.instance.ref('calls/$uid/wsStreamMode').set(true);
+                await FirebaseDatabase.instance.ref('calls/$uid/nativeCaptureMode').set(true);
+              }
+            }
+          } catch (e) {
+            debugPrint('[ChildHome] ScreenStreamService start error: $e');
+          }
         } catch (_) {}
       } else {
         if (mounted) {
@@ -693,6 +714,26 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
           await FirebaseDatabase.instance.ref('calls/$uid/screenError').remove();
           debugPrint('[ChildHome] projectionReady signal sent — background service should start screen stream');
         } catch (_) {}
+
+        // STREAM-RELAY-URL: Also start WebSocket streaming if configured.
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final relayUrl = prefs.getString('stream_relay_url');
+          if (relayUrl != null && relayUrl.isNotEmpty) {
+            debugPrint('[ChildHome] Starting ScreenStreamService after consent grant');
+            final started = await ScreenCaptureChannel.startScreenStream(
+              uid: uid,
+              serverUrl: relayUrl,
+            );
+            if (started) {
+              debugPrint('[ChildHome] ScreenStreamService started — WebSocket streaming active after consent');
+              await FirebaseDatabase.instance.ref('calls/$uid/wsStreamMode').set(true);
+              await FirebaseDatabase.instance.ref('calls/$uid/nativeCaptureMode').set(true);
+            }
+          }
+        } catch (e) {
+          debugPrint('[ChildHome] ScreenStreamService start after consent error: $e');
+        }
       } else {
         // User denied consent
         await BackgroundMonitoringService.saveScreenConsentGranted(false);

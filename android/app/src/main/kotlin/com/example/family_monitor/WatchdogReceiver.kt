@@ -102,14 +102,15 @@ class WatchdogReceiver : BroadcastReceiver() {
             // RC-06: Check BOTH instance existence AND token validity.
             // BUG-3-FIX: Also check SharedPreferences for persisted projection data
             // since volatile static fields are cleared on process death.
+            val fmPrefs = context.getSharedPreferences("fm_prefs", Context.MODE_PRIVATE)
+
             val serviceAlive  = ScreenCaptureService.instance != null
             val tokenValid    = ScreenCaptureService.projectionToken != null
             val hasVolatileToken = ScreenCaptureService.savedResultCode != 0 &&
                     ScreenCaptureService.savedResultData != null
             val hasPersistedToken = try {
-                val prefs = context.getSharedPreferences("fm_prefs", Context.MODE_PRIVATE)
-                prefs.getInt("projection_result_code", 0) != 0 &&
-                    !prefs.getString("projection_result_data_uri", null).isNullOrEmpty()
+                fmPrefs.getInt("projection_result_code", 0) != 0 &&
+                    !fmPrefs.getString("projection_result_data_uri", null).isNullOrEmpty()
             } catch (_: Exception) { false }
             val hasSavedToken = hasVolatileToken || hasPersistedToken
 
@@ -118,6 +119,10 @@ class WatchdogReceiver : BroadcastReceiver() {
                         "alive=$serviceAlive tokenValid=$tokenValid")
                 healScreenCaptureService(context, hasSavedToken)
             }
+
+            // ── 3. Check ScreenStreamService health ────────────────────────────
+            // FIX-6: If streaming was active but the service is not running, restart it.
+            healScreenStreamService(context, fmPrefs)
 
         } finally {
             try { if (wl.isHeld) wl.release() } catch (_: Exception) {}
@@ -198,6 +203,53 @@ class WatchdogReceiver : BroadcastReceiver() {
             // No saved token — the only path is a user-visible activity.
             // RC-08: Use notification tap rather than direct startActivity().
             showReProjectionNotification(context)
+        }
+    }
+
+    /**
+     * FIX-6: Check ScreenStreamService health and restart if it was previously active.
+     *
+     * If stream_was_active is true in SharedPreferences but the service instance
+     * is null or not streaming, the service was killed and needs to be restarted.
+     * The service itself will handle MediaProjection re-acquisition on startup.
+     */
+    private fun healScreenStreamService(context: Context, fmPrefs: android.content.SharedPreferences) {
+        try {
+            val streamWasActive = fmPrefs.getBoolean(
+                ScreenStreamService.PREF_STREAM_WAS_ACTIVE, false)
+            val streamUid = fmPrefs.getString("stream_child_uid", null)
+            val streamUrl = fmPrefs.getString("stream_relay_url", null)
+
+            if (!streamWasActive || streamUid.isNullOrEmpty() || streamUrl.isNullOrEmpty()) {
+                return  // Streaming was not active — nothing to heal
+            }
+
+            // Check if the service is already running and healthy
+            val streamInstance = ScreenStreamService.instance
+            val isStreamingNow = ScreenStreamService.isStreaming
+            if (streamInstance != null && isStreamingNow) {
+                Log.d(TAG, "ScreenStreamService appears healthy — no action needed")
+                return
+            }
+
+            Log.w(TAG, "ScreenStreamService needs healing: " +
+                    "instance=${streamInstance != null} streaming=$isStreamingNow " +
+                    "streamWasActive=$streamWasActive")
+
+            // Restart the stream service with persisted params
+            val streamSvc = Intent(context, ScreenStreamService::class.java).apply {
+                action = ScreenStreamService.ACTION_START_STREAM
+                putExtra(ScreenStreamService.EXTRA_UID, streamUid)
+                putExtra(ScreenStreamService.EXTRA_SERVER_URL, streamUrl)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                context.startForegroundService(streamSvc)
+            else
+                context.startService(streamSvc)
+
+            Log.d(TAG, "ScreenStreamService restart requested (watchdog healing)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to heal ScreenStreamService: $e")
         }
     }
 

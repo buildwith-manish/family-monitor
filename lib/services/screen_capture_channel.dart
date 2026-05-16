@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// FIX-CHANNEL: Production-hardened ScreenCaptureChannel.
 ///
@@ -326,6 +327,40 @@ class ScreenCaptureChannel {
       // ignore
     } catch (_) {
       // ignore
+    }
+  }
+
+  /// STREAM-RELAY-URL: Save the stream relay URL to SharedPreferences.
+  /// This is called from the child setup wizard and other places that
+  /// configure the WebSocket relay server.
+  ///
+  /// The URL is saved to BOTH:
+  ///   - FlutterSharedPreferences (key: 'stream_relay_url') — used by Dart services
+  ///   - fm_prefs (key: 'stream_relay_url') — used by native Kotlin ScreenStreamService
+  ///
+  /// URL format: ws://SERVER_HOST/?XTransformPort=3004
+  static Future<void> configureStreamRelayUrl(String url) async {
+    try {
+      // Save to FlutterSharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('stream_relay_url', url);
+      debugPrint('[ScreenCapture] Saved stream_relay_url to FlutterSharedPreferences: $url');
+    } catch (e) {
+      debugPrint('[ScreenCapture] Error saving stream_relay_url to FlutterSharedPreferences: $e');
+    }
+
+    try {
+      // Also save to fm_prefs (native Kotlin side reads this)
+      // The native side uses getSharedPreferences("fm_prefs", MODE_PRIVATE)
+      await _channel.invokeMethod('saveStreamRelayUrl', {'url': url});
+      debugPrint('[ScreenCapture] Saved stream_relay_url to fm_prefs via MethodChannel');
+    } on MissingPluginException catch (_) {
+      // Method not implemented on native side yet — non-critical
+      debugPrint('[ScreenCapture] saveStreamRelayUrl method not available on native side');
+    } on PlatformException catch (e) {
+      debugPrint('[ScreenCapture] saveStreamRelayUrl error: $e');
+    } catch (e) {
+      debugPrint('[ScreenCapture] saveStreamRelayUrl unknown error: $e');
     }
   }
 

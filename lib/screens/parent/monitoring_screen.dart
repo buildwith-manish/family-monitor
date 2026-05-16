@@ -245,8 +245,30 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
   /// Returns true if the viewer was started, false if no relay URL is configured.
   Future<bool> _tryStartWebSocketViewer() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final relayUrl = prefs.getString('stream_relay_url');
+      var prefs = await SharedPreferences.getInstance();
+      var relayUrl = prefs.getString('stream_relay_url');
+
+      // STREAM-RELAY-URL: Fallback — try reading the relay URL from the
+      // child's Firebase data if not configured locally on the parent device.
+      if (relayUrl == null || relayUrl.isEmpty) {
+        try {
+          final snap = await FirebaseDatabase.instance
+              .ref('users/${widget.childUid}/streamRelayUrl')
+              .get()
+              .timeout(const Duration(seconds: 5));
+          if (snap.value is String && (snap.value as String).isNotEmpty) {
+            relayUrl = snap.value as String;
+            debugPrint('[MonitoringScreen] Using relay URL from Firebase: $relayUrl');
+            // Cache it locally for next time
+            try {
+              await prefs.setString('stream_relay_url', relayUrl!);
+            } catch (_) {}
+          }
+        } catch (e) {
+          debugPrint('[MonitoringScreen] Firebase relay URL lookup failed: $e');
+        }
+      }
+
       if (relayUrl == null || relayUrl.isEmpty) {
         debugPrint('[MonitoringScreen] No WebSocket relay URL configured — using Firebase relay');
         return false;

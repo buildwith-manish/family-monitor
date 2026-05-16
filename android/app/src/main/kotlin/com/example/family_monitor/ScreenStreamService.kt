@@ -30,6 +30,7 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -44,6 +45,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  *   ScreenCaptureService holds the MediaProjection token.
  *   This service reuses that token to create its own VirtualDisplay + ImageReader
  *   for frame capture, then pushes JPEG frames over WebSocket.
+ *   Both VirtualDisplays coexist via VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR.
  *
  * PROTOCOL:
  *   Connects to: ws://SERVER/?role=child&uid=CHILD_UID
@@ -55,6 +57,22 @@ import java.util.concurrent.atomic.AtomicBoolean
  *   - onTaskRemoved: Reschedule via WatchdogReceiver (survives app swipe).
  *   - stopWithTask = false: Service continues after task removal.
  *   - PARTIAL_WAKE_LOCK: Prevents CPU sleep during streaming.
+ *
+ * FIXES APPLIED:
+ *   FIX-1: Dedicated notification channel "fm_screen_stream" (was colliding with
+ *          ScreenCaptureService's "fm_screen_capture_v2").
+ *   FIX-2: MediaProjection reuse registers a Callback to detect onStop; if the
+ *          reused projection is torn down, attempts to create our own from saved
+ *          data, then signals parent if consent is needed.
+ *   FIX-3: MediaProjection.Callback registered on all obtained projections to
+ *          detect system revocation and prevent streaming blank/null frames.
+ *   FIX-5: Row-by-row copy bug fixed — copyPixelsFromBuffer always writes from
+ *          bitmap position 0, so row-by-row overwrites earlier rows. Now uses
+ *          Bitmap.setPixels() with IntArray for correct per-row placement.
+ *   FIX-7: stream_was_active persisted in SharedPreferences so boot/watchdog
+ *          recovery can restart the stream.
+ *   FIX-8: Wake lock timeout increased to 24 hours with periodic re-acquisition
+ *          every 12 hours for 24/7 monitoring.
  *
  * NOTE: Requires OkHttp dependency in build.gradle.kts:
  *   implementation("com.squareup.okhttp3:okhttp:4.12.0")
@@ -70,7 +88,10 @@ class ScreenStreamService : Service() {
         const val EXTRA_UID        = "uid"
         const val EXTRA_SERVER_URL = "server_url"
 
-        const val CHANNEL_ID      = "fm_screen_capture_v2"
+        // FIX-1: Dedicated channel to avoid collision with ScreenCaptureService's
+        // "fm_screen_capture_v2". Two foreground services with the same channel ID
+        // is technically fine, but causes confusion and muddied notification control.
+        const val CHANNEL_ID      = "fm_screen_stream"
         const val NOTIFICATION_ID = 1003  // 1001=ScreenCapture, 1002=WatchdogService
 
         // Frame capture configuration
@@ -86,6 +107,17 @@ class ScreenStreamService : Service() {
         private const val RECONNECT_MULTIPLIER = 2.0
 
         private const val WAKE_LOCK_TAG = "FamilyMonitor:ScreenStream"
+
+        // FIX-8: Wake lock duration — 24 hours for continuous 24/7 monitoring.
+        private const val WAKE_LOCK_TIMEOUT_MS = 24 * 60 * 60 * 1000L  // 24 hours
+        private const val WAKE_LOCK_REACQUIRE_INTERVAL_MS = 12 * 60 * 60 * 1000L  // Re-acquire every 12 hours
+
+        // SharedPreferences keys
+        private const val PREFS_NAME            = "fm_prefs"
+        private const val PREF_STREAM_CHILD_UID = "stream_child_uid"
+        private const val PREF_STREAM_RELAY_URL = "stream_relay_url"
+        // FIX-7: Persist streaming active state for boot/watchdog recovery.
+        const val PREF_STREAM_WAS_ACTIVE = "stream_was_active"
 
         @Volatile var isStreaming: Boolean       = false
         @Volatile var frameCount: Long           = 0
@@ -115,6 +147,8 @@ class ScreenStreamService : Service() {
 
     // Wake lock
     private var wakeLock: PowerManager.WakeLock? = null
+    // FIX-8: Periodic wake lock re-acquisition runnable.
+    private var wakeLockRenewRunnable: Runnable? = null
 
     // State
     private val streaming = AtomicBoolean(false)
@@ -131,6 +165,9 @@ class ScreenStreamService : Service() {
 
         captureHandlerThread = HandlerThread("ScreenStreamCapture").also { it.start() }
         captureHandler = Handler(captureHandlerThread!!.looper)
+
+        // FIX-8: Start wake lock renewal after handler is available.
+        startWakeLockRenewal()
 
         okHttpClient = OkHttpClient.Builder()
             .pingInterval(30_000L, java.util.concurrent.TimeUnit.MILLISECONDS)
@@ -151,8 +188,8 @@ class ScreenStreamService : Service() {
 
                 // Fallback: read server URL from SharedPreferences if not in intent
                 if (serverUrl.isBlank()) {
-                    serverUrl = getSharedPreferences("fm_prefs", Context.MODE_PRIVATE)
-                        .getString("stream_relay_url", "") ?: ""
+                    serverUrl = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        .getString(PREF_STREAM_RELAY_URL, "") ?: ""
                 }
 
                 if (childUid.isBlank()) {
@@ -162,7 +199,7 @@ class ScreenStreamService : Service() {
                 }
                 if (serverUrl.isBlank()) {
                     Log.e(TAG, "Missing relay server URL — cannot start stream. " +
-                            "Set 'stream_relay_url' in SharedPreferences or pass EXTRA_SERVER_URL")
+                            "Set '$PREF_STREAM_RELAY_URL' in SharedPreferences or pass EXTRA_SERVER_URL")
                     stopSelf()
                     return START_NOT_STICKY
                 }
@@ -177,13 +214,15 @@ class ScreenStreamService : Service() {
             null -> {
                 // START_STICKY restart after process death delivers null intent.
                 // Try to resume with persisted values.
-                val prefs = getSharedPreferences("fm_prefs", Context.MODE_PRIVATE)
-                childUid = prefs.getString("stream_child_uid", "") ?: ""
-                serverUrl = prefs.getString("stream_relay_url", "") ?: ""
-                if (childUid.isNotBlank() && serverUrl.isNotBlank()) {
+                val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                childUid = prefs.getString(PREF_STREAM_CHILD_UID, "") ?: ""
+                serverUrl = prefs.getString(PREF_STREAM_RELAY_URL, "") ?: ""
+                // FIX-7: Also check if streaming was active before process death.
+                val wasActive = prefs.getBoolean(PREF_STREAM_WAS_ACTIVE, false)
+                if (childUid.isNotBlank() && serverUrl.isNotBlank() && wasActive) {
                     startStreaming()
                 } else {
-                    Log.w(TAG, "Restarted but missing uid/server — stopping")
+                    Log.w(TAG, "Restarted but missing uid/server or stream was not active — stopping")
                     stopSelf()
                     return START_NOT_STICKY
                 }
@@ -200,6 +239,7 @@ class ScreenStreamService : Service() {
 
     override fun onDestroy() {
         stopStreaming()
+        stopWakeLockRenewal()
         releaseWakeLock()
         try { captureHandlerThread?.quit() } catch (_: Exception) {}
         captureHandlerThread = null
@@ -219,10 +259,12 @@ class ScreenStreamService : Service() {
         }
 
         // Persist streaming params for START_STICKY restart
-        getSharedPreferences("fm_prefs", Context.MODE_PRIVATE)
+        // FIX-7: Also persist stream_was_active flag for boot/watchdog recovery.
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
-            .putString("stream_child_uid", childUid)
-            .putString("stream_relay_url", serverUrl)
+            .putString(PREF_STREAM_CHILD_UID, childUid)
+            .putString(PREF_STREAM_RELAY_URL, serverUrl)
+            .putBoolean(PREF_STREAM_WAS_ACTIVE, true)
             .apply()
 
         // Phase 1: Start foreground with DATA_SYNC (safe before MediaProjection)
@@ -232,6 +274,7 @@ class ScreenStreamService : Service() {
         if (!obtainMediaProjection()) {
             Log.e(TAG, "Cannot obtain MediaProjection — streaming aborted")
             streaming.set(false)
+            clearStreamActiveFlag()
             stopSelf()
             return
         }
@@ -243,6 +286,7 @@ class ScreenStreamService : Service() {
         if (!startFrameCapture()) {
             Log.e(TAG, "Frame capture failed to start — streaming aborted")
             streaming.set(false)
+            clearStreamActiveFlag()
             stopSelf()
             return
         }
@@ -251,6 +295,10 @@ class ScreenStreamService : Service() {
         connectWebSocket()
 
         isStreaming = true
+
+        // FIX-8: Ensure wake lock renewal is running during streaming.
+        startWakeLockRenewal()
+
         Log.d(TAG, "Streaming started: uid=$childUid, server=$serverUrl")
     }
 
@@ -259,11 +307,28 @@ class ScreenStreamService : Service() {
 
         stopFrameCapture()
         disconnectWebSocket()
+        // FIX-8: Stop wake lock renewal when streaming stops.
+        stopWakeLockRenewal()
         isStreaming = false
         frameCount = 0
         latestFrameBytes = null
 
+        // FIX-7: Clear the stream_was_active flag when streaming stops deliberately.
+        clearStreamActiveFlag()
+
         Log.d(TAG, "Streaming stopped")
+    }
+
+    // FIX-7: Helper to clear the stream_was_active flag from SharedPreferences.
+    private fun clearStreamActiveFlag() {
+        try {
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(PREF_STREAM_WAS_ACTIVE, false)
+                .apply()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to clear stream_was_active: $e")
+        }
     }
 
     // ── MediaProjection acquisition ────────────────────────────────────────
@@ -273,6 +338,16 @@ class ScreenStreamService : Service() {
      *   1. Reuse the token from ScreenCaptureService if available.
      *   2. Try to create from ScreenCaptureService's saved result code + data.
      *   3. Best-effort restore from SharedPreferences (will likely fail on Android 14+).
+     *
+     * FIX-2: When reusing ScreenCaptureService.projectionToken, we now register
+     *   a MediaProjection.Callback to detect when the reused projection is
+     *   stopped/torn down by ScreenCaptureService. If that happens, we attempt
+     *   to create our own projection from saved data, and signal the parent if
+     *   consent is needed.
+     *
+     * FIX-3: A MediaProjection.Callback is registered on ALL obtained projections
+     *   to detect system revocation, preventing the service from streaming
+     *   blank/null frames after the projection is revoked.
      */
     private fun obtainMediaProjection(): Boolean {
         // Strategy 1: Reuse existing projection token
@@ -280,6 +355,10 @@ class ScreenStreamService : Service() {
         if (existingProjection != null) {
             mediaProjection = existingProjection
             Log.d(TAG, "Reused MediaProjection from ScreenCaptureService.projectionToken")
+
+            // FIX-2: Register a callback on the reused projection so we can detect
+            // if ScreenCaptureService stops or its projection is torn down.
+            registerProjectionCallback(existingProjection, "reused")
             return true
         }
 
@@ -293,6 +372,8 @@ class ScreenStreamService : Service() {
                 if (projection != null) {
                     mediaProjection = projection
                     Log.d(TAG, "Created MediaProjection from ScreenCaptureService saved data")
+                    // FIX-3: Register callback on self-created projection too.
+                    registerProjectionCallback(projection, "self-created")
                     return true
                 }
             } catch (e: Exception) {
@@ -316,6 +397,8 @@ class ScreenStreamService : Service() {
                 if (projection != null) {
                     mediaProjection = projection
                     Log.d(TAG, "Created MediaProjection from Parcel bytes")
+                    // FIX-3: Register callback on self-created projection too.
+                    registerProjectionCallback(projection, "parcel-restored")
                     return true
                 }
             } catch (e: Exception) {
@@ -327,7 +410,7 @@ class ScreenStreamService : Service() {
         // NOTE: Intent.toUri(0) loses the Binder extra, so this will likely
         // fail on Android 14+. Included for completeness.
         try {
-            val prefs = getSharedPreferences("fm_prefs", Context.MODE_PRIVATE)
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val code = prefs.getInt("projection_result_code", 0)
             val uriStr = prefs.getString("projection_result_data_uri", null)
             if (code != 0 && uriStr != null) {
@@ -338,6 +421,8 @@ class ScreenStreamService : Service() {
                 if (projection != null) {
                     mediaProjection = projection
                     Log.d(TAG, "Created MediaProjection from SharedPreferences (best-effort)")
+                    // FIX-3: Register callback on self-created projection too.
+                    registerProjectionCallback(projection, "prefs-restored")
                     return true
                 }
             }
@@ -349,12 +434,158 @@ class ScreenStreamService : Service() {
         return false
     }
 
+    /**
+     * FIX-3: Register a MediaProjection.Callback on the given projection to detect
+     * when the system revokes it or the owning service tears it down.
+     *
+     * FIX-2: When the reused projection from ScreenCaptureService stops, we attempt
+     * to create our own projection from saved data. If that fails, we signal the
+     * parent that consent is needed via a broadcast + notification.
+     */
+    private fun registerProjectionCallback(projection: MediaProjection, source: String) {
+        try {
+            val handler = captureHandler ?: Handler(android.os.Looper.getMainLooper())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                projection.registerCallback(object : MediaProjection.Callback() {
+                    override fun onStop() {
+                        Log.w(TAG, "MediaProjection stopped (source=$source) — system or owner revoked it")
+                        onProjectionRevoked(source)
+                    }
+                }, handler)
+                Log.d(TAG, "MediaProjection.Callback registered (source=$source)")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to register MediaProjection.Callback (source=$source): $e")
+        }
+    }
+
+    /**
+     * FIX-2/FIX-3: Called when the MediaProjection is revoked by the system
+     * or torn down by the owning service (ScreenCaptureService).
+     *
+     * Strategy:
+     *   1. Stop frame capture immediately (no point streaming blank frames).
+     *   2. If the projection was reused from ScreenCaptureService, try to create
+     *      our own from saved data.
+     *   3. If we can't get a new projection, signal that consent is needed.
+     */
+    private fun onProjectionRevoked(source: String) {
+        Log.w(TAG, "Projection revoked (source=$source) — stopping frame capture")
+
+        // Stop frame capture — no point capturing with a dead projection
+        stopFrameCapture()
+
+        // Null out the stale reference
+        mediaProjection = null
+
+        if (!streaming.get()) return  // Already stopping
+
+        // FIX-2: If the projection was reused from ScreenCaptureService, try to
+        // create our own projection from saved data.
+        if (source == "reused") {
+            Log.d(TAG, "Reused projection stopped — attempting to create our own")
+            if (obtainMediaProjection()) {
+                // We got our own projection; restart frame capture
+                Log.d(TAG, "Created own projection after reused one stopped — restarting capture")
+                if (startFrameCapture()) {
+                    // Also upgrade foreground type again
+                    upgradeFgToMediaProjection()
+                    return
+                }
+            }
+            // Could not obtain our own projection — fall through to signal consent needed
+        }
+
+        // FIX-2/FIX-3: Cannot continue streaming — signal that consent is needed
+        signalConsentNeeded()
+    }
+
+    /**
+     * FIX-2: Signal to the parent (via SharedPreferences flag and notification)
+     * that MediaProjection consent is needed to continue streaming.
+     */
+    private fun signalConsentNeeded() {
+        Log.w(TAG, "MediaProjection consent needed — signaling parent")
+
+        // Set a flag in SharedPreferences so the UI knows to prompt for consent
+        try {
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("stream_consent_needed", true)
+                .apply()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to set stream_consent_needed flag: $e")
+        }
+
+        // Broadcast so the Flutter side can react
+        try {
+            val intent = Intent("com.example.family_monitor.STREAM_CONSENT_NEEDED").apply {
+                setPackage(packageName)
+            }
+            sendBroadcast(intent)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to broadcast STREAM_CONSENT_NEEDED: $e")
+        }
+
+        // Show a notification prompting the user to re-grant consent
+        showConsentNeededNotification()
+
+        // Stop streaming since we can't continue without a projection
+        stopStreaming()
+        stopSelf()
+    }
+
+    /**
+     * FIX-2: Show a notification asking the user to re-grant screen capture consent.
+     */
+    private fun showConsentNeededNotification() {
+        try {
+            val nm = getSystemService(NotificationManager::class.java)
+            val chId = "fm_stream_alert"
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val ch = NotificationChannel(
+                    chId,
+                    "Stream Alert",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply { description = "Screen streaming needs attention" }
+                nm.createNotificationChannel(ch)
+            }
+
+            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+                ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP) }
+                ?: return
+
+            val pi = PendingIntent.getActivity(
+                this, 9901, launchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val notif = NotificationCompat.Builder(this, chId)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle("Family Monitor — Action Required")
+                .setContentText("Tap to restore screen streaming")
+                .setContentIntent(pi)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .build()
+
+            nm.notify(9901, notif)
+            Log.d(TAG, "Consent-needed notification shown")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to show consent-needed notification: $e")
+        }
+    }
+
     // ── Frame capture pipeline ─────────────────────────────────────────────
 
     /**
      * Start the VirtualDisplay + ImageReader frame capture pipeline.
      * Frames are captured on a background HandlerThread, compressed to JPEG,
      * and pushed to the WebSocket connection.
+     *
+     * NOTE (FIX-4): Each VirtualDisplay gets its own frames, so coexisting
+     * with ScreenCaptureService's VirtualDisplay is fine when using
+     * VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR.
      */
     private fun startFrameCapture(): Boolean {
         val projection = mediaProjection
@@ -457,6 +688,10 @@ class ScreenStreamService : Service() {
     /**
      * Process a captured Image into JPEG bytes.
      * Handles row padding on devices where rowStride > width * pixelStride.
+     *
+     * FIX-5: The previous row-by-row copy used copyPixelsFromBuffer(ByteBuffer.wrap(rowBuffer))
+     * which always writes from position 0 of the bitmap, overwriting earlier rows on each
+     * iteration. Now uses Bitmap.setPixels() with an IntArray for correct per-row placement.
      */
     private fun processFrame(image: Image): ByteArray? {
         val planes = image.planes
@@ -475,13 +710,21 @@ class ScreenStreamService : Service() {
                 // No padding — fast path
                 bmp.copyPixelsFromBuffer(buffer)
             } else {
-                // Row-by-row copy to handle padding
+                // FIX-5: Row-by-row copy using Bitmap.setPixels() with IntArray.
+                // The previous code used copyPixelsFromBuffer(ByteBuffer.wrap(rowBuffer))
+                // which always writes from position 0 of the bitmap buffer, so each row
+                // overwrote the first row. setPixels() with y-offset correctly places
+                // each row at the right position in the bitmap.
                 val rowBytes = CAPTURE_WIDTH * pixelStride
+                val rowPixels = IntArray(CAPTURE_WIDTH)
+                val rowByteBuffer = ByteBuffer.allocate(rowBytes)
                 for (y in 0 until CAPTURE_HEIGHT) {
                     buffer.position(y * rowStride)
-                    val rowBuffer = ByteArray(rowBytes)
-                    buffer.get(rowBuffer, 0, rowBytes)
-                    bmp.copyPixelsFromBuffer(java.nio.ByteBuffer.wrap(rowBuffer))
+                    rowByteBuffer.rewind()
+                    buffer.get(rowByteBuffer.array(), 0, rowBytes)
+                    rowByteBuffer.rewind()
+                    rowByteBuffer.asIntBuffer().get(rowPixels)
+                    bmp.setPixels(rowPixels, 0, CAPTURE_WIDTH, 0, y, CAPTURE_WIDTH, 1)
                 }
             }
 
@@ -686,6 +929,10 @@ class ScreenStreamService : Service() {
 
     // ── Wake lock ──────────────────────────────────────────────────────────
 
+    /**
+     * FIX-8: Acquire a PARTIAL_WAKE_LOCK for 24 hours (up from 12 hours) to
+     * support continuous 24/7 monitoring.
+     */
     private fun acquireWakeLock() {
         if (wakeLock?.isHeld == true) return
         try {
@@ -695,12 +942,50 @@ class ScreenStreamService : Service() {
                 WAKE_LOCK_TAG
             ).also {
                 it.setReferenceCounted(false)
-                it.acquire(12 * 60 * 60 * 1000L)  // 12 hours max
+                it.acquire(WAKE_LOCK_TIMEOUT_MS)  // FIX-8: 24 hours
             }
-            Log.d(TAG, "PARTIAL_WAKE_LOCK acquired")
+            Log.d(TAG, "PARTIAL_WAKE_LOCK acquired (${WAKE_LOCK_TIMEOUT_MS / 3600_000}h timeout)")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to acquire wake lock: $e")
         }
+    }
+
+    /**
+     * FIX-8: Periodically re-acquire the wake lock to ensure it never expires.
+     * Re-acquires every 12 hours (half the 24h timeout), guaranteeing continuous
+     * coverage for 24/7 monitoring.
+     */
+    private fun startWakeLockRenewal() {
+        val handler = captureHandler ?: return
+        // Stop any existing renewal before starting a new one (idempotent).
+        stopWakeLockRenewal()
+        wakeLockRenewRunnable = object : Runnable {
+            override fun run() {
+                if (!streaming.get()) return
+                try {
+                    // Release and re-acquire to reset the timeout
+                    if (wakeLock?.isHeld == true) {
+                        wakeLock?.release()
+                    }
+                    acquireWakeLock()
+                    Log.d(TAG, "Wake lock re-acquired (periodic renewal)")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Wake lock renewal failed: $e")
+                    acquireWakeLock()  // Try a fresh acquire
+                }
+                // Schedule next renewal
+                if (streaming.get()) {
+                    handler.postDelayed(this, WAKE_LOCK_REACQUIRE_INTERVAL_MS)
+                }
+            }
+        }
+        // First renewal after 12 hours
+        handler.postDelayed(wakeLockRenewRunnable!!, WAKE_LOCK_REACQUIRE_INTERVAL_MS)
+    }
+
+    private fun stopWakeLockRenewal() {
+        wakeLockRenewRunnable?.let { captureHandler?.removeCallbacks(it) }
+        wakeLockRenewRunnable = null
     }
 
     private fun releaseWakeLock() {
@@ -720,15 +1005,16 @@ class ScreenStreamService : Service() {
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(NotificationManager::class.java)
+            // FIX-1: Use our dedicated channel ID "fm_screen_stream"
             val existing = nm.getNotificationChannel(CHANNEL_ID)
             if (existing != null && existing.importance >= NotificationManager.IMPORTANCE_LOW) return
             if (existing != null) nm.deleteNotificationChannel(CHANNEL_ID)
             val ch = NotificationChannel(
                 CHANNEL_ID,
-                "Family Monitor Service",
+                "Family Monitor Stream",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description    = "Required for screen monitoring service"
+                description    = "Required for screen streaming service"
                 setShowBadge(false)
                 enableLights(false)
                 enableVibration(false)

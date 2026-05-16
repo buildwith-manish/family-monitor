@@ -144,7 +144,15 @@ class StreamViewerService {
     debugPrint('[StreamViewer] Connecting to relay for child=$_childUid '
         '(attempt ${_reconnectAttempts + 1}/$_maxReconnectAttempts)');
 
-    final uri = Uri.parse('$relayUrl/?role=parent&uid=$_childUid');
+    // GATEWAY-PROXY-FIX: Properly append query parameters to the relay URL.
+    // The relay URL may already contain query parameters like ?XTransformPort=3004
+    // so we must use & instead of ? when appending role and uid.
+    // Format: ws://HOST/?XTransformPort=3004&role=parent&uid=CHILD_UID
+    final baseUri = Uri.parse(relayUrl);
+    final newParams = Map<String, String>.from(baseUri.queryParameters);
+    newParams['role'] = 'parent';
+    newParams['uid'] = _childUid!;
+    final uri = baseUri.replace(queryParameters: newParams);
 
     // Start connect timeout
     _startConnectTimeout();
