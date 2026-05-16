@@ -1,4 +1,5 @@
 import '../../services/webrtc_service.dart';
+import '../../services/stream_mode.dart';
 import '../../services/stream_viewer_service.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -261,7 +262,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
             debugPrint('[MonitoringScreen] Using relay URL from Firebase: $relayUrl');
             // Cache it locally for next time
             try {
-              await prefs.setString('stream_relay_url', relayUrl!);
+              await prefs.setString('stream_relay_url', relayUrl);
             } catch (_) {}
           }
         } catch (e) {

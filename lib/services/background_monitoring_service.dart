@@ -11,10 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:usage_stats/usage_stats.dart';
 import 'daily_report_service.dart';
 import 'device_event_service.dart';
-import 'weekly_summary_service.dart';
-import 'keyword_alert_service.dart';
 import 'screen_time_service.dart';
-import 'streak_service.dart';
 import 'screen_capture_channel.dart';
 
 /// FIX-BGSERVICE: Production-hardened BackgroundMonitoringService.

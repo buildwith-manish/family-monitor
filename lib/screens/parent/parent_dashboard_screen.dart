@@ -13,6 +13,7 @@ import 'battery_alerts_screen.dart';
 import 'contacts_screen.dart';
 import 'geofence_screen.dart';
 import 'monitoring_screen.dart';
+import '../../services/stream_mode.dart';
 import '../../services/webrtc_service.dart';
 import 'app_usage_screen.dart';
 import 'snapshots_screen.dart';
