@@ -6,9 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import 'screen_capture_channel.dart';
+import 'stream_mode.dart';
 import 'turn_config_service.dart';
-
-enum StreamMode { camera, screen }
 
 class WebRTCService {
   RTCPeerConnection? _peerConnection;

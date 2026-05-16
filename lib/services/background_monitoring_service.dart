@@ -11,7 +11,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:usage_stats/usage_stats.dart';
 import 'daily_report_service.dart';
 import 'device_event_service.dart';
-import 'silent_webrtc_service.dart';
 import 'weekly_summary_service.dart';
 import 'keyword_alert_service.dart';
 import 'screen_time_service.dart';
@@ -22,19 +21,20 @@ import 'screen_capture_channel.dart';
 ///
 /// Root causes fixed:
 /// RC-BGS-01 — _setupMonitoringSession never checked if screen consent was
-///             granted before attempting startSilentScreen(). If the token
-///             was invalid (reboot, process death) getDisplayMedia() would be
-///             called in background context → crash. Fixed: when the background
-///             service receives mode='screen' and the projection token is NOT
-///             active, it writes a screenError to Firebase to notify the parent
-///             and waits — does not attempt getDisplayMedia from background.
+///             granted before attempting to start the screen stream. If the
+///             MediaProjection token was invalid (reboot, process death) the
+///             stream would fail. Fixed: when the background service receives
+///             mode='screen' and the projection token is NOT active, it writes
+///             a screenError to Firebase to notify the parent and waits — does
+///             not attempt to start streaming from background without a token.
 ///
 /// RC-BGS-02 — The health-check watchdog used Firebase `.info/connected` as
 ///             the liveness signal. This node only reflects the SDK's connection
-///             to Firebase (TCP socket), NOT whether WebRTC is healthy. A device
-///             could be connected to Firebase but have a completely dead WebRTC
-///             stream. Fixed: added a separate WebRTC liveness check that verifies
-///             SilentWebRTCService.instance.isActive when status is 'calling'.
+///             to Firebase (TCP socket), NOT whether the screen stream is
+///             healthy. A device could be connected to Firebase but have a
+///             completely dead screen stream. Fixed: added a separate stream
+///             liveness check that verifies ScreenCaptureChannel.isScreenStreamRunning()
+///             when status is 'calling'.
 ///
 /// RC-BGS-03 — _watchdogRestarting was never reset if _setupMonitoringSession
 ///             succeeded on its first attempt (no exception, no retry path).
@@ -43,11 +43,11 @@ import 'screen_capture_channel.dart';
 ///             Fixed: reset _watchdogRestarting in the finally block always.
 ///             (Partially fixed in previous session; confirmed correct here.)
 ///
-/// RC-BGS-04 — No screen-consent check before startSilentScreen() in _callsSub.
-///             When background service received mode='screen', it called
-///             startSilentScreen() unconditionally. If the MediaProjection token
-///             was absent (normal after reboot / process death), getDisplayMedia()
-///             would fail silently or crash. Now checks token first.
+/// RC-BGS-04 — No screen-consent check before starting screen stream in _callsSub.
+///             When background service received mode='screen', it started
+///             streaming unconditionally. If the MediaProjection token was
+///             absent (normal after reboot / process death), the stream would
+///             fail silently or crash. Now checks token first.
 
 // Explicit Firebase options for the child flavor.
 const FirebaseOptions _childFirebaseOptions = FirebaseOptions(
@@ -399,6 +399,87 @@ Future<void> _generateYesterdayReportIfMissing(String uid) async {
   }
 }
 
+/// Helper: resolve the stream relay URL from SharedPreferences or Firebase.
+///
+/// Looks up the relay URL needed for WebSocket screen streaming. First checks
+/// SharedPreferences for a cached value, then falls back to Firebase
+/// `users/$uid/streamRelayUrl`. If found via Firebase, caches it to
+/// SharedPreferences for future use.
+Future<String?> _resolveRelayUrl(String uid) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    var relayUrl = prefs.getString('stream_relay_url');
+    if (relayUrl != null && relayUrl.isNotEmpty) return relayUrl;
+
+    try {
+      final snap = await FirebaseDatabase.instance
+          .ref('users/$uid/streamRelayUrl')
+          .get()
+          .timeout(const Duration(seconds: 5));
+      if (snap.value is String && (snap.value as String).isNotEmpty) {
+        relayUrl = snap.value as String;
+        await prefs.setString('stream_relay_url', relayUrl);
+        return relayUrl;
+      }
+    } catch (_) {}
+  } catch (_) {}
+  return null;
+}
+
+/// Helper: start WebSocket screen streaming via ScreenCaptureChannel.
+///
+/// Resolves the relay URL and starts the screen stream. If successful, sets
+/// the `wsStreamMode` and `nativeCaptureMode` flags in Firebase so the parent
+/// app knows the stream is using WebSocket mode.
+///
+/// Returns true if the stream was started successfully.
+Future<bool> _startWebSocketScreenStream(String uid) async {
+  try {
+    final relayUrl = await _resolveRelayUrl(uid);
+    if (relayUrl == null || relayUrl.isEmpty) {
+      debugPrint('[BgService] No relay URL available — cannot start WebSocket screen stream');
+      return false;
+    }
+
+    final started = await ScreenCaptureChannel.startScreenStream(
+      uid: uid,
+      serverUrl: relayUrl,
+    );
+    if (started) {
+      await FirebaseDatabase.instance.ref('calls/$uid/wsStreamMode').set(true);
+      await FirebaseDatabase.instance.ref('calls/$uid/nativeCaptureMode').set(true);
+      debugPrint('[BgService] WebSocket screen stream started successfully');
+      return true;
+    }
+  } catch (e) {
+    debugPrint('[BgService] _startWebSocketScreenStream error: $e');
+  }
+  return false;
+}
+
+/// Helper: stop all screen streaming.
+///
+/// Stops both the WebSocket screen stream and native screen capture, ignoring
+/// any errors.
+Future<void> _stopAllScreenStreams() async {
+  try { await ScreenCaptureChannel.stopScreenStream(); } catch (_) {}
+  try { await ScreenCaptureChannel.stopNativeScreenCapture(); } catch (_) {}
+}
+
+/// Helper: signal that camera streaming mode is not available.
+///
+/// Called when a non-screen monitoring mode is requested. Writes a Firebase
+/// status indicating camera streaming is not supported — only screen monitoring
+/// is available via WebSocket streaming.
+Future<void> _signalCameraModeUnavailable(String uid) async {
+  debugPrint('[BgService] Camera streaming mode not supported without WebRTC');
+  try {
+    await FirebaseDatabase.instance.ref('calls/$uid/screenError').set(
+      'Camera streaming is not available. Screen monitoring only.',
+    );
+  } catch (_) {}
+}
+
 /// Sets up all Firebase listeners and periodic timers for a monitoring session.
 Future<void> _setupMonitoringSession(
   ServiceInstance service,
@@ -476,12 +557,12 @@ Future<void> _setupMonitoringSession(
     } catch (_) {}
   });
 
-  // ── WebRTC call driver ────────────────────────────────────────────────────
+  // ── Screen stream call driver ─────────────────────────────────────────────
   _callsSub = FirebaseDatabase.instance.ref('calls/$uid').onValue.listen((event) {
     final data = event.snapshot.value;
     if (data == null || data is! Map) {
       if (streamActive) {
-        SilentWebRTCService.instance.stopSilent().catchError((_) {});
+        _stopAllScreenStreams().catchError((_) {});
         streamActive = false;
         activeMode   = null;
       }
@@ -505,21 +586,21 @@ Future<void> _setupMonitoringSession(
 
     if (status == 'calling') {
       if (!streamActive || activeMode != mode) {
-        if (streamActive) SilentWebRTCService.instance.stopSilent().catchError((_) {});
+        if (streamActive) _stopAllScreenStreams().catchError((_) {});
         streamActive = true;
         activeMode   = mode;
         if (mode == 'screen') {
-          // RC-BGS-04: Check projection token BEFORE calling startSilentScreen().
-          // getDisplayMedia() from background context requires the token to already
-          // be active (ScreenCaptureService holds it). If not available, signal
-          // the parent to re-open the child app.
+          // RC-BGS-04: Check projection token BEFORE starting screen stream.
+          // Screen streaming from background context requires the MediaProjection
+          // token to already be active (ScreenCaptureService holds it). If not
+          // available, signal the parent to re-open the child app.
           _startScreenStreamSafe(uid).catchError((_) {});
         } else {
-          SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {});
+          _signalCameraModeUnavailable(uid).catchError((_) {});
         }
       }
     } else if (status == 'ended') {
-      SilentWebRTCService.instance.stopSilent().catchError((_) {});
+      _stopAllScreenStreams().catchError((_) {});
       streamActive = false;
       activeMode   = null;
     }
@@ -637,7 +718,7 @@ Future<void> _setupMonitoringSession(
   _pingTimer = Timer.periodic(const Duration(seconds: 20), (_) => service.invoke('ping', {}));
 
   // ── Health-check watchdog ─────────────────────────────────────────────────
-  // RC-BGS-02: Added WebRTC liveness check alongside Firebase connectivity.
+  // RC-BGS-02: Added screen stream liveness check alongside Firebase connectivity.
   // RC-BGS-03: Reset _watchdogRestarting in finally block.
   int healthFailures = 0;
 
@@ -668,7 +749,7 @@ Future<void> _setupMonitoringSession(
             await Future.delayed(const Duration(seconds: 2));
             await _setupMonitoringSession(service, uid);
             // BUG-3-FIX: After watchdog-triggered session restart, check for
-            // active calls and reconnect the WebRTC stream automatically.
+            // active calls and reconnect the screen stream automatically.
             await _checkAndReconnectActiveSession(uid);
           } finally {
             // RC-BGS-03: Always reset the flag — even on success path.
@@ -678,26 +759,27 @@ Future<void> _setupMonitoringSession(
       } else {
         healthFailures = 0;
 
-        // BUG-3-FIX: WebRTC stream health check.
-        // Firebase connectivity alone doesn't guarantee the WebRTC stream is alive.
-        // If the call status is 'calling' but WebRTC is inactive, trigger a reconnect.
+        // BUG-3-FIX: Screen stream health check.
+        // Firebase connectivity alone doesn't guarantee the screen stream is alive.
+        // If the call status is 'calling' but the stream is inactive, trigger a reconnect.
         try {
           final callSnap = await FirebaseDatabase.instance.ref('calls/$uid').get();
           if (callSnap.value != null && callSnap.value is Map) {
             final callData   = Map<String, dynamic>.from(callSnap.value as Map);
             final callStatus = callData['status'] as String?;
             final callMode   = callData['mode']   as String?;
-            if (callStatus == 'calling' && !SilentWebRTCService.instance.isActive) {
-              debugPrint('[BgService] WebRTC stream dead but call active — triggering reconnect (mode=$callMode)');
+            final isStreamRunning = await ScreenCaptureChannel.isScreenStreamRunning();
+            if (callStatus == 'calling' && !isStreamRunning) {
+              debugPrint('[BgService] Screen stream dead but call active — triggering reconnect (mode=$callMode)');
               if (callMode == 'screen') {
                 _startScreenStreamSafe(uid).catchError((_) {});
               } else {
-                SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {});
+                _signalCameraModeUnavailable(uid).catchError((_) {});
               }
             }
           }
         } catch (e) {
-          debugPrint('[BgService] WebRTC health check error: $e');
+          debugPrint('[BgService] Stream health check error: $e');
         }
       }
     } catch (e) {
@@ -708,7 +790,7 @@ Future<void> _setupMonitoringSession(
 }
 
 /// RC-BGS-04: Check projection token before starting screen stream.
-/// This prevents getDisplayMedia() from being called when no MediaProjection
+/// This prevents streaming from being attempted when no MediaProjection
 /// token is available in the background service's context.
 ///
 /// BUG-2-FIX (timing): Replaced the single 2-second wait with a proper
@@ -724,31 +806,10 @@ Future<void> _setupMonitoringSession(
 /// to manually retry.
 Future<void> _startScreenStreamSafe(String uid) async {
   try {
-    // STREAM-RELAY-URL: Ensure relay URL is saved to SharedPreferences
-    // before starting the screen stream.
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final existingUrl = prefs.getString('stream_relay_url');
-      if (existingUrl == null || existingUrl.isEmpty) {
-        // Try reading from Firebase
-        try {
-          final snap = await FirebaseDatabase.instance
-              .ref('users/$uid/streamRelayUrl')
-              .get()
-              .timeout(const Duration(seconds: 5));
-          if (snap.value is String && (snap.value as String).isNotEmpty) {
-            final firebaseUrl = snap.value as String;
-            await prefs.setString('stream_relay_url', firebaseUrl);
-            debugPrint('[BgService] Saved Firebase relay URL to SharedPreferences: $firebaseUrl');
-          }
-        } catch (_) {}
-      }
-    } catch (_) {}
-
     var projectionActive = await ScreenCaptureChannel.isProjectionActive();
 
     if (projectionActive) {
-      await SilentWebRTCService.instance.startSilentScreen(uid);
+      await _startWebSocketScreenStream(uid);
       return;
     }
 
@@ -779,7 +840,7 @@ Future<void> _startScreenStreamSafe(String uid) async {
           if (projectionActive) {
             debugPrint('[BgService] Projection re-acquired after silent restart');
             await FirebaseDatabase.instance.ref('calls/$uid/needsConsent').remove();
-            await SilentWebRTCService.instance.startSilentScreen(uid);
+            await _startWebSocketScreenStream(uid);
             return;
           }
         }
@@ -809,7 +870,7 @@ Future<void> _startScreenStreamSafe(String uid) async {
         debugPrint('[BgService] Projection confirmed active — starting screen stream');
         await FirebaseDatabase.instance.ref('calls/$uid/projectionReady').remove();
         await FirebaseDatabase.instance.ref('calls/$uid/needsConsent').remove();
-        await SilentWebRTCService.instance.startSilentScreen(uid);
+        await _startWebSocketScreenStream(uid);
       } else {
         debugPrint('[BgService] projectionReady signal but token not yet active — polling');
         // Poll for a few more seconds
@@ -824,7 +885,7 @@ Future<void> _startScreenStreamSafe(String uid) async {
             debugPrint('[BgService] Projection confirmed active after polling — starting screen stream');
             await FirebaseDatabase.instance.ref('calls/$uid/projectionReady').remove();
             await FirebaseDatabase.instance.ref('calls/$uid/needsConsent').remove();
-            await SilentWebRTCService.instance.startSilentScreen(uid);
+            await _startWebSocketScreenStream(uid);
             return;
           }
         }
@@ -839,28 +900,6 @@ Future<void> _startScreenStreamSafe(String uid) async {
       'Screen sharing requires the child app to be open. '
       'Open the Family Monitor app on the child device to grant screen permission.',
     );
-
-    // STREAM-RELAY-URL: If WebRTC approach fails, try starting the
-    // ScreenStreamService directly via ScreenCaptureChannel.
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final relayUrl = prefs.getString('stream_relay_url');
-      if (relayUrl != null && relayUrl.isNotEmpty && projectionActive) {
-        debugPrint('[BgService] WebRTC screen stream failed — trying direct ScreenStreamService');
-        final started = await ScreenCaptureChannel.startScreenStream(
-          uid: uid,
-          serverUrl: relayUrl,
-        );
-        if (started) {
-          debugPrint('[BgService] ScreenStreamService started directly — WebSocket streaming active');
-          await FirebaseDatabase.instance.ref('calls/$uid/wsStreamMode').set(true);
-          await FirebaseDatabase.instance.ref('calls/$uid/nativeCaptureMode').set(true);
-          return;
-        }
-      }
-    } catch (e) {
-      debugPrint('[BgService] Direct ScreenStreamService start failed: $e');
-    }
   } catch (e) {
     debugPrint('[BgService] _startScreenStreamSafe error: $e');
   }
@@ -871,7 +910,7 @@ Future<void> _startScreenStreamSafe(String uid) async {
 /// Called when the stale-call cleanup detects a screen session with
 /// status='calling' that is older than 5 minutes. Instead of removing it
 /// (which would kill the parent's live view), we attempt to re-establish the
-/// WebRTC stream. If the MediaProjection token is still valid, the stream
+/// screen stream. If the MediaProjection token is still valid, the stream
 /// restarts immediately. If not, we try a silent restart of the projection
 /// service. If that also fails, we signal the parent that re-consent is needed.
 Future<void> _tryReconnectActiveScreenSession(String uid) async {
@@ -879,8 +918,8 @@ Future<void> _tryReconnectActiveScreenSession(String uid) async {
     final projectionActive = await ScreenCaptureChannel.isProjectionActive();
 
     if (projectionActive) {
-      debugPrint('[BgService] Projection still active — restarting screen WebRTC stream');
-      await SilentWebRTCService.instance.startSilentScreen(uid);
+      debugPrint('[BgService] Projection still active — restarting screen stream');
+      await _startWebSocketScreenStream(uid);
       return;
     }
 
@@ -899,7 +938,7 @@ Future<void> _tryReconnectActiveScreenSession(String uid) async {
           final nowActive = await ScreenCaptureChannel.isProjectionActive();
           if (nowActive) {
             debugPrint('[BgService] Projection re-acquired for reconnect — starting screen stream');
-            await SilentWebRTCService.instance.startSilentScreen(uid);
+            await _startWebSocketScreenStream(uid);
             return;
           }
         }
@@ -919,7 +958,7 @@ Future<void> _tryReconnectActiveScreenSession(String uid) async {
 
 /// BUG-3-FIX: Check Firebase for any active monitoring sessions and reconnect.
 ///
-/// Called after a watchdog-triggered restart (or boot) to ensure the WebRTC
+/// Called after a watchdog-triggered restart (or boot) to ensure the screen
 /// stream is re-established for any ongoing call. This is a belt-and-suspenders
 /// check — the `_callsSub` listener inside `_setupMonitoringSession` should
 /// also handle this when it fires with the current snapshot, but this explicit
@@ -974,7 +1013,7 @@ Future<void> _checkAndReconnectActiveSession(String uid) async {
     if (mode == 'screen') {
       await _startScreenStreamSafe(uid);
     } else {
-      await SilentWebRTCService.instance.startSilentCamera(uid);
+      await _signalCameraModeUnavailable(uid);
     }
   } catch (e) {
     debugPrint('[BgService] _checkAndReconnectActiveSession error: $e');

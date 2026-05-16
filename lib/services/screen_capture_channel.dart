@@ -137,7 +137,7 @@ class ScreenCaptureChannel {
   }
 
   /// Returns the saved MediaProjection result code and data URI.
-  /// Used by SilentWebRTCService to pass existing projection data to
+  /// Used by background monitoring service to pass existing projection data to
   /// getDisplayMedia(), avoiding the system consent dialog.
   ///
   /// BUG-2-FIX: Also returns Parcel-marshaled Intent bytes that preserve
@@ -160,7 +160,7 @@ class ScreenCaptureChannel {
 
   /// BUG-2-FIX: Returns the Parcel-marshaled Intent bytes that preserve
   /// the Binder extra. This is the PREFERRED way to pass projection data
-  /// to flutter_webrtc on Android 14+ where Intent.toUri() loses the Binder.
+  /// to the native side on Android 14+ where Intent.toUri() loses the Binder.
   ///
   /// Returns a map with:
   ///   - 'resultCode': int - The result code from the consent dialog
@@ -289,7 +289,7 @@ class ScreenCaptureChannel {
 
   /// Start native screen frame capture using VirtualDisplay + ImageReader.
   ///
-  /// This is used as a fallback when flutter_webrtc's getDisplayMedia()
+  /// This is used as a fallback when the native getDisplayMedia()
   /// fails (e.g., due to Intent URI serialization losing the Binder extra
   /// on Android 14+). Frames are captured as JPEG and can be retrieved
   /// via [getScreenFrame] or relayed to the parent via Firebase RTDB.

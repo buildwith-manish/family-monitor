@@ -169,7 +169,7 @@ void _startCallback() {
 
 // ARCH-01: The foreground task handler no longer owns WebRTC.  After the
 // ARCH-01 fix, the background-service isolate (background_monitoring_service.dart)
-// drives SilentWebRTCService directly.  This handler's sole responsibility is:
+// drives screen streaming directly.  This handler's sole responsibility is:
 //   1. Keeping the persistent "Monitoring active" notification alive.
 //
 // ARCH-03: isOnline is intentionally NOT written here.  PresenceService (via

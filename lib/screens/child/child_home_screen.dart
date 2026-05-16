@@ -22,9 +22,9 @@ import '../../services/screen_capture_channel.dart';
 import '../../services/call_log_service.dart';
 import '../../services/contacts_service.dart';
 import '../../services/foreground_service.dart';
-import '../../services/silent_webrtc_service.dart';
+// Screen streaming uses WebSocket only
 import '../../services/snapshot_service.dart';
-import '../../services/webrtc_service.dart';
+import '../../services/stream_mode.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ChildHomeScreen extends StatefulWidget {
@@ -558,13 +558,13 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
           final StreamMode _mode =
               modeStr == 'screen' ? StreamMode.screen : StreamMode.camera;
           // WEB-02 / ARCH-01: The background-service isolate now drives
-          // SilentWebRTCService directly. Calling _autoStartStreaming() here
-          // would start a second, conflicting WebRTC connection from the UI
+          // ScreenStreamService directly. Calling _autoStartStreaming() here
+          // would start a second, conflicting screen stream from the UI
           // isolate. The background service's _callsSub already handles this.
         } else if (status == 'ended' || status == null) {
-          // WEB-02: Background service handles the stop — calling stopSilent()
+          // WEB-02: Background service handles the stop — calling stopScreenStream()
           // here races with the background-isolate cleanup and can leave the
-          // peer connection in a half-closed state.
+          // stream service in a half-closed state.
         }
       } catch (_) {}
     });
@@ -656,9 +656,59 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
 
   void _autoStartStreaming(String uid, StreamMode mode) {
     if (mode == StreamMode.screen) {
-      SilentWebRTCService.instance.startSilentScreen(uid).catchError((_) {});
+      _startWebSocketScreenFromHome(uid).catchError((_) {});
     } else {
-      SilentWebRTCService.instance.startSilentCamera(uid).catchError((_) {});
+      debugPrint('[ChildHome] Camera streaming mode not supported without WebRTC');
+    }
+  }
+
+  /// Start WebSocket screen stream from the child home screen.
+  /// Checks for MediaProjection token first; if missing, shows dialog.
+  Future<void> _startWebSocketScreenFromHome(String uid) async {
+    final tokenAvailable = await ScreenCaptureChannel.isProjectionActive();
+    if (!tokenAvailable) {
+      debugPrint('[ChildHome] No MediaProjection token — requesting screen capture permission');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Screen permission needed. Please run setup again.'),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      var relayUrl = prefs.getString('stream_relay_url');
+      if (relayUrl == null || relayUrl.isEmpty) {
+        try {
+          final snap = await FirebaseDatabase.instance
+              .ref('users/$uid/streamRelayUrl')
+              .get()
+              .timeout(const Duration(seconds: 5));
+          if (snap.value is String && (snap.value as String).isNotEmpty) {
+            relayUrl = snap.value as String;
+            await prefs.setString('stream_relay_url', relayUrl);
+          }
+        } catch (_) {}
+      }
+      if (relayUrl != null && relayUrl.isNotEmpty) {
+        final started = await ScreenCaptureChannel.startScreenStream(
+          uid: uid,
+          serverUrl: relayUrl,
+        );
+        if (started) {
+          debugPrint('[ChildHome] WebSocket screen stream started from home screen');
+          await FirebaseDatabase.instance.ref('calls/$uid/wsStreamMode').set(true);
+          await FirebaseDatabase.instance.ref('calls/$uid/nativeCaptureMode').set(true);
+        }
+      } else {
+        debugPrint('[ChildHome] No relay URL available — cannot start screen stream');
+      }
+    } catch (e) {
+      debugPrint('[ChildHome] Failed to start WebSocket screen stream: $e');
     }
   }
 
@@ -760,9 +810,8 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     _pendingSub?.cancel();
     _parentSub?.cancel();
     _needsConsentSub?.cancel();
-    // FIX-01: Do NOT call SilentWebRTCService.instance.stopSilent() here.
-    // WebRTC is now owned by the background-service isolate. Stopping it from
-    // the UI dispose races with the background isolate and would kill an active
+    // Screen streaming is managed by the background-service isolate.
+    // Stopping from UI dispose races with the background isolate and would kill an active
     // monitoring session whenever the UI is recreated (rotation, navigation).
     LocationService.instance.stopTracking();
     AlertService.instance.stopBatteryMonitoring();
