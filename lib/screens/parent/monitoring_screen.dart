@@ -1,4 +1,5 @@
 import '../../services/webrtc_service.dart';
+import '../../services/stream_viewer_service.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -8,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MonitoringScreen extends StatefulWidget {
   final String childUid;
@@ -48,6 +50,16 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
   Uint8List? _currentFrame;
   StreamSubscription? _nativeCaptureSub;
   StreamSubscription? _nativeCaptureModeSub;
+
+  // STREAM-01: WebSocket stream viewer — low-latency binary frame streaming.
+  // When the child's ScreenStreamService pushes frames over WebSocket to the
+  // relay server, the parent connects via StreamViewerService to receive frames.
+  // This is much faster than Firebase RTDB base64 relay (10+ FPS vs 3 FPS).
+  StreamViewerService? _streamViewer;
+  StreamSubscription? _wsFrameSub;
+  StreamSubscription? _wsConnStateSub;
+  bool _wsStreamMode = false;
+  double _streamFps = 0;
 
   @override
   void initState() {
@@ -150,7 +162,14 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           _status = 'Receiving screen frames...';
         });
         _timeout?.cancel();
-        _startNativeFrameListener();
+
+        // STREAM-01: If WebSocket relay is configured, use it for low-latency frames.
+        // Otherwise, fall back to Firebase RTDB base64 relay.
+        _tryStartWebSocketViewer().then((started) {
+          if (!started) {
+            _startNativeFrameListener();
+          }
+        });
       } else if (!isNativeMode && _nativeCaptureMode) {
         debugPrint('[MonitoringScreen] Native capture mode ended');
         setState(() {
@@ -158,6 +177,32 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         });
         _nativeCaptureSub?.cancel();
         _nativeCaptureSub = null;
+      }
+    });
+
+    // STREAM-01: Listen for WebSocket stream mode signal from child device.
+    // When the child's ScreenStreamService pushes frames over WebSocket,
+    // it sets wsStreamMode=true. We connect the StreamViewerService.
+    db.child('calls/${widget.childUid}/wsStreamMode')
+        .onValue
+        .listen((e) {
+      if (!mounted) return;
+      final isWsMode = e.snapshot.value == true;
+      if (isWsMode && !_wsStreamMode) {
+        debugPrint('[MonitoringScreen] WebSocket stream mode detected');
+        setState(() {
+          _wsStreamMode = true;
+          _nativeCaptureMode = true;
+          _status = 'Live stream connected';
+        });
+        _timeout?.cancel();
+        _tryStartWebSocketViewer();
+      } else if (!isWsMode && _wsStreamMode) {
+        debugPrint('[MonitoringScreen] WebSocket stream mode ended');
+        setState(() {
+          _wsStreamMode = false;
+        });
+        _stopWebSocketViewer();
       }
     });
   }
@@ -194,6 +239,84 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     });
   }
 
+  // ── STREAM-01: WebSocket stream viewer methods ────────────────────────
+
+  /// Try to start the WebSocket stream viewer for low-latency frame display.
+  /// Returns true if the viewer was started, false if no relay URL is configured.
+  Future<bool> _tryStartWebSocketViewer() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final relayUrl = prefs.getString('stream_relay_url');
+      if (relayUrl == null || relayUrl.isEmpty) {
+        debugPrint('[MonitoringScreen] No WebSocket relay URL configured — using Firebase relay');
+        return false;
+      }
+
+      debugPrint('[MonitoringScreen] Starting WebSocket viewer at $relayUrl');
+      _stopWebSocketViewer(); // Clean up any existing viewer
+
+      _streamViewer = StreamViewerService(relayUrl: relayUrl);
+
+      // Listen for connection state changes
+      _wsConnStateSub = _streamViewer!.connectionState.listen((state) {
+        if (!mounted) return;
+        debugPrint('[MonitoringScreen] WebSocket state: $state');
+        switch (state) {
+          case StreamConnectionState.connected:
+            setState(() {
+              _status = 'Live stream connected';
+            });
+            break;
+          case StreamConnectionState.childOffline:
+            setState(() {
+              _status = 'Child device disconnected from stream';
+            });
+            break;
+          case StreamConnectionState.error:
+            setState(() {
+              _status = 'Stream connection error. Tap Retry.';
+            });
+            break;
+          case StreamConnectionState.connecting:
+            setState(() {
+              _status = 'Connecting to stream...';
+            });
+            break;
+          case StreamConnectionState.disconnected:
+            break;
+        }
+      });
+
+      // Listen for frames
+      _wsFrameSub = _streamViewer!.frameStream.listen((frameBytes) {
+        if (!mounted) return;
+        setState(() {
+          _currentFrame = frameBytes;
+          _streamFps = _streamViewer?.currentFps ?? 0;
+          if (_status != 'Connected') {
+            _status = 'Connected';
+          }
+        });
+      });
+
+      await _streamViewer!.connect(widget.childUid);
+      return true;
+    } catch (e) {
+      debugPrint('[MonitoringScreen] WebSocket viewer start error: $e');
+      return false;
+    }
+  }
+
+  /// Stop the WebSocket stream viewer.
+  void _stopWebSocketViewer() {
+    _wsFrameSub?.cancel();
+    _wsFrameSub = null;
+    _wsConnStateSub?.cancel();
+    _wsConnStateSub = null;
+    _streamViewer?.disconnect();
+    _streamViewer = null;
+  }
+
   Future<void> _startMonitoring() async {
     try {
       // Clear any stale screenError from a previous session so it doesn't
@@ -214,6 +337,10 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           .remove();
       await FirebaseDatabase.instance
           .ref('calls/${widget.childUid}/projectionReady')
+          .remove();
+      // STREAM-01: Clear stale WebSocket stream mode flag
+      await FirebaseDatabase.instance
+          .ref('calls/${widget.childUid}/wsStreamMode')
           .remove();
 
       await _webrtc.startAsParent(
@@ -310,6 +437,11 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     _screenErrorSub?.cancel();
     _nativeCaptureSub?.cancel();
     _nativeCaptureModeSub?.cancel();
+    // STREAM-01: Clean up WebSocket stream viewer
+    _wsFrameSub?.cancel();
+    _wsConnStateSub?.cancel();
+    _streamViewer?.dispose();
+    _streamViewer = null;
     _webrtc.onRemoteStream = null;
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     // P5-B: Chain endCall → dispose so the Firebase 'ended' write reaches the
@@ -513,13 +645,19 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: Colors.amber.withOpacity(0.3),
+                                    color: _wsStreamMode
+                                        ? Colors.green.withOpacity(0.3)
+                                        : Colors.amber.withOpacity(0.3),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
-                                    'Frame Mode',
+                                    _wsStreamMode
+                                        ? 'Live ${_streamFps > 0 ? '${_streamFps.toStringAsFixed(0)}fps' : ''}'
+                                        : 'Frame Mode',
                                     style: GoogleFonts.inter(
-                                      color: Colors.amberAccent,
+                                      color: _wsStreamMode
+                                          ? Colors.greenAccent
+                                          : Colors.amberAccent,
                                       fontSize: 9,
                                       fontWeight: FontWeight.w700,
                                     ),

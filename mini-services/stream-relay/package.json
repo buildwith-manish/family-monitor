@@ -1,0 +1,11 @@
+{
+  "name": "stream-relay",
+  "version": "1.0.0",
+  "description": "WebSocket stream relay for family-monitor live screen monitoring",
+  "scripts": {
+    "dev": "bun --hot index.ts"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

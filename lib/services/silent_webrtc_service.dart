@@ -16,6 +16,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'screen_capture_channel.dart';
 import 'turn_config_service.dart';
 
@@ -512,23 +513,52 @@ class SilentWebRTCService {
   /// Timer for the native frame capture relay loop.
   Timer? _nativeCaptureTimer;
 
-  /// Acquire screen media using native VirtualDisplay + ImageReader capture
-  /// and relay frames to the parent via Firebase RTDB.
+  /// STREAM-01: Prefer WebSocket streaming over Firebase RTDB relay.
+  /// The WebSocket approach provides much lower latency and higher FPS.
+  /// Falls back to Firebase RTDB base64 relay if WebSocket is not configured.
   ///
-  /// This is used as a fallback when flutter_webrtc's getDisplayMedia()
-  /// fails (e.g., on Android 14+ where Intent URI serialization loses the
-  /// Binder extra needed by getMediaProjection()).
+  /// Acquire screen media using VirtualDisplay + ImageReader capture
+  /// and relay frames to the parent. Strategy:
+  ///   1. Try WebSocket streaming via ScreenStreamService (preferred)
+  ///   2. Fall back to Firebase RTDB base64 relay (legacy)
   ///
-  /// The approach:
-  /// 1. Start native frame capture via MethodChannel
-  /// 2. Poll for frames at ~2 FPS
-  /// 3. Write each frame as base64 to Firebase RTDB at
-  ///    calls/$uid/screenFrame
-  /// 4. The parent's MonitoringScreen reads this data and displays it
-  ///
-  /// Returns null (WebRTC stream not available) but the parent side will
-  /// detect the screenFrame data and display it.
+  /// Returns null (no WebRTC MediaStream available for screen mode),
+  /// but the parent side will detect the stream data and display it.
   Future<MediaStream?> _acquireMediaNativeCapture() async {
+    // STREAM-01: Try WebSocket streaming first
+    if (_activeUid != null) {
+      try {
+        final streamRelayUrl = await _getStreamRelayUrl();
+        if (streamRelayUrl != null && streamRelayUrl.isNotEmpty) {
+          debugPrint('[SilentWebRTC] WebSocket relay URL available — starting ScreenStreamService');
+          final started = await ScreenCaptureChannel.startScreenStream(
+            uid: _activeUid!,
+            serverUrl: streamRelayUrl,
+          );
+          if (started) {
+            debugPrint('[SilentWebRTC] ScreenStreamService started — WebSocket streaming active');
+
+            // Signal to parent that stream mode is active
+            try {
+              await FirebaseDatabase.instance
+                  .ref('calls/$_activeUid/wsStreamMode')
+                  .set(true);
+              await FirebaseDatabase.instance
+                  .ref('calls/$_activeUid/nativeCaptureMode')
+                  .set(true);
+            } catch (_) {}
+
+            // Monitor stream health
+            _startStreamHealthMonitor();
+            return null; // No WebRTC stream — parent uses WebSocket frames
+          }
+        }
+      } catch (e) {
+        debugPrint('[SilentWebRTC] WebSocket stream start failed: $e — falling back to Firebase relay');
+      }
+    }
+
+    // Fallback: Legacy Firebase RTDB base64 relay
     try {
       // BUG-2 FIX: Use smaller frame dimensions (480x854) for faster
       // Firebase RTDB relay. At this resolution with JPEG quality=40%,
@@ -604,6 +634,50 @@ class SilentWebRTCService {
       debugPrint('[SilentWebRTC] Native capture setup failed: $e');
       return null;
     }
+  }
+
+  /// STREAM-01: Get the WebSocket relay URL from SharedPreferences.
+  /// This is configured during the child device setup wizard.
+  Future<String?> _getStreamRelayUrl() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('stream_relay_url');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// STREAM-01: Monitor the health of the WebSocket stream service.
+  Timer? _streamHealthTimer;
+
+  void _startStreamHealthMonitor() {
+    _streamHealthTimer?.cancel();
+    _streamHealthTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+      if (!_active || _activeUid == null) {
+        _streamHealthTimer?.cancel();
+        return;
+      }
+      try {
+        final status = await ScreenCaptureChannel.getStreamStatus();
+        final isStreaming = status?['isStreaming'] as bool? ?? false;
+        final wsConnected = status?['wsConnected'] as bool? ?? false;
+
+        if (!isStreaming) {
+          debugPrint('[SilentWebRTC] ScreenStreamService stopped — attempting restart');
+          final relayUrl = await _getStreamRelayUrl();
+          if (relayUrl != null && _activeUid != null) {
+            await ScreenCaptureChannel.startScreenStream(
+              uid: _activeUid!,
+              serverUrl: relayUrl,
+            );
+          }
+        } else if (!wsConnected) {
+          debugPrint('[SilentWebRTC] WebSocket disconnected — service should auto-reconnect');
+        }
+      } catch (e) {
+        debugPrint('[SilentWebRTC] Stream health check error: $e');
+      }
+    });
   }
 
   void _scheduleReconnect(String childUid) {
@@ -717,6 +791,8 @@ class SilentWebRTCService {
     _connectivitySub?.cancel();   _connectivitySub   = null;
     // BUG-2-FIX: Cancel native capture timer and stop native capture.
     _nativeCaptureTimer?.cancel(); _nativeCaptureTimer = null;
+    // STREAM-01: Cancel stream health monitor and stop WebSocket stream.
+    _streamHealthTimer?.cancel(); _streamHealthTimer = null;
 
     if (_activeStreams > 0) _activeStreams--;
     if (_activeStreams == 0) {
@@ -725,6 +801,8 @@ class SilentWebRTCService {
 
     // BUG-2/BUG-3 FIX: Stop native frame capture if it was running.
     try { await ScreenCaptureChannel.stopNativeScreenCapture(); } catch (_) {}
+    // STREAM-01: Stop WebSocket stream service if it was running.
+    try { await ScreenCaptureChannel.stopScreenStream(); } catch (_) {}
 
     // BUG-2/BUG-3 FIX: Clean up Firebase flags so stale state doesn't
     // persist after the session ends. Uses saved uidForCleanup since
@@ -735,6 +813,7 @@ class SilentWebRTCService {
         await FirebaseDatabase.instance.ref('calls/$uidForCleanup/screenFrame').remove();
         await FirebaseDatabase.instance.ref('calls/$uidForCleanup/needsConsent').remove();
         await FirebaseDatabase.instance.ref('calls/$uidForCleanup/projectionReady').remove();
+        await FirebaseDatabase.instance.ref('calls/$uidForCleanup/wsStreamMode').remove();
       } catch (_) {}
     }
 

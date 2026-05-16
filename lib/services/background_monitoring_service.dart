@@ -416,6 +416,7 @@ Future<void> _setupMonitoringSession(
     await FirebaseDatabase.instance.ref('calls/$uid/needsConsent').remove();
     await FirebaseDatabase.instance.ref('calls/$uid/projectionReady').remove();
     await FirebaseDatabase.instance.ref('calls/$uid/screenError').remove();
+    await FirebaseDatabase.instance.ref('calls/$uid/wsStreamMode').remove();
   } catch (_) {}
 
   _connectedSub = FirebaseDatabase.instance.ref('.info/connected').onValue.listen((event) async {

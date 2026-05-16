@@ -284,4 +284,8 @@ dependencies {
     // FIX-15: For DevicePolicyManager.setPackagesSuspended (requires API 24+
     // which matches our minSdk=24, no extra dep needed — using built-in DPM API)
 
+    // STREAM-01: OkHttp for WebSocket-based screen streaming (ScreenStreamService).
+    // Replaces the slow Firebase RTDB base64 relay with low-latency binary WebSocket streaming.
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
 }

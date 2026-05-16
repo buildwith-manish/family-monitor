@@ -269,6 +269,17 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Used for continuous parental monitoring of child devices"/>
         </service>
+
+        <!-- ── Screen Stream Service (WebSocket Streaming) ── -->
+        <!-- STREAM-01: Low-latency screen streaming service that captures frames
+             via VirtualDisplay + ImageReader and pushes them over WebSocket to
+             a relay server. Replaces the slow Firebase RTDB base64 relay. -->
+        <service
+            android:name=".ScreenStreamService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection|dataSync"
+            android:stopWithTask="false"/>
     </application>
 
     <queries>

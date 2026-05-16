@@ -243,6 +243,62 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                // ── STREAM-01: ScreenStreamService WebSocket streaming methods ──
+
+                "startScreenStream" -> {
+                    try {
+                        val uid = call.argument<String>("uid")
+                        val serverUrl = call.argument<String>("serverUrl")
+                        if (uid.isNullOrEmpty()) {
+                            result.success(false)
+                            return@setMethodCallHandler
+                        }
+                        val streamIntent = Intent(this, ScreenStreamService::class.java).apply {
+                            action = ScreenStreamService.ACTION_START_STREAM
+                            putExtra(ScreenStreamService.EXTRA_UID, uid)
+                            if (!serverUrl.isNullOrEmpty()) {
+                                putExtra(ScreenStreamService.EXTRA_SERVER_URL, serverUrl)
+                            }
+                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                            startForegroundService(streamIntent)
+                        else startService(streamIntent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "startScreenStream error: $e")
+                        result.success(false)
+                    }
+                }
+
+                "stopScreenStream" -> {
+                    try {
+                        val streamIntent = Intent(this, ScreenStreamService::class.java).apply {
+                            action = ScreenStreamService.ACTION_STOP_STREAM
+                        }
+                        startService(streamIntent)
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.success(null)
+                    }
+                }
+
+                "isScreenStreaming" -> {
+                    result.success(ScreenStreamService.isStreaming)
+                }
+
+                "getStreamStatus" -> {
+                    try {
+                        result.success(mapOf(
+                            "isStreaming" to ScreenStreamService.isStreaming,
+                            "wsConnected" to ScreenStreamService.wsConnected,
+                            "frameCount" to ScreenStreamService.frameCount,
+                            "lastFrameTimestamp" to ScreenStreamService.lastFrameTimestamp
+                        ))
+                    } catch (e: Exception) {
+                        result.success(null)
+                    }
+                }
+
                 "requestBatteryOptimizationExemption" -> {
                     try {
                         val intent = Intent(

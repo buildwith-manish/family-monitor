@@ -207,6 +207,83 @@ class ScreenCaptureChannel {
     }
   }
 
+  // ── STREAM-01: WebSocket screen streaming methods ──────────────────────
+
+  /// Start the ScreenStreamService which captures screen frames via
+  /// VirtualDisplay + ImageReader and pushes them over WebSocket to the
+  /// relay server. This provides much lower latency than the Firebase RTDB
+  /// base64 relay approach.
+  ///
+  /// [uid] - The child's Firebase UID (used as session identifier)
+  /// [serverUrl] - The WebSocket relay server URL (e.g., ws://192.168.1.100:3004)
+  ///
+  /// Returns true if the service was started successfully.
+  static Future<bool> startScreenStream({
+    required String uid,
+    String? serverUrl,
+  }) async {
+    try {
+      final result = await _channel.invokeMethod<bool>(
+        'startScreenStream',
+        {'uid': uid, 'serverUrl': serverUrl},
+      );
+      return result ?? false;
+    } on MissingPluginException catch (_) {
+      return false;
+    } on PlatformException catch (e) {
+      debugPrint('[ScreenCapture] startScreenStream error: $e');
+      return false;
+    } catch (e) {
+      debugPrint('[ScreenCapture] startScreenStream error: $e');
+      return false;
+    }
+  }
+
+  /// Stop the ScreenStreamService WebSocket streaming.
+  static Future<void> stopScreenStream() async {
+    try {
+      await _channel.invokeMethod('stopScreenStream');
+    } on MissingPluginException catch (_) {
+      // ignore
+    } on PlatformException catch (_) {
+      // ignore
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  /// Returns true if the ScreenStreamService is currently streaming.
+  static Future<bool> isScreenStreaming() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('isScreenStreaming');
+      return result ?? false;
+    } on MissingPluginException catch (_) {
+      return false;
+    } on PlatformException catch (_) {
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Get the current status of the ScreenStreamService.
+  /// Returns a map with: isStreaming, wsConnected, frameCount, lastFrameTimestamp
+  static Future<Map<String, dynamic>?> getStreamStatus() async {
+    try {
+      final result = await _channel.invokeMethod<Map>('getStreamStatus');
+      if (result != null) {
+        return Map<String, dynamic>.from(result);
+      }
+      return null;
+    } on MissingPluginException catch (_) {
+      return null;
+    } on PlatformException catch (_) {
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ── BUG-2-FIX: Native screen frame capture methods ─────────────────────
 
   /// Start native screen frame capture using VirtualDisplay + ImageReader.
