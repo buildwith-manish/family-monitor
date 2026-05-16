@@ -253,16 +253,34 @@ class MainActivity : FlutterActivity() {
                             result.error("INVALID_ARGS", "uid is required", null)
                             return@setMethodCallHandler
                         }
-                        // Rule 5: Check if a MediaProjection token is available.
-                        // ScreenCaptureService holds the token; if neither the live
-                        // projection nor saved result data exists, streaming cannot work.
-                        val hasToken = ScreenCaptureService.projectionToken != null ||
-                                (ScreenCaptureService.savedResultCode != 0 &&
-                                 ScreenCaptureService.savedResultData != null)
-                        if (!hasToken) {
+                        // Check if a MediaProjection token is available.
+                        // Priority:
+                        //   1. Live projection token from ScreenCaptureService
+                        //   2. Saved result code + data from ScreenCaptureService
+                        //   3. Persisted result code in SharedPreferences (survives
+                        //      ScreenCaptureService being stopped/restarted)
+                        val hasLiveToken = ScreenCaptureService.projectionToken != null
+                        val hasSavedData = ScreenCaptureService.savedResultCode != 0 &&
+                                ScreenCaptureService.savedResultData != null
+                        val hasPersistedToken = try {
+                            getSharedPreferences("fm_prefs", Context.MODE_PRIVATE)
+                                .getInt("projection_result_code", 0) != 0
+                        } catch (_: Exception) { false }
+
+                        if (!hasLiveToken && !hasSavedData && !hasPersistedToken) {
                             result.error("NO_TOKEN", "No MediaProjection token available — request screen capture permission first", null)
                             return@setMethodCallHandler
                         }
+
+                        // Persist the UID and server URL so ScreenStreamService can
+                        // read them on restart (START_STICKY recovery).
+                        if (!uid.isNullOrEmpty()) {
+                            getSharedPreferences("fm_prefs", Context.MODE_PRIVATE)
+                                .edit()
+                                .putString("stream_child_uid", uid)
+                                .apply()
+                        }
+
                         val streamIntent = Intent(this, ScreenStreamService::class.java).apply {
                             action = ScreenStreamService.ACTION_START_STREAM
                             putExtra(ScreenStreamService.EXTRA_UID, uid)

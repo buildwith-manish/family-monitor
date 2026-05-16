@@ -536,7 +536,8 @@ class _ChildSetupWizardScreenState
   }
 
   /// Save the stream relay URL to SharedPreferences (both Flutter and fm_prefs)
-  /// and to Firebase so the parent can read it.
+  /// and to Firebase so the parent can read it. Also sets wsStreamMode flag
+  /// so the parent knows WebSocket streaming is available.
   Future<void> _saveStreamRelayUrl(String uid) async {
     final url = _relayUrlCtrl.text.trim();
     if (url.isEmpty) return;
@@ -550,7 +551,13 @@ class _ChildSetupWizardScreenState
       await FirebaseDatabase.instance
           .ref('users/$uid/streamRelayUrl')
           .set(url);
-      debugPrint('[Wizard] Stream relay URL saved to Firebase');
+
+      // Set wsStreamMode flag so parent knows WebSocket streaming is available
+      await FirebaseDatabase.instance
+          .ref('users/$uid/wsStreamMode')
+          .set(true);
+
+      debugPrint('[Wizard] Stream relay URL and wsStreamMode saved to Firebase');
 
       if (mounted) {
         setState(() => _relayUrlSaved = true);

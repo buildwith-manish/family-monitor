@@ -288,4 +288,8 @@ dependencies {
     // Replaces the slow Firebase RTDB base64 relay with low-latency binary WebSocket streaming.
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
+    // Firebase Realtime Database — native Kotlin SDK for RTDB fallback frame relay
+    // from ScreenStreamService when WebSocket relay is unavailable.
+    implementation("com.google.firebase:firebase-database-ktx:21.0.0")
+
 }

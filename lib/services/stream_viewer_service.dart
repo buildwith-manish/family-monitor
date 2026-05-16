@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 
 /// Connection states for the stream viewer WebSocket.
@@ -242,6 +243,20 @@ class StreamViewerService {
       final type = json['type'] as String?;
 
       switch (type) {
+        case 'screen_frame':
+          // CRITICAL FIX: Child sends JSON {type:"screen_frame", frame:"<base64>"}
+          // via the WebSocket relay. Without this handler, every frame was
+          // silently dropped and the parent saw nothing.
+          final frameBase64 = json['frame'] as String?;
+          if (frameBase64 != null && frameBase64.isNotEmpty) {
+            try {
+              final bytes = base64Decode(frameBase64);
+              _handleBinaryFrame(Uint8List.fromList(bytes));
+            } catch (e) {
+              debugPrint('[StreamViewer] screen_frame base64 decode error: $e');
+            }
+          }
+          break;
         case 'child_disconnected':
           debugPrint('[StreamViewer] Child disconnected notification received');
           _isChildStreaming = false;

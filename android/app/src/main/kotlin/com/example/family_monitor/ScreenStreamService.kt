@@ -29,6 +29,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import com.google.firebase.database.FirebaseDatabase
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
@@ -297,6 +298,18 @@ class ScreenStreamService : Service() {
 
         isStreaming = true
 
+        // Signal to parent via Firebase that WebSocket streaming is active.
+        // This allows the parent's monitoring_screen.dart to discover the stream
+        // even if the Dart background service hasn't set these flags yet.
+        try {
+            FirebaseDatabase.getInstance()
+                .getReference("calls/$childUid/wsStreamMode").setValue(true)
+            FirebaseDatabase.getInstance()
+                .getReference("calls/$childUid/nativeCaptureMode").setValue(true)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to set wsStreamMode/nativeCaptureMode in Firebase: ${e.message}")
+        }
+
         // FIX-8: Ensure wake lock renewal is running during streaming.
         startWakeLockRenewal()
 
@@ -313,6 +326,18 @@ class ScreenStreamService : Service() {
         isStreaming = false
         frameCount = 0
         latestFrameBytes = null
+
+        // Clear Firebase streaming flags so parent knows stream has ended.
+        try {
+            FirebaseDatabase.getInstance()
+                .getReference("calls/$childUid/wsStreamMode").removeValue()
+            FirebaseDatabase.getInstance()
+                .getReference("calls/$childUid/nativeCaptureMode").removeValue()
+            FirebaseDatabase.getInstance()
+                .getReference("calls/$childUid/screenFrame").removeValue()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to clear Firebase streaming flags: ${e.message}")
+        }
 
         // FIX-7: Clear the stream_was_active flag when streaming stops deliberately.
         clearStreamActiveFlag()
@@ -828,28 +853,57 @@ class ScreenStreamService : Service() {
         }
     }
 
+    // Throttle Firebase RTDB writes to avoid excessive bandwidth.
+    // Firebase RTDB is the fallback path; WebSocket is primary.
+    private var lastFirebaseWriteTime: Long = 0
+    private val FIREBASE_WRITE_INTERVAL_MS = 333L  // ~3 FPS max for RTDB fallback
+
     /**
      * Send a JPEG frame as a JSON WebSocket message with base64-encoded payload.
+     * Also writes to Firebase RTDB as a fallback so the parent can receive
+     * frames even without a WebSocket relay server.
+     *
      * Frames are dropped silently if WebSocket is not connected — the relay
      * server delivers the latest frame to parents, so occasional drops are fine.
      */
     private fun sendFrame(jpegBytes: ByteArray) {
+        val base64Frame = android.util.Base64.encodeToString(
+            jpegBytes, android.util.Base64.NO_WRAP
+        )
+
+        // ── Primary path: WebSocket relay ──
         val ws = webSocket
-        if (ws == null || !wsConnected) {
-            // Frame buffered in latestFrameBytes — will be sent on reconnect
-            return
+        if (ws != null && wsConnected) {
+            try {
+                ws.send(JSONObject().apply {
+                    put("type", "screen_frame")
+                    put("frame", base64Frame)
+                    put("timestamp", System.currentTimeMillis())
+                }.toString())
+            } catch (e: Exception) {
+                Log.w(TAG, "WebSocket send failed: ${e.message}")
+            }
         }
-        try {
-            val base64Frame = android.util.Base64.encodeToString(
-                jpegBytes, android.util.Base64.NO_WRAP
-            )
-            ws.send(JSONObject().apply {
-                put("type", "screen_frame")
-                put("frame", base64Frame)
-                put("timestamp", System.currentTimeMillis())
-            }.toString())
-        } catch (e: Exception) {
-            Log.w(TAG, "WebSocket send failed: ${e.message}")
+
+        // ── Fallback path: Firebase RTDB ──
+        // Write frames to RTDB so parent can display them even without
+        // a WebSocket relay. Throttled to ~3 FPS to avoid excessive bandwidth.
+        val now = System.currentTimeMillis()
+        if (now - lastFirebaseWriteTime >= FIREBASE_WRITE_INTERVAL_MS) {
+            lastFirebaseWriteTime = now
+            try {
+                if (childUid.isNotEmpty()) {
+                    FirebaseDatabase.getInstance()
+                        .getReference("calls/$childUid/screenFrame")
+                        .setValue(mapOf(
+                            "data" to base64Frame,
+                            "timestamp" to now
+                        ))
+                }
+            } catch (e: Exception) {
+                // Firebase write failed — non-critical, WebSocket is primary
+                Log.w(TAG, "Firebase RTDB write failed: ${e.message}")
+            }
         }
     }
 
