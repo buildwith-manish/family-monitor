@@ -321,7 +321,13 @@ class ScreenCaptureService : Service() {
      * @param fps    Target frame rate (default 5)
      * @return true if capture started successfully
      */
-    fun startFrameCapture(width: Int = 720, height: Int = 1280, fps: Int = 5): Boolean {
+    /**
+     * BUG-2 FIX: Default frame capture dimensions reduced to 480x854 for
+     * faster Firebase RTDB relay. At this resolution, JPEG frames are
+     * typically 10-20 KB (vs 30-50 KB at 720x1280), making 3 FPS relay
+     * via Firebase practical (~30-60 KB/s bandwidth).
+     */
+    fun startFrameCapture(width: Int = 480, height: Int = 854, fps: Int = 3): Boolean {
         val projection = mediaProjection ?: run {
             Log.e(TAG, "startFrameCapture: No active MediaProjection")
             return false
@@ -368,9 +374,12 @@ class ScreenCaptureService : Service() {
                             }
                         }
 
-                        // Compress to JPEG
+                        // BUG-2 FIX: Compress to JPEG at lower quality (40%) for
+                        // smaller frame size. At 480x854 with quality=40, frames
+                        // are typically 8-15 KB, making 3 FPS Firebase RTDB relay
+                        // practical (~24-45 KB/s).
                         val outputStream = ByteArrayOutputStream()
-                        bmp.compress(Bitmap.CompressFormat.JPEG, 60, outputStream)
+                        bmp.compress(Bitmap.CompressFormat.JPEG, 40, outputStream)
                         val jpegBytes = outputStream.toByteArray()
                         bmp.recycle()
 

@@ -51,6 +51,10 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
   StreamSubscription? _appListSub;
   StreamSubscription? _pendingSub;
   StreamSubscription? _parentSub;
+  // BUG-2/BUG-3 FIX: Listen for needsConsent signal from background service
+  // so the child app can immediately detect when the parent requests screen
+  // sharing and show the MediaProjection consent dialog.
+  StreamSubscription? _needsConsentSub;
 
   static const _kScreenCaptureCh = MethodChannel('com.familymonitor/screen_capture');
 
@@ -128,6 +132,10 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     try { _listenForCommandsSafe(); } catch (_) {}
     try { _listenForPendingRequests(); } catch (_) {}
     try { _listenForConnectedParent(); } catch (_) {}
+    // BUG-2/BUG-3 FIX: Listen for needsConsent signal so we can grant
+    // screen capture permission when the parent requests it, even if the
+    // app was already running when the request came in.
+    try { _listenForNeedsConsent(); } catch (_) {}
   }
 
   Future<void> _askPermissions() async {
@@ -633,6 +641,69 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     }
   }
 
+  /// BUG-2/BUG-3 FIX: Listen for the `needsConsent` signal from the
+  /// background service. When the parent requests screen sharing but the
+  /// MediaProjection token is not active, the background service writes
+  /// `calls/$uid/needsConsent = true`. This listener detects that and
+  /// triggers the consent flow (showing the system dialog) from the UI
+  /// layer which has the Activity context needed for the dialog.
+  ///
+  /// Without this listener, the child app only checks needsConsent on
+  /// startup or app resume — meaning if the app is already in the
+  /// foreground, the consent request is missed entirely, and the parent
+  /// sees a blank screen.
+  void _listenForNeedsConsent() {
+    final String? uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    _needsConsentSub?.cancel();
+    _needsConsentSub = FirebaseDatabase.instance
+        .ref('calls/$uid/needsConsent')
+        .onValue
+        .listen((event) async {
+      final needsConsent = event.snapshot.value == true;
+      if (!needsConsent) return;
+      if (!mounted) return;
+
+      debugPrint('[ChildHome] needsConsent signal received — requesting screen capture permission');
+
+      // Check if projection is already active (no need to re-request)
+      final projectionActive = await ScreenCaptureChannel.isProjectionActive();
+      if (projectionActive) {
+        debugPrint('[ChildHome] Projection already active — signaling background service');
+        try {
+          await FirebaseDatabase.instance.ref('calls/$uid/projectionReady').set(true);
+          await FirebaseDatabase.instance.ref('calls/$uid/needsConsent').remove();
+        } catch (_) {}
+        return;
+      }
+
+      // Request the MediaProjection consent dialog
+      final granted = await ScreenCaptureChannel.requestScreenCapture();
+      debugPrint('[ChildHome] Screen capture consent result: $granted');
+
+      if (granted) {
+        // Save consent for future reference
+        await BackgroundMonitoringService.saveScreenConsentGranted(true);
+
+        // Signal the background service that projection is ready
+        try {
+          await FirebaseDatabase.instance.ref('calls/$uid/projectionReady').set(true);
+          await FirebaseDatabase.instance.ref('calls/$uid/needsConsent').remove();
+          await FirebaseDatabase.instance.ref('calls/$uid/screenError').remove();
+          debugPrint('[ChildHome] projectionReady signal sent — background service should start screen stream');
+        } catch (_) {}
+      } else {
+        // User denied consent
+        await BackgroundMonitoringService.saveScreenConsentGranted(false);
+        try {
+          await FirebaseDatabase.instance.ref('calls/$uid/needsConsent').remove();
+        } catch (_) {}
+        debugPrint('[ChildHome] Screen capture consent denied by user');
+      }
+    });
+  }
+
   @override
   void dispose() {
     // LC-01: Do not call _setOnline(false) here — presence is managed by
@@ -647,6 +718,7 @@ class _ChildHomeScreenState extends State<ChildHomeScreen>
     _appListSub?.cancel();
     _pendingSub?.cancel();
     _parentSub?.cancel();
+    _needsConsentSub?.cancel();
     // FIX-01: Do NOT call SilentWebRTCService.instance.stopSilent() here.
     // WebRTC is now owned by the background-service isolate. Stopping it from
     // the UI dispose races with the background isolate and would kill an active

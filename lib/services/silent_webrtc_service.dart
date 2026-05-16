@@ -530,9 +530,12 @@ class SilentWebRTCService {
   /// detect the screenFrame data and display it.
   Future<MediaStream?> _acquireMediaNativeCapture() async {
     try {
+      // BUG-2 FIX: Use smaller frame dimensions (480x854) for faster
+      // Firebase RTDB relay. At this resolution with JPEG quality=40%,
+      // frames are typically 8-15 KB, making 3 FPS relay practical.
       final started = await ScreenCaptureChannel.startNativeScreenCapture(
-        width: 540,
-        height: 960,
+        width: 480,
+        height: 854,
         fps: 3,
       );
 
@@ -563,9 +566,13 @@ class SilentWebRTCService {
       }
 
       // Start frame relay loop — capture frames and write to Firebase RTDB
+      // BUG-2 FIX: Use faster polling (333ms = ~3 FPS) and smaller frame size
+      // to reduce latency. Frames are written to Firebase RTDB as base64;
+      // at 3 FPS with ~15-25 KB per frame, total bandwidth is ~45-75 KB/s
+      // which is manageable even on slow connections.
       _nativeCaptureTimer?.cancel();
       _nativeCaptureTimer = Timer.periodic(
-        const Duration(milliseconds: 500), // ~2 FPS
+        const Duration(milliseconds: 333), // ~3 FPS
         (_) async {
           if (!_active || _activeUid == null) {
             _nativeCaptureTimer?.cancel();
@@ -575,7 +582,6 @@ class SilentWebRTCService {
             final frameBytes = await ScreenCaptureChannel.getScreenFrame();
             if (frameBytes != null && frameBytes.isNotEmpty) {
               // Write frame as base64 to Firebase RTDB
-              // Keep frames small — target ~20-40 KB per frame
               final base64Frame = base64Encode(frameBytes);
               await FirebaseDatabase.instance
                   .ref('calls/$_activeUid/screenFrame')
@@ -695,6 +701,11 @@ class SilentWebRTCService {
     _stopping = true;
     _active   = false;
 
+    // BUG-2/BUG-3 FIX: Save uid BEFORE clearing it so we can clean up
+    // Firebase flags after. Previously, _activeUid was cleared before
+    // the cleanup, so the Firebase writes silently did nothing.
+    final uidForCleanup = _activeUid;
+
     _activeUid         = null;
     _activeMode        = null;
     _reconnectAttempts = 0;
@@ -712,8 +723,20 @@ class SilentWebRTCService {
       try { await WakelockPlus.disable(); } catch (_) {}
     }
 
-    // BUG-2-FIX: Stop native frame capture if it was running.
+    // BUG-2/BUG-3 FIX: Stop native frame capture if it was running.
     try { await ScreenCaptureChannel.stopNativeScreenCapture(); } catch (_) {}
+
+    // BUG-2/BUG-3 FIX: Clean up Firebase flags so stale state doesn't
+    // persist after the session ends. Uses saved uidForCleanup since
+    // _activeUid was already cleared above.
+    if (uidForCleanup != null) {
+      try {
+        await FirebaseDatabase.instance.ref('calls/$uidForCleanup/nativeCaptureMode').remove();
+        await FirebaseDatabase.instance.ref('calls/$uidForCleanup/screenFrame').remove();
+        await FirebaseDatabase.instance.ref('calls/$uidForCleanup/needsConsent').remove();
+        await FirebaseDatabase.instance.ref('calls/$uidForCleanup/projectionReady').remove();
+      } catch (_) {}
+    }
 
     await _cleanupPcOnly();
 

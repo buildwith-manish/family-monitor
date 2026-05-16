@@ -408,6 +408,16 @@ Future<void> _setupMonitoringSession(
 
   await FirebaseDatabase.instance.ref('users/$uid/lastSeen').set(ServerValue.timestamp);
 
+  // BUG-2/BUG-3 FIX: Clean up stale consent/signaling flags from previous
+  // sessions. These flags can persist if the previous session was terminated
+  // abnormally (process kill, app crash), causing the new session to
+  // incorrectly wait for signals that will never come.
+  try {
+    await FirebaseDatabase.instance.ref('calls/$uid/needsConsent').remove();
+    await FirebaseDatabase.instance.ref('calls/$uid/projectionReady').remove();
+    await FirebaseDatabase.instance.ref('calls/$uid/screenError').remove();
+  } catch (_) {}
+
   _connectedSub = FirebaseDatabase.instance.ref('.info/connected').onValue.listen((event) async {
     final connected = event.snapshot.value as bool? ?? false;
     if (connected) {

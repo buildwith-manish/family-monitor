@@ -479,20 +479,109 @@ class WebRTCService {
     // Screen mode — use MediaProjection/getDisplayMedia only.
     // NEVER fall back to camera; if this throws, let the exception propagate
     // so the caller can surface a clean error instead of a silent camera switch.
+
+    // BUG-2 FIX: Try multiple approaches to acquire screen media.
+    // On Android 14+, Intent.toUri(0) loses the Binder extra needed by
+    // getMediaProjection(). We try:
+    //   1. getDisplayMedia() with existing projection params (Parcel or URI)
+    //   2. getDisplayMedia() with consent dialog
+    //   3. Fall back to requesting fresh consent
+
+    // First, try with existing projection params (if available)
+    final projectionParams = await ScreenCaptureChannel.getProjectionParams();
+
+    // Attempt 1: Use saved projection params (Parcel bytes preferred over URI)
+    if (projectionParams != null) {
+      try {
+        debugPrint('[WebRTC] Screen capture: attempting with saved projection params');
+        final constraints = <String, dynamic>{
+          'video': {
+            'frameRate': {'ideal': 15, 'max': 30},
+            'width': {'ideal': 1280},
+            'height': {'ideal': 720},
+          },
+          'audio': false,
+        };
+        // Prefer Parcel bytes (preserves Binder extra on Android 14+)
+        if (projectionParams['resultDataParcel'] != null) {
+          constraints['androidMediaProjectionResultCode'] = projectionParams['resultCode'];
+          constraints['androidMediaProjectionResultData'] = projectionParams['resultDataParcel'];
+        } else if (projectionParams['resultDataUri'] != null) {
+          constraints['androidMediaProjectionResultCode'] = projectionParams['resultCode'];
+          constraints['androidMediaProjectionResultData'] = projectionParams['resultDataUri'];
+        }
+
+        final stream = await navigator.mediaDevices.getDisplayMedia(constraints);
+        if (stream.getVideoTracks().isNotEmpty) {
+          debugPrint('[WebRTC] Screen capture succeeded with saved params');
+          return stream;
+        }
+        // Empty stream — clean up and try next approach
+        for (final t in stream.getTracks()) { await t.stop(); }
+        await stream.dispose();
+      } catch (e) {
+        debugPrint('[WebRTC] Screen capture with saved params failed: $e');
+      }
+    }
+
+    // Attempt 2: Request fresh consent and use getDisplayMedia()
     final granted = await ScreenCaptureChannel.requestScreenCapture();
 
     if (!granted) {
       throw Exception('Screen capture permission denied by user');
     }
 
-    return navigator.mediaDevices.getDisplayMedia({
-      'video': {
-        'frameRate': 15,
-        'width': 1280,
-        'height': 720,
-      },
-      'audio': false,
-    });
+    // Small delay to let ScreenCaptureService start and save the projection data
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // Try with the fresh projection params
+    final freshParams = await ScreenCaptureChannel.getProjectionParams();
+    if (freshParams != null) {
+      try {
+        debugPrint('[WebRTC] Screen capture: attempting with fresh projection params');
+        final constraints = <String, dynamic>{
+          'video': {
+            'frameRate': {'ideal': 15, 'max': 30},
+            'width': {'ideal': 1280},
+            'height': {'ideal': 720},
+          },
+          'audio': false,
+        };
+        if (freshParams['resultDataParcel'] != null) {
+          constraints['androidMediaProjectionResultCode'] = freshParams['resultCode'];
+          constraints['androidMediaProjectionResultData'] = freshParams['resultDataParcel'];
+        } else if (freshParams['resultDataUri'] != null) {
+          constraints['androidMediaProjectionResultCode'] = freshParams['resultCode'];
+          constraints['androidMediaProjectionResultData'] = freshParams['resultDataUri'];
+        }
+
+        final stream = await navigator.mediaDevices.getDisplayMedia(constraints);
+        if (stream.getVideoTracks().isNotEmpty) {
+          debugPrint('[WebRTC] Screen capture succeeded with fresh params');
+          return stream;
+        }
+        for (final t in stream.getTracks()) { await t.stop(); }
+        await stream.dispose();
+      } catch (e) {
+        debugPrint('[WebRTC] Screen capture with fresh params failed: $e');
+      }
+    }
+
+    // Attempt 3: Simple getDisplayMedia() without projection params
+    try {
+      debugPrint('[WebRTC] Screen capture: attempting without projection params');
+      return navigator.mediaDevices.getDisplayMedia({
+        'video': {
+          'frameRate': 15,
+          'width': 1280,
+          'height': 720,
+        },
+        'audio': false,
+      });
+    } catch (e) {
+      debugPrint('[WebRTC] All screen capture attempts failed: $e');
+      throw Exception('Screen capture failed after multiple attempts: $e');
+    }
   }
 
   Future<void> _cancelSubs() async {
