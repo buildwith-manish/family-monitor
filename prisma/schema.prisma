@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,20 +7,117 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
+model Family {
   id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
+  name      String
+  code      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  members   Member[]
 }
 
-model Post {
+model Member {
+  id           String   @id @default(cuid())
+  name         String
+  email        String?
+  role         String   @default("parent") // parent, child
+  avatar       String?
+  familyId     String
+  family       Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  devices      Device[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Device {
+  id           String       @id @default(cuid())
+  name         String
+  type         String       @default("smartphone") // smartphone, tablet, laptop, desktop
+  os           String?
+  model        String?
+  status       String       @default("online") // online, offline
+  batteryLevel Int?
+  lastSeen     DateTime?
+  memberId     String
+  member       Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  screenTime   ScreenTime[]
+  appUsage     AppUsage[]
+  location     Location[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model ScreenTime {
+  id           String   @id @default(cuid())
+  date         DateTime
+  totalMinutes Int
+  limitMinutes Int?
+  deviceId     String
+  device       Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([deviceId, date])
+}
+
+model AppUsage {
+  id           String   @id @default(cuid())
+  appName      String
+  category     String?  // social, games, education, entertainment, productivity
+  iconUrl      String?
+  usageMinutes Int
+  date         DateTime
+  deviceId     String
+  device       Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Location {
   id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
+  latitude  Float
+  longitude Float
+  address   String?
+  timestamp DateTime
+  deviceId  String
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+}
+
+model ContentFilter {
+  id           String   @id @default(cuid())
+  category     String   // violence, adult, gambling, social, games
+  enabled      Boolean  @default(true)
+  blockLevel   String   @default("medium") // low, medium, high
+  deviceId     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Alert {
+  id        String   @id @default(cuid())
+  type      String   // geofence, screen_time, app_install, content_access, sos
+  severity  String   @default("warning") // info, warning, critical
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  memberId  String?
+  deviceId  String?
+  createdAt DateTime @default(now())
+}
+
+model ScheduleRule {
+  id             String   @id @default(cuid())
+  name           String
+  type           String   // bedtime, study_time, free_time
+  startHour      Int
+  startMinute    Int
+  endHour        Int
+  endMinute      Int
+  daysOfWeek     String   @default("1,2,3,4,5") // comma-separated day numbers (1=Mon, 7=Sun)
+  allowApps      String   @default("") // comma-separated app names allowed during this schedule
+  deviceId       String?
+  enabled        Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
