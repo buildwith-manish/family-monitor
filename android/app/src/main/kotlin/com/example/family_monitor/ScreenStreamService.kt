@@ -29,6 +29,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicBoolean
@@ -828,7 +829,7 @@ class ScreenStreamService : Service() {
     }
 
     /**
-     * Send a JPEG frame as a binary WebSocket message.
+     * Send a JPEG frame as a JSON WebSocket message with base64-encoded payload.
      * Frames are dropped silently if WebSocket is not connected — the relay
      * server delivers the latest frame to parents, so occasional drops are fine.
      */
@@ -839,7 +840,14 @@ class ScreenStreamService : Service() {
             return
         }
         try {
-            ws.send(okio.Buffer().write(jpegBytes))
+            val base64Frame = android.util.Base64.encodeToString(
+                jpegBytes, android.util.Base64.NO_WRAP
+            )
+            ws.send(JSONObject().apply {
+                put("type", "screen_frame")
+                put("frame", base64Frame)
+                put("timestamp", System.currentTimeMillis())
+            }.toString())
         } catch (e: Exception) {
             Log.w(TAG, "WebSocket send failed: ${e.message}")
         }
