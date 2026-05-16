@@ -104,6 +104,12 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
 
                 "requestProjection" -> {
+                    // BUG-3-FIX: If a live projection token already exists, return true immediately
+                    // instead of showing the "Start Now" system dialog again.
+                    if (ScreenCaptureService.projectionToken != null) {
+                        result.success(true)
+                        return@setMethodCallHandler
+                    }
                     if (pendingResult != null) {
                         result.error("BUSY", "Projection request already running", null)
                         return@setMethodCallHandler

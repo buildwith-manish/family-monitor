@@ -230,7 +230,20 @@ class _ChildAppState extends State<ChildApp> {
     final String? uid = auth.currentUser?.uid;
     if (uid == null) return const ChildAuthScreen();
     final bool wizardDone = await BackgroundMonitoringService.isWizardDone();
-    if (!wizardDone) return ChildSetupWizardScreen(childUid: uid);
+    if (!wizardDone) {
+      // BUG-4-FIX: Check if already bound to a parent (re-install case).
+      // If so, skip the Profile and QR Code steps in the wizard.
+      final snap = await FirebaseDatabase.instance
+          .ref('users/$uid/approvedParents')
+          .get();
+      final bool alreadyBound = snap.exists &&
+          snap.value is Map &&
+          (snap.value as Map).isNotEmpty;
+      return ChildSetupWizardScreen(
+        childUid: uid,
+        skipToStep: alreadyBound ? 7 : null, // skip to step 8 (0-indexed: page 7)
+      );
+    }
     return const ChildHomeScreen();
   }
 

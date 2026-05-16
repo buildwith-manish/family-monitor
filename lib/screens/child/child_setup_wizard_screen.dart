@@ -18,10 +18,12 @@ import '../../services/screen_time_service.dart';
 
 class ChildSetupWizardScreen extends StatefulWidget {
   final String? childUid;
+  final int? skipToStep; // if set, jump directly to this page index
 
   const ChildSetupWizardScreen({
     super.key,
     this.childUid,
+    this.skipToStep,
   });
 
   @override
@@ -72,9 +74,21 @@ class _ChildSetupWizardScreenState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    // BUG-2-FIX: Hide system status bar for immersive wizard experience
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
     _pageCtrl = PageController();
     _refreshStatus();
     _loadGuide();
+
+    // BUG-4-FIX: If already bound to a parent, skip Profile & QR pages
+    if (widget.skipToStep != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _pageCtrl.jumpToPage(widget.skipToStep!);
+        setState(() => _currentPage = widget.skipToStep!);
+      });
+ }
     // Start listening for parent requests immediately if a UID is already
     // known (re-entry case: childUid passed via route args after an earlier
     // setup). Without this, the listener only starts after page 5 is
@@ -104,6 +118,8 @@ class _ChildSetupWizardScreenState
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    // BUG-2-FIX: Restore system UI mode when leaving the wizard
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _pageCtrl.dispose();
     _nameCtrl.dispose();
     _deviceCtrl.dispose();
@@ -131,6 +147,9 @@ class _ChildSetupWizardScreenState
     final admin    = await DeviceAdminService.isActive();
     final usage    = await ScreenTimeService().hasPermission();
 
+    // BUG-3-FIX: Reflect live projection state on wizard re-entry
+    final projActive = await ScreenCaptureChannel.isProjectionActive();
+
     if (!mounted) return;
 
     setState(() {
@@ -144,6 +163,7 @@ class _ChildSetupWizardScreenState
       _locationGranted = location;
       _batteryExempt   = batt;
       _adminActive     = admin;
+      _screenConsented = projActive;
     });
   }
 
@@ -222,6 +242,13 @@ class _ChildSetupWizardScreenState
       'Phone / Call Logs',
     );
 
+    // BUG-1-FIX: Contacts permission was never requested, so contacts sync
+    // in the parent dashboard always returned empty.
+    await _requestSinglePermission(
+      Permission.contacts,
+      'Contacts',
+    );
+
     // PACKAGE_USAGE_STATS is a special permission that cannot be granted
     // via the standard permission_handler dialog — it requires the user
     // to navigate to Settings > Apps > Special app access > Usage access.
@@ -298,6 +325,14 @@ class _ChildSetupWizardScreenState
   }
 
   Future<void> _requestScreenCapture() async {
+    // BUG-3-FIX: If projection is already active, don't re-ask permission
+    final alreadyActive = await ScreenCaptureChannel.isProjectionActive();
+    if (alreadyActive) {
+      if (mounted) setState(() => _screenConsented = true);
+      await BackgroundMonitoringService.saveScreenConsentGranted(true);
+      return;
+    }
+
     final result =
         await ScreenCaptureChannel.requestScreenCapture();
 
@@ -317,6 +352,18 @@ class _ChildSetupWizardScreenState
 
   bool get _canProceedFromPermissions =>
       _cameraGranted && _micGranted;
+
+  // BUG-4-FIX: Effective total pages when skipping Profile & QR pages
+  int get _effectiveTotalPages =>
+      widget.skipToStep != null ? 7 : _totalPages;
+
+  // BUG-4-FIX: Map page index to logical step number for progress display
+  int get _effectiveStep {
+    if (widget.skipToStep == null) return _currentPage + 1;
+    // In skip flow: pages 0-4 map to steps 1-5, pages 7-8 map to steps 6-7
+    if (_currentPage >= widget.skipToStep!) return _currentPage - 1;
+    return _currentPage + 1;
+  }
 
   String get _childUidForQr =>
       _auth.currentUser?.uid ??
@@ -412,6 +459,13 @@ class _ChildSetupWizardScreenState
     }
 
     setState(() => _error = null);
+
+    // BUG-4-FIX: When skipToStep is set, skip Profile & QR pages
+    if (widget.skipToStep != null && _currentPage == 4) {
+      _pageCtrl.jumpToPage(widget.skipToStep!);
+      setState(() => _currentPage = widget.skipToStep!);
+      return;
+    }
 
     if (_currentPage == 5) {
       _navigationLock = true;
@@ -522,10 +576,16 @@ class _ChildSetupWizardScreenState
     if (_currentPage > 0) {
       setState(() => _error = null);
 
-      _pageCtrl.previousPage(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
-      );
+      // BUG-4-FIX: When skipToStep is set, skip back past Profile & QR pages
+      if (widget.skipToStep != null && _currentPage == widget.skipToStep) {
+        _pageCtrl.jumpToPage(4);
+        setState(() => _currentPage = 4);
+      } else {
+        _pageCtrl.previousPage(
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOut,
+        );
+      }
     }
   }
 
@@ -790,7 +850,7 @@ class _ChildSetupWizardScreenState
               const Spacer(),
 
               Text(
-                'Step ${_currentPage + 1} of $_totalPages',
+                'Step $_effectiveStep of $_effectiveTotalPages',
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   color:
@@ -807,8 +867,8 @@ class _ChildSetupWizardScreenState
                 BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value:
-                  (_currentPage + 1) /
-                  _totalPages,
+                  _effectiveStep /
+                  _effectiveTotalPages,
               backgroundColor:
                   Colors.grey.shade200,
               color:

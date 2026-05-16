@@ -187,14 +187,11 @@ class ContactsService {
   Future<void> requestSync(
     String childUid,
   ) async {
-    await _db
-        .child(
-      'commands/$childUid/syncContacts',
-    )
-        .set({
-      'requested': true,
-      'at': DateTime.now().millisecondsSinceEpoch,
-    });
+    // BUG-5-FIX: Write sync flag to users/$childUid/syncRequests/contacts
+    // so the child's BackgroundMonitoringService can detect it and upload contacts.
+    await FirebaseDatabase.instance
+        .ref('users/$childUid/syncRequests/contacts')
+        .set(ServerValue.timestamp);
   }
 
   Stream<bool> watchSyncRequest(

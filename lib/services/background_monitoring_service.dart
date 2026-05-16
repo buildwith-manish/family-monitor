@@ -9,6 +9,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:usage_stats/usage_stats.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'daily_report_service.dart';
 import 'device_event_service.dart';
 import 'screen_time_service.dart';
@@ -330,6 +332,8 @@ StreamSubscription? _appLocksSub;
 StreamSubscription? _generateReportSub;
 // BUG-2-FIX: Subscription for projectionReady signal from child app.
 StreamSubscription? _projectionReadySub;
+// BUG-5-FIX: Subscription for contacts sync request from parent.
+StreamSubscription? _contactsSyncSub;
 Timer? _heartbeatTimer;
 Timer? _pingTimer;
 Timer? _screenTimeTimer;
@@ -343,6 +347,7 @@ void _cancelSessionResources() {
   _appLocksSub?.cancel();       _appLocksSub       = null;
   _generateReportSub?.cancel(); _generateReportSub = null;
   _projectionReadySub?.cancel(); _projectionReadySub = null;
+  _contactsSyncSub?.cancel();   _contactsSyncSub   = null;
   _heartbeatTimer?.cancel();    _heartbeatTimer    = null;
   _pingTimer?.cancel();         _pingTimer         = null;
   _screenTimeTimer?.cancel();   _screenTimeTimer   = null;
@@ -625,6 +630,24 @@ Future<void> _setupMonitoringSession(
       debugPrint('[BgService] app_locks sync error: $e');
     }
   });
+
+  // ── BUG-5-FIX: Contacts sync request listener ────────────────────────────
+  // When the parent requests a contacts sync, upload device contacts to Firebase.
+  _contactsSyncSub = FirebaseDatabase.instance
+      .ref('users/$uid/syncRequests/contacts')
+      .onValue
+      .listen((event) async {
+        if (event.snapshot.value == null) return;
+        debugPrint('[BgService] Contacts sync request received — uploading contacts');
+        // Clear the flag
+        try {
+          await FirebaseDatabase.instance
+              .ref('users/$uid/syncRequests/contacts')
+              .remove();
+        } catch (_) {}
+        // Upload contacts
+        await _uploadContacts(uid);
+      });
 
   // ── Screen-time enforcement — every 5 min ─────────────────────────────────
   _screenTimeTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
@@ -1014,5 +1037,43 @@ Future<void> _checkAndReconnectActiveSession(String uid) async {
     }
   } catch (e) {
     debugPrint('[BgService] _checkAndReconnectActiveSession error: $e');
+  }
+}
+
+/// BUG-5-FIX: Upload device contacts to Firebase.
+///
+/// Reads contacts from the device (permission must already be granted via
+/// the setup wizard — Bug 1 fix) and writes them to `contacts/$uid/all`
+/// in Firebase so the parent dashboard can display them.
+Future<void> _uploadContacts(String uid) async {
+  try {
+    // Check if contacts permission was already granted (from wizard setup)
+    final contactsStatus = await Permission.contacts.status;
+    if (!contactsStatus.isGranted) {
+      debugPrint('[BgService] Contacts permission not granted — skipping upload');
+      return;
+    }
+
+    // Read device contacts using flutter_contacts
+    final contacts = await FlutterContacts.getContacts(withProperties: true);
+
+    final Map<String, dynamic> data = {};
+    for (final contact in contacts) {
+      data[contact.id] = {
+        'name': contact.displayName,
+        'phones': contact.phones.map((p) => p.number).toList(),
+      };
+    }
+
+    await FirebaseDatabase.instance
+        .ref('contacts/$uid/all')
+        .set({
+      ...data,
+      '_syncedAt': DateTime.now().millisecondsSinceEpoch,
+    });
+
+    debugPrint('[BgService] Uploaded ${contacts.length} contacts to Firebase');
+  } catch (e) {
+    debugPrint('[BgService] _uploadContacts error: $e');
   }
 }
