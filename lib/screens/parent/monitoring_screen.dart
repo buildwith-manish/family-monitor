@@ -3,7 +3,6 @@ import '../../services/stream_mode.dart';
 import '../../services/stream_viewer_service.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -260,7 +259,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
       // STREAM-RELAY-URL: Fallback — try reading the relay URL from the
       // child's Firebase data if not configured locally on the parent device.
-      if (relayUrl == null || relayUrl.isEmpty) {
+      if (relayUrl.isEmpty) {
         try {
           final snap = await FirebaseDatabase.instance
               .ref('users/${widget.childUid}/streamRelayUrl')
@@ -279,7 +278,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         }
       }
 
-      if (relayUrl == null || relayUrl.isEmpty) {
+      if (relayUrl.isEmpty) {
         debugPrint('[MonitoringScreen] No WebSocket relay URL configured — using Firebase relay');
         return false;
       }
